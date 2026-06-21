@@ -57,7 +57,6 @@ app.put('/api/colaboradores/:id/status', async (req, res) => {
   res.json({ sucesso: true });
 });
 
-// --- CORREÇÃO AQUI: Forçando o SELECT a puxar a duracao ---
 app.get('/api/servicos', async (req, res) => {
   const r = await pool.query('SELECT id, nome, preco, duracao FROM servicos ORDER BY nome ASC');
   res.json({ sucesso: true, dados: r.rows });
@@ -99,17 +98,9 @@ app.post('/api/atendimentos', async (req, res) => {
   } catch (err) { res.status(500).json({sucesso: false}) }
 });
 
-// --- CORREÇÃO AQUI: Forçando a comanda a puxar a duracao do servico ---
 app.get('/api/comandas', async (req, res) => {
   try {
-    const r = await pool.query(`
-      SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao
-      FROM atendimentos a
-      JOIN servicos s ON a.servico_id = s.id
-      JOIN colaboradores c ON a.colaborador_id = c.id
-      WHERE a.status = 'pendente'
-      ORDER BY a.data_hora ASC
-    `);
+    const r = await pool.query(`SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status = 'pendente' ORDER BY a.data_hora ASC`);
     res.json({ sucesso: true, dados: r.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
@@ -121,6 +112,27 @@ app.put('/api/comandas/pagar', async (req, res) => {
     await pool.query('UPDATE atendimentos SET status = $1 WHERE id = ANY($2)', ['pago', ids]);
     res.json({ sucesso: true });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
+});
+
+// --- NOVAS ROTAS DA SUA TABELA DE PAGAMENTOS ---
+app.get('/api/pagamentos-comissoes', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT profissional, chave_periodo, TO_CHAR(data_pagamento AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'DD/MM HH24:MI') as data_pagto FROM pagamentos_comissoes");
+    res.json({ sucesso: true, dados: r.rows });
+  } catch (e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/pagamentos-comissoes/toggle', async (req, res) => {
+  try {
+    const { profissional, chave_periodo } = req.body;
+    const existe = await pool.query('SELECT id FROM pagamentos_comissoes WHERE chave_periodo = $1', [chave_periodo]);
+    if (existe.rows.length > 0) {
+      await pool.query('DELETE FROM pagamentos_comissoes WHERE chave_periodo = $1', [chave_periodo]);
+    } else {
+      await pool.query('INSERT INTO pagamentos_comissoes (profissional, chave_periodo) VALUES ($1, $2)', [profissional, chave_periodo]);
+    }
+    res.json({ sucesso: true });
+  } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
 const PORT = process.env.PORT || 3000;

@@ -17,20 +17,18 @@ export default function App() {
   const [mesSelecionado, setMesSelecionado] = useState(dataAtual.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = useState(dataAtual.getFullYear());
 
-  // --- MÁGICA DOS TEMAS (PALETA DE CORES) ---
   const [temaAtivo, setTemaAtivo] = useState(localStorage.getItem('temaGoldstar') || 'teal');
 
   useEffect(() => {
-    localStorage.setItem('temaGoldstar', temaAtivo); // Memoriza a cor escolhida
+    localStorage.setItem('temaGoldstar', temaAtivo);
   }, [temaAtivo]);
 
-  // Definição das Cores
   const paleta = {
-    teal: { main: '#14b8a6', hover: '#0d9488', light: '#f0fdfa', text: '#115e59' }, // Verde Esmeralda (Padrão)
-    pink: { main: '#ec4899', hover: '#db2777', light: '#fdf2f8', text: '#831843' }, // Rosa
-    purple: { main: '#a855f7', hover: '#9333ea', light: '#faf5ff', text: '#581c87' }, // Roxo
-    gold: { main: '#eab308', hover: '#ca8a04', light: '#fefce8', text: '#713f12' }, // Dourado
-    black: { main: '#1f2937', hover: '#111827', light: '#f3f4f6', text: '#030712' }, // Preto Minimalista
+    teal: { main: '#14b8a6', hover: '#0d9488', light: '#f0fdfa', text: '#115e59' },
+    pink: { main: '#ec4899', hover: '#db2777', light: '#fdf2f8', text: '#831843' },
+    purple: { main: '#a855f7', hover: '#9333ea', light: '#faf5ff', text: '#581c87' },
+    gold: { main: '#eab308', hover: '#ca8a04', light: '#fefce8', text: '#713f12' },
+    black: { main: '#1f2937', hover: '#111827', light: '#f3f4f6', text: '#030712' },
   };
   const cor = paleta[temaAtivo] || paleta.teal;
 
@@ -46,7 +44,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       
-      {/* INJETOR GLOBAL DE CORES (Muda todo o sistema automaticamente) */}
       <style>{`
         .bg-teal-500 { background-color: ${cor.main} !important; }
         .hover\\:bg-teal-600:hover { background-color: ${cor.hover} !important; }
@@ -82,13 +79,14 @@ export default function App() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div className="md:col-span-4"><PainelValores valores={dadosSalao?.valores} /></div>
-            <div className="md:col-span-8"><RelatoriosAbas dados={dadosSalao} /></div>
+            
+            {/* AQUI PASSAMOS O MÊS E ANO PARA O RELATÓRIO */}
+            <div className="md:col-span-8"><RelatoriosAbas dados={dadosSalao} mes={mesSelecionado} ano={anoSelecionado} /></div>
           </div>
         </main>
         <div className="md:hidden"><MenuInferior /></div>
       </div>
 
-      {/* MODAIS (Passamos o temaAtivo e setTemaAtivo para Configurações) */}
       {mostrarNovoAtendimento && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} atualizarDados={carregarDados} />}
       {mostrarConfiguracoes && <ModalConfiguracoes fechar={() => setMostrarConfiguracoes(false)} temaAtivo={temaAtivo} setTemaAtivo={setTemaAtivo} />}
       {mostrarLogin && <ModalLogin aoFechar={() => setMostrarLogin(false)} />}
