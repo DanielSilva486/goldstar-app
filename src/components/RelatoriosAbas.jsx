@@ -9,11 +9,14 @@ export default function RelatoriosAbas({ dados }) {
   const topClientes = dados?.topClientes || [];
   const valores = dados?.valores || {};
 
-  // --- NOVOS ESTADOS: Filtro de Semana/Período para Comissões ---
+  // Estados: Filtros
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [comissoesFiltradas, setComissoesFiltradas] = useState(null);
   const [buscandoFiltro, setBuscandoFiltro] = useState(false);
+
+  // --- NOVO: Estado para controlar os botões de pagamento visualmente ---
+  const [statusPagamentos, setStatusPagamentos] = useState({});
 
   const faturamentoBruto = Number(valores.faturamento_bruto || 0);
   const totalComissoes = Number(valores.total_comissoes || 0);
@@ -24,7 +27,6 @@ export default function RelatoriosAbas({ dados }) {
     return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  // Função que faz a busca da semana escolhida no banco
   const filtrarComissoesPeriodo = async () => {
     if (!dataInicio || !dataFim) {
       alert("Por favor, escolha a data de início e de fim para análise.");
@@ -34,9 +36,7 @@ export default function RelatoriosAbas({ dados }) {
     try {
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
       const json = await res.json();
-      if (json.sucesso) {
-        setComissoesFiltradas(json.dados);
-      }
+      if (json.sucesso) setComissoesFiltradas(json.dados);
     } catch (e) {
       console.error(e);
     } finally {
@@ -50,15 +50,22 @@ export default function RelatoriosAbas({ dados }) {
     setComissoesFiltradas(null);
   };
 
-  // Define qual lista de comissões vai aparecer na tela
   const comissoesExibir = comissoesFiltradas !== null ? comissoesFiltradas : comissoesMensais;
+
+  // --- NOVO: Função para alternar entre Pago e A Receber ---
+  const alternarStatusPagamento = (nomeProfissional) => {
+    setStatusPagamentos(prev => ({
+      ...prev,
+      [nomeProfissional]: !prev[nomeProfissional]
+    }));
+  };
 
   const exportarPlanilha = () => {
     if (historico.length === 0) {
       alert("Não há atendimentos para exportar.");
       return;
     }
-    let conteudoCSV = "Data,Cliente,Serviço,Profissional,Valor Total (R$),Comissão (R$)\n";
+    let conteudoCSV = "Data,Cliente,Servico,Profissional,Valor Total (R$),Comissao (R$)\n";
     historico.forEach(item => {
       const clienteLimpo = item.cliente_nome.replace(/,/g, ''); 
       const servicoLimpo = item.servico.replace(/,/g, '');
@@ -97,13 +104,11 @@ export default function RelatoriosAbas({ dados }) {
         <BotaoAba id={4} titulo="4. Relatório DRE" />
       </div>
 
-      {/* --- ABA 1 --- */}
       {abaAtiva === 1 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
             <h3 className="font-bold text-gray-800">Histórico de Atendimentos</h3>
             <button onClick={exportarPlanilha} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
               Planilha
             </button>
           </div>
@@ -136,11 +141,9 @@ export default function RelatoriosAbas({ dados }) {
         </div>
       )}
 
-      {/* --- ABA 2: COMISSÕES COM FILTRO INTELIGENTE DE PERÍODO --- */}
+      {/* --- ABA 2: COMISSÕES --- */}
       {abaAtiva === 2 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          
-          {/* Cabeçalho com Filtros de Calendário */}
           <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <h3 className="font-bold text-orange-800">Repasses Acumulados</h3>
@@ -148,35 +151,15 @@ export default function RelatoriosAbas({ dados }) {
                 {comissoesFiltradas !== null ? "📊 Analisando período escolhido" : "📅 Mostrando mês cheio"}
               </p>
             </div>
-
-            {/* Calendários de análise */}
             <div className="flex flex-wrap items-center gap-2">
-              <input 
-                type="date" 
-                value={dataInicio} 
-                onChange={e => setDataInicio(e.target.value)}
-                className="border border-orange-200 rounded-lg p-1.5 text-xs outline-none text-gray-700 bg-white font-medium shadow-sm"
-              />
+              <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border border-orange-200 rounded-lg p-1.5 text-xs outline-none text-gray-700 bg-white font-medium shadow-sm" />
               <span className="text-xs text-orange-700 font-bold">até</span>
-              <input 
-                type="date" 
-                value={dataFim} 
-                onChange={e => setDataFim(e.target.value)}
-                className="border border-orange-200 rounded-lg p-1.5 text-xs outline-none text-gray-700 bg-white font-medium shadow-sm"
-              />
-              <button 
-                onClick={filtrarComissoesPeriodo}
-                className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm"
-              >
+              <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border border-orange-200 rounded-lg p-1.5 text-xs outline-none text-gray-700 bg-white font-medium shadow-sm" />
+              <button onClick={filtrarComissoesPeriodo} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm">
                 {buscandoFiltro ? "..." : "Filtrar"}
               </button>
               {comissoesFiltradas !== null && (
-                <button 
-                  onClick={limparFiltroPeriodo}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-2 py-2 rounded-lg transition-colors"
-                >
-                  Limpar
-                </button>
+                <button onClick={limparFiltroPeriodo} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-2 py-2 rounded-lg transition-colors">Limpar</button>
               )}
             </div>
           </div>
@@ -185,26 +168,39 @@ export default function RelatoriosAbas({ dados }) {
             {comissoesExibir.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-6">Nenhuma comissão registrada neste período.</p>
             ) : (
-              comissoesExibir.map((prof, index) => (
-                <div key={index} className="flex justify-between items-center mb-4 border-b border-gray-100 pb-4 last:border-0 last:mb-0 last:pb-0">
-                  <div>
-                    <p className="font-bold text-gray-800 text-base">{prof.profissional}</p>
-                    <p className="text-xs text-gray-500">{prof.qtd_servicos} serviço(s) realizado(s)</p>
+              comissoesExibir.map((prof, index) => {
+                const estaPago = statusPagamentos[prof.profissional]; // Verifica se está pago
+                
+                return (
+                  <div key={index} className="flex justify-between items-center mb-4 border-b border-gray-100 pb-4 last:border-0 last:mb-0 last:pb-0">
+                    <div>
+                      <p className="font-bold text-gray-800 text-base">{prof.profissional}</p>
+                      <p className="text-xs text-gray-500">{prof.qtd_servicos} serviço(s) realizado(s)</p>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                      <p className="font-bold text-orange-600 text-lg">{formatarMoeda(prof.total_comissao)}</p>
+                      
+                      {/* --- BOTÃO ATUALIZADO (VERMELHO/VERDE) --- */}
+                      <button 
+                        onClick={() => alternarStatusPagamento(prof.profissional)}
+                        className={`text-[10px] px-4 py-1.5 rounded-md font-bold transition-colors mt-1 shadow-sm ${
+                          estaPago 
+                            ? 'bg-green-500 hover:bg-green-600 text-white' 
+                            : 'bg-red-500 hover:bg-red-600 text-white'
+                        }`}
+                      >
+                        {estaPago ? 'PAGO ✅' : 'A RECEBER'}
+                      </button>
+
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-orange-600 text-lg">{formatarMoeda(prof.total_comissao)}</p>
-                    <button className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] px-3 py-1 rounded-md font-bold transition-colors mt-1">
-                      MARCAR PAGO
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
       )}
 
-      {/* --- ABA 3 --- */}
       {abaAtiva === 3 && (
         <div className="grid gap-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
@@ -232,7 +228,6 @@ export default function RelatoriosAbas({ dados }) {
         </div>
       )}
 
-      {/* --- ABA 4 --- */}
       {abaAtiva === 4 && (
         <div className="bg-gray-800 rounded-2xl shadow-sm border border-gray-700 p-5 text-white">
           <h3 className="font-bold text-gray-200 mb-4 border-b border-gray-600 pb-2">Resumo Financeiro (DRE)</h3>
