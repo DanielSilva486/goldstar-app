@@ -1,0 +1,45 @@
+import React, { useState, useEffect } from 'react';
+import Cabecalho from './components/Cabecalho';
+import PainelValores from './components/PainelValores';
+import MenuInferior from './components/MenuInferior';
+import ModalLogin from './components/ModalLogin';
+import RelatoriosAbas from './components/RelatoriosAbas';
+
+export default function App() {
+  const [mostrarLogin, setMostrarLogin] = useState(false);
+  
+  // --- NOVO: Estado para guardar os dados do banco ---
+  const [dadosSalao, setDadosSalao] = useState(null); 
+
+  useEffect(() => {
+    // Buscando os dados reais da nossa nova rota
+    fetch('https://goldstar-backend-9m2p.onrender.com/api/resumo')
+      .then(resposta => resposta.json())
+      .then(dados => {
+        if(dados.sucesso) {
+          setDadosSalao(dados); // Salva os dados para a tela usar
+        }
+      })
+      .catch(erro => console.error("Erro ao puxar dados:", erro));
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white font-sans relative max-w-md mx-auto shadow-xl border-x border-gray-100 overflow-hidden">
+      
+      <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} />
+
+      <main className="pt-4 h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide">
+        {/* Passando as informações do banco para os cartões e abas */}
+        <PainelValores valores={dadosSalao?.valores} />
+        <RelatoriosAbas historico={dadosSalao?.historico} /> 
+      </main>
+
+      <MenuInferior />
+
+      {mostrarLogin && (
+         <ModalLogin aoFechar={() => setMostrarLogin(false)} />
+      )}
+
+    </div>
+  );
+}
