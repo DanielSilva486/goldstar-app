@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from 'react';
 
 export default function ModalNovoAtendimento({ fechar, atualizarDados }) {
-  // Listas do Salão
   const [listaColaboradores, setListaColaboradores] = useState([]);
   const [listaServicos, setListaServicos] = useState([]);
 
-  // Estado da Esquerda: Formulário de Adição
   const [clienteNome, setClienteNome] = useState('');
   const [colaboradorId, setColaboradorId] = useState('');
   const [servicoId, setServicoId] = useState('');
   const [valorCobrado, setValorCobrado] = useState('');
   const [carregandoAdicao, setCarregandoAdicao] = useState(false);
 
-  // Estado da Direita: Comandas em Aberto (O Caixa real)
   const [comandas, setComandas] = useState([]);
   const [carregandoComandas, setCarregandoComandas] = useState(false);
 
-  // Carrega Funcionários, Serviços e as Comandas que estão na "espera"
   const carregarDadosIniciais = async () => {
     try {
       const resC = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores');
@@ -43,7 +39,6 @@ export default function ModalNovoAtendimento({ fechar, atualizarDados }) {
 
   useEffect(() => { carregarDadosIniciais(); }, []);
 
-  // Preenche o valor automaticamente ao escolher o serviço
   const aoMudarServico = (e) => {
     const idSelecionado = e.target.value;
     setServicoId(idSelecionado);
@@ -51,7 +46,6 @@ export default function ModalNovoAtendimento({ fechar, atualizarDados }) {
     if (servico) setValorCobrado(servico.preco);
   };
 
-  // 1. ADICIONA À COMANDA (Status: pendente)
   const adicionarNaComanda = async (e) => {
     e.preventDefault();
     if (!clienteNome || !colaboradorId || !servicoId) return;
@@ -66,147 +60,125 @@ export default function ModalNovoAtendimento({ fechar, atualizarDados }) {
           servico_id: servicoId,
           cliente_nome: clienteNome,
           valor_cobrado: valorCobrado || null,
-          status: 'pendente' // ENTRA NA ESPERA
+          status: 'pendente'
         })
       });
       
-      // Limpa os campos de serviço, mas mantém o nome da cliente (para adicionar mais coisas rápidas)
       setServicoId('');
       setColaboradorId('');
       setValorCobrado('');
-      
-      // Atualiza a tela da direita (Caixa)
       buscarComandasAbertas();
     } catch (erro) { alert('Erro ao adicionar à comanda.'); }
     setCarregandoAdicao(false);
   };
 
-  // 2. DAR BAIXA / COBRAR (Muda Status para Pago)
   const cobrarComanda = async (nomeCliente, itensDaComanda) => {
-    // Pega o ID de todos os serviços que esta cliente fez
     const idsParaPagar = itensDaComanda.map(item => item.id);
-    
     try {
       await fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas/pagar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: idsParaPagar })
       });
-      
-      // Atualiza o Caixa (tira a cliente da espera)
       buscarComandasAbertas();
-      // Atualiza o Resumo Financeiro no fundo da tela
       if (atualizarDados) atualizarDados(); 
-      
     } catch (erro) { alert('Erro ao finalizar cobrança.'); }
   };
 
-  // Função para formatar moeda
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Agrupa os itens da espera pelo nome da cliente
+  // Agrupa comandas por cliente
   const comandasAgrupadas = comandas.reduce((grupos, item) => {
     if (!grupos[item.cliente_nome]) grupos[item.cliente_nome] = [];
     grupos[item.cliente_nome].push(item);
     return grupos;
   }, {});
 
+  // --- MÁGICA DA FILA ---
+  // Calcula a soma dos minutos pendentes de cada profissional
+  const filaPorProfissional = comandas.reduce((acc, item) => {
+    if (!acc[item.profissional]) acc[item.profissional] = 0;
+    acc[item.profissional] += (item.duracao || 30); // Se o serviço não tiver tempo cadastrado, assume 30min
+    return acc;
+  }, {});
+
+  // Formata o tempo para ficar bonito (ex: 90 vira "1h 30m")
+  const formatarTempo = (minutosTotal) => {
+    if (!minutosTotal || minutosTotal === 0) return 'Livre';
+    const horas = Math.floor(minutosTotal / 60);
+    const minutos = minutosTotal % 60;
+    if (horas > 0) return `${horas}h ${minutos > 0 ? minutos + 'm' : ''}`;
+    return `${minutos}m`;
+  };
+
   return (
     <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4 sm:p-6">
       
-      {/* Container Principal (Largo) */}
       <div className="bg-white w-full max-w-5xl h-[90vh] sm:h-auto sm:max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden relative">
         
-        {/* Cabeçalho do Modal */}
         <div className="bg-gray-800 p-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3 text-white">
              <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-             <h2 className="text-xl font-bold tracking-wide">Frente de Caixa</h2>
+             <h2 className="text-xl font-bold tracking-wide">Frente de Caixa & Gestão de Fila</h2>
           </div>
           <button onClick={fechar} className="w-8 h-8 bg-gray-700 hover:bg-red-500 text-white rounded-full flex justify-center items-center transition-colors">
             X
           </button>
         </div>
 
-        {/* Divisão em Duas Colunas */}
         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
           
-          {/* LADO ESQUERDO: Adicionar Itens à Comanda */}
+          {/* LADO ESQUERDO: Formulário */}
           <div className="w-full md:w-5/12 bg-white p-6 overflow-y-auto border-r border-gray-100">
             <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">1. Dados do Atendimento</h3>
             
             <form onSubmit={adicionarNaComanda} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome da(o) Cliente</label>
-                <input 
-                  type="text" 
-                  value={clienteNome} 
-                  onChange={(e) => setClienteNome(e.target.value)} 
-                  placeholder="Ex: Maria Silva" 
-                  className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50 transition-colors" 
-                  required 
-                />
+                <input type="text" value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} placeholder="Ex: Maria Silva" className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" required />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Serviço Realizado</label>
-                <select 
-                  value={servicoId} 
-                  onChange={aoMudarServico} 
-                  className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" 
-                  required
-                >
+                <select value={servicoId} onChange={aoMudarServico} className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" required>
                   <option value="">Selecione o Serviço...</option>
-                  {listaServicos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                  {listaServicos.map(s => <option key={s.id} value={s.id}>{s.nome} ({s.duracao || 30}m)</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Profissional</label>
-                <select 
-                  value={colaboradorId} 
-                  onChange={(e) => setColaboradorId(e.target.value)} 
-                  className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" 
-                  required
-                >
-                  <option value="">Selecione quem atendeu...</option>
-                  {listaColaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Profissional (Tempo de Fila)</label>
+                <select value={colaboradorId} onChange={(e) => setColaboradorId(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" required>
+                  <option value="">Selecione quem vai atender...</option>
+                  {listaColaboradores.map(c => {
+                    const tempoOcupado = filaPorProfissional[c.nome] || 0;
+                    const avisoFila = tempoOcupado > 0 ? `👉 Ocupada: ${formatarTempo(tempoOcupado)}` : '✅ Livre agora';
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {c.nome} - {avisoFila}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Valor Final (R$)</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  value={valorCobrado} 
-                  onChange={(e) => setValorCobrado(e.target.value)} 
-                  className="w-full border-2 border-teal-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-teal-50 text-teal-900 font-bold" 
-                />
+                <input type="number" step="0.01" value={valorCobrado} onChange={(e) => setValorCobrado(e.target.value)} className="w-full border-2 border-teal-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-teal-50 text-teal-900 font-bold" />
               </div>
 
               <div className="pt-4">
-                <button 
-                  type="submit" 
-                  disabled={carregandoAdicao} 
-                  className="w-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md flex justify-center items-center gap-2"
-                >
-                  {carregandoAdicao ? 'Adicionando...' : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                      Adicionar à Comanda
-                    </>
-                  )}
+                <button type="submit" disabled={carregandoAdicao} className="w-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
+                  {carregandoAdicao ? 'Adicionando...' : '+ Adicionar à Fila / Comanda'}
                 </button>
-                <p className="text-[10px] text-gray-400 text-center mt-2">O valor só entra no fluxo de caixa após a cobrança ao lado.</p>
               </div>
             </form>
           </div>
 
-          {/* LADO DIREITO: Painel de Comandas Abertas (O Caixa) */}
+          {/* LADO DIREITO: Painel de Comandas e Tempos */}
           <div className="w-full md:w-7/12 bg-gray-50 p-6 overflow-y-auto">
              <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
-               <h3 className="font-bold text-gray-700">2. Resumo de Comandas (Aguardando Pagamento)</h3>
+               <h3 className="font-bold text-gray-700">2. Resumo de Comandas (Aguardando)</h3>
                <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-lg">
                  {Object.keys(comandasAgrupadas).length} em aberto
                </span>
@@ -222,7 +194,6 @@ export default function ModalNovoAtendimento({ fechar, atualizarDados }) {
              ) : (
                <div className="space-y-4 pb-4">
                  {Object.entries(comandasAgrupadas).map(([nomeCliente, itens]) => {
-                   // Calcula o total da comanda desta cliente
                    const totalComanda = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
 
                    return (
@@ -237,7 +208,7 @@ export default function ModalNovoAtendimento({ fechar, atualizarDados }) {
                              <li key={item.id} className="flex justify-between text-sm text-gray-600 items-center">
                                <div className="flex flex-col">
                                  <span className="font-medium text-gray-800">{item.servico}</span>
-                                 <span className="text-[10px] text-gray-400">por {item.profissional}</span>
+                                 <span className="text-[10px] text-gray-400">por {item.profissional} <span className="text-orange-500 font-bold ml-1">⏱️ {item.duracao || 30}m</span></span>
                                </div>
                                <span className="font-medium">{formatarMoeda(item.valor_total)}</span>
                              </li>
