@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function ModalConfiguracoes({ fechar }) {
+export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) {
   const [abaAtiva, setAbaAtiva] = useState('servicos');
   const [servicos, setServicos] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
@@ -70,15 +70,35 @@ export default function ModalConfiguracoes({ fechar }) {
            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </div>
         
-        <h2 className="text-xl font-bold mb-4">Ajustes e Cadastros</h2>
+        <h2 className="text-xl font-bold mb-4">Ajustes e Personalização</h2>
 
-        <div className="flex gap-2 mb-4 border-b pb-2">
-          <button onClick={() => setAbaAtiva('servicos')} className={`px-3 py-1.5 rounded-lg text-sm font-bold ${abaAtiva === 'servicos' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Serviços</button>
-          <button onClick={() => setAbaAtiva('equipe')} className={`px-3 py-1.5 rounded-lg text-sm font-bold ${abaAtiva === 'equipe' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Equipe</button>
-          <button onClick={() => setAbaAtiva('comissoes')} className={`px-3 py-1.5 rounded-lg text-sm font-bold ${abaAtiva === 'comissoes' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Comissões Esp.</button>
+        <div className="flex gap-2 mb-4 border-b pb-2 overflow-x-auto scrollbar-hide">
+          <button onClick={() => setAbaAtiva('servicos')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'servicos' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Serviços</button>
+          <button onClick={() => setAbaAtiva('equipe')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'equipe' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Equipe</button>
+          <button onClick={() => setAbaAtiva('comissoes')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'comissoes' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Comissões Esp.</button>
+          <button onClick={() => setAbaAtiva('aparencia')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'aparencia' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>🎨 Aparência</button>
         </div>
 
         <div className="overflow-y-auto pr-2 pb-4 scrollbar-hide">
+          
+          {/* --- NOVA ABA: APARÊNCIA --- */}
+          {abaAtiva === 'aparencia' && (
+            <div className="space-y-6 py-4">
+              <div>
+                <h3 className="font-bold text-gray-800 mb-2">Paleta de Cores do Sistema</h3>
+                <p className="text-sm text-gray-500 mb-4">Escolha a cor que mais combina com o seu salão. A cor será salva automaticamente.</p>
+                
+                <div className="flex gap-4 justify-start">
+                  <button onClick={() => setTemaAtivo('teal')} className={`w-12 h-12 rounded-full bg-[#14b8a6] shadow-sm transition-all ${temaAtivo === 'teal' ? 'ring-4 ring-offset-2 ring-[#14b8a6] scale-110' : 'hover:scale-105'}`} title="Esmeralda"></button>
+                  <button onClick={() => setTemaAtivo('pink')} className={`w-12 h-12 rounded-full bg-[#ec4899] shadow-sm transition-all ${temaAtivo === 'pink' ? 'ring-4 ring-offset-2 ring-[#ec4899] scale-110' : 'hover:scale-105'}`} title="Rosa"></button>
+                  <button onClick={() => setTemaAtivo('purple')} className={`w-12 h-12 rounded-full bg-[#a855f7] shadow-sm transition-all ${temaAtivo === 'purple' ? 'ring-4 ring-offset-2 ring-[#a855f7] scale-110' : 'hover:scale-105'}`} title="Roxo"></button>
+                  <button onClick={() => setTemaAtivo('gold')} className={`w-12 h-12 rounded-full bg-[#eab308] shadow-sm transition-all ${temaAtivo === 'gold' ? 'ring-4 ring-offset-2 ring-[#eab308] scale-110' : 'hover:scale-105'}`} title="Dourado"></button>
+                  <button onClick={() => setTemaAtivo('black')} className={`w-12 h-12 rounded-full bg-[#1f2937] shadow-sm transition-all ${temaAtivo === 'black' ? 'ring-4 ring-offset-2 ring-[#1f2937] scale-110' : 'hover:scale-105'}`} title="Preto Minimalista"></button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {abaAtiva === 'servicos' && (
             <div>
               <form onSubmit={adicionarServico} className="flex gap-2 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -139,6 +159,7 @@ export default function ModalConfiguracoes({ fechar }) {
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>
