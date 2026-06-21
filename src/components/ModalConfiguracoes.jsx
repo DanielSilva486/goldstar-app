@@ -8,6 +8,8 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   
   const [novoServicoNome, setNovoServicoNome] = useState('');
   const [novoServicoPreco, setNovoServicoPreco] = useState('');
+  const [novoServicoDuracao, setNovoServicoDuracao] = useState(''); // NOVO: Tempo do Serviço
+  
   const [novoColabNome, setNovoColabNome] = useState('');
   const [novoColabComissao, setNovoColabComissao] = useState('');
   const [novoColabId, setNovoColabId] = useState('');
@@ -30,9 +32,15 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   const adicionarServico = async (e) => {
     e.preventDefault();
     await fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: novoServicoNome, preco: Number(novoServicoPreco) })
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ 
+        nome: novoServicoNome, 
+        preco: Number(novoServicoPreco),
+        duracao: Number(novoServicoDuracao) || 30 // Manda o tempo ou 30 min por padrão
+      })
     });
-    setNovoServicoNome(''); setNovoServicoPreco(''); carregarDados();
+    setNovoServicoNome(''); setNovoServicoPreco(''); setNovoServicoDuracao(''); carregarDados();
   };
 
   const apagarServico = async (id) => {
@@ -72,7 +80,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         
         <h2 className="text-xl font-bold mb-4">Ajustes e Personalização</h2>
 
-        {/* --- CORREÇÃO AQUI: flex-wrap e pb-4 para não engolir os botões --- */}
         <div className="flex flex-wrap gap-2 mb-4 border-b pb-4">
           <button onClick={() => setAbaAtiva('servicos')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'servicos' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Serviços</button>
           <button onClick={() => setAbaAtiva('equipe')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'equipe' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Equipe</button>
@@ -87,7 +94,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
               <div>
                 <h3 className="font-bold text-gray-800 mb-2">Paleta de Cores do Sistema</h3>
                 <p className="text-sm text-gray-500 mb-4">Escolha a cor que mais combina com o seu salão. A cor será salva automaticamente.</p>
-                
                 <div className="flex flex-wrap gap-4 justify-start">
                   <button onClick={() => setTemaAtivo('teal')} className={`w-12 h-12 rounded-full bg-[#14b8a6] shadow-sm transition-all ${temaAtivo === 'teal' ? 'ring-4 ring-offset-2 ring-[#14b8a6] scale-110' : 'hover:scale-105'}`} title="Esmeralda"></button>
                   <button onClick={() => setTemaAtivo('pink')} className={`w-12 h-12 rounded-full bg-[#ec4899] shadow-sm transition-all ${temaAtivo === 'pink' ? 'ring-4 ring-offset-2 ring-[#ec4899] scale-110' : 'hover:scale-105'}`} title="Rosa"></button>
@@ -101,22 +107,30 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
           {abaAtiva === 'servicos' && (
             <div>
-              <form onSubmit={adicionarServico} className="flex gap-2 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <input required type="text" placeholder="Adicionar Serviço..." value={novoServicoNome} onChange={e => setNovoServicoNome(e.target.value)} className="w-full border rounded-lg p-2 text-sm outline-none" />
+              <form onSubmit={adicionarServico} className="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <input required type="text" placeholder="Nome do Serviço" value={novoServicoNome} onChange={e => setNovoServicoNome(e.target.value)} className="flex-1 border rounded-lg p-2 text-sm outline-none min-w-[120px]" />
                 <input required type="number" step="0.01" placeholder="R$ 0,00" value={novoServicoPreco} onChange={e => setNovoServicoPreco(e.target.value)} className="w-24 border rounded-lg p-2 text-sm outline-none" />
-                <button type="submit" className="bg-teal-500 text-white px-3 rounded-lg font-bold">+</button>
+                <input required type="number" placeholder="Minutos" value={novoServicoDuracao} onChange={e => setNovoServicoDuracao(e.target.value)} className="w-20 border rounded-lg p-2 text-sm outline-none" title="Tempo estimado" />
+                <button type="submit" className="bg-teal-500 text-white px-4 rounded-lg font-bold">+</button>
               </form>
               <div className="space-y-2">
                 {servicos.map(s => (
                   <div key={s.id} className="flex justify-between items-center p-3 bg-white border rounded-xl shadow-sm text-sm">
-                    <span>{s.nome} <span className="text-teal-600 font-bold ml-2">R$ {Number(s.preco).toFixed(2)}</span></span>
-                    <button onClick={() => apagarServico(s.id)} className="text-red-400 font-bold hover:text-red-600">X</button>
+                    <div className="flex flex-col">
+                       <span className="font-bold text-gray-800">{s.nome}</span>
+                       <span className="text-[10px] text-gray-500 font-medium">⏱️ Duração: {s.duracao || 30} min</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-teal-600 font-bold">R$ {Number(s.preco).toFixed(2)}</span>
+                      <button onClick={() => apagarServico(s.id)} className="text-red-400 font-bold hover:text-red-600">X</button>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
+          {/* ... as abas equipe e comissoes continuam iguais ao código anterior */}
           {abaAtiva === 'equipe' && (
             <div>
               <form onSubmit={adicionarColaborador} className="flex gap-2 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">

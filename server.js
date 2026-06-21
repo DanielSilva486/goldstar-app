@@ -15,7 +15,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// --- ROTA PRINCIPAL: RESUMO E HISTÓRICO (SÓ PUXA O QUE FOI PAGO) ---
+// --- ROTA PRINCIPAL: RESUMO E HISTÓRICO ---
 app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
@@ -52,7 +52,6 @@ app.get('/api/resumo', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false, erro: erro.message }); }
 });
 
-// --- ROTA: FILTRO DE COMISSÕES POR PERÍODO ---
 app.get('/api/comissoes-periodo', async (req, res) => {
   try {
     const { inicio, fim } = req.query;
@@ -65,7 +64,7 @@ app.get('/api/comissoes-periodo', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-// --- ROTAS DE FUNCIONÁRIOS E SERVIÇOS ---
+// --- ROTAS DE COLABORADORES ---
 app.get('/api/colaboradores', async (req, res) => {
   const r = await pool.query('SELECT id, nome, percentual_comissao FROM colaboradores WHERE ativo = TRUE ORDER BY nome ASC');
   res.json({ sucesso: true, dados: r.rows });
@@ -88,13 +87,15 @@ app.put('/api/colaboradores/:id/status', async (req, res) => {
   res.json({ sucesso: true });
 });
 
+// --- ROTAS DE SERVIÇOS (COM TEMPO) ---
 app.get('/api/servicos', async (req, res) => {
   const r = await pool.query('SELECT * FROM servicos ORDER BY nome ASC');
   res.json({ sucesso: true, dados: r.rows });
 });
 
 app.post('/api/servicos', async (req, res) => {
-  await pool.query('INSERT INTO servicos (nome, preco) VALUES ($1, $2)', [req.body.nome, req.body.preco]);
+  // AQUI: Agora ele salva a Duração!
+  await pool.query('INSERT INTO servicos (nome, preco, duracao) VALUES ($1, $2, $3)', [req.body.nome, req.body.preco, req.body.duracao || 30]);
   res.json({ sucesso: true });
 });
 
@@ -105,6 +106,7 @@ app.delete('/api/servicos/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false, erro: "Possui histórico." }); }
 });
 
+// --- ROTAS DE COMISSÕES ESPECIAIS ---
 app.get('/api/comissoes-especificas', async (req, res) => {
   const r = await pool.query(`
     SELECT ce.id, c.nome as prof, s.nome as serv, ce.percentual_comissao as percentual 
@@ -121,7 +123,7 @@ app.post('/api/comissoes-especificas', async (req, res) => {
   res.json({ sucesso: true });
 });
 
-// --- REGISTRO DE VENDAS (AGORA RECEBE STATUS: pendente OU pago) ---
+// --- REGISTRO DE VENDAS E CAIXA ---
 app.post('/api/atendimentos', async (req, res) => {
   try {
     const { colaborador_id, servico_id, cliente_nome, valor_cobrado, status } = req.body;
@@ -132,20 +134,18 @@ app.post('/api/atendimentos', async (req, res) => {
     let percentual = esp.rows.length > 0 ? esp.rows[0].percentual_comissao : (await pool.query('SELECT percentual_comissao FROM colaboradores WHERE id = $1', [colaborador_id])).rows[0].percentual_comissao;
 
     const comissao = (valor * percentual) / 100;
-    const statusFinal = status || 'pago'; // Se não vier status, entra como pago (segurança)
+    const statusFinal = status || 'pago'; 
 
     await pool.query('INSERT INTO atendimentos (colaborador_id, servico_id, cliente_nome, valor_total, valor_comissao, status) VALUES ($1, $2, $3, $4, $5, $6)', [colaborador_id, servico_id, cliente_nome, valor, comissao, statusFinal]);
     res.json({ sucesso: true });
   } catch (err) { res.status(500).json({sucesso: false}) }
 });
 
-// --- NOVAS ROTAS DA FRENTE DE CAIXA (SISTEMA DE COMANDAS) ---
-
-// 1. Puxa todos os serviços que estão na "Espera"
 app.get('/api/comandas', async (req, res) => {
   try {
+    // AQUI: Puxamos a duração para poder calcular o tempo de fila depois!
     const r = await pool.query(`
-      SELECT a.id, a.cliente_nome, s.nome as servico, c.nome as profissional, a.valor_total, a.valor_comissao
+      SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao, a.data_hora
       FROM atendimentos a
       JOIN servicos s ON a.servico_id = s.id
       JOIN colaboradores c ON a.colaborador_id = c.id
@@ -156,10 +156,9 @@ app.get('/api/comandas', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-// 2. Dar baixa no caixa (Muda status para PAGO)
 app.put('/api/comandas/pagar', async (req, res) => {
   try {
-    const { ids } = req.body; // Recebe uma lista de IDs (ex: os 3 serviços da Maria Silva)
+    const { ids } = req.body; 
     if (!ids || ids.length === 0) return res.json({ sucesso: true });
     
     await pool.query('UPDATE atendimentos SET status = $1 WHERE id = ANY($2)', ['pago', ids]);
