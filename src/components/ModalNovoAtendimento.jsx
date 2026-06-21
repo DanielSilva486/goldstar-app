@@ -95,33 +95,33 @@ export default function ModalNovoAtendimento({ aoFechar, aoSalvar }) {
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1">Profissional</label>
             <select 
-              value={colaboradorId}
-              onChange={(e) => setColaboradorId(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none appearance-none bg-white transition-all"
-            >
-              <option value="">Selecione...</option>
-              {listaColaboradores.map(colab => (
-                <option key={colab.id} value={colab.id}>
-                  {colab.nome} ({Number(colab.percentual_comissao)}%)
-                </option>
-              ))}
-            </select>
+  value={colaboradorId}
+  onChange={(e) => setColaboradorId(e.target.value)}
+  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-800 shadow-sm transition-all"
+>
+  <option value="" className="text-gray-500">Selecione...</option>
+  {listaColaboradores.map(colab => (
+    <option key={colab.id} value={colab.id} className="text-gray-900 bg-white">
+      {colab.nome} ({Number(colab.percentual_comissao)}%)
+    </option>
+  ))}
+</select>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1">Serviço Realizado</label>
             <select 
-              value={servicoId}
-              onChange={selecionarServico}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none appearance-none bg-white transition-all"
-            >
-              <option value="">Selecione...</option>
-              {listaServicos.map(serv => (
-                <option key={serv.id} value={serv.id}>
-                  {serv.nome}
-                </option>
-              ))}
-            </select>
+  value={servicoId}
+  onChange={selecionarServico}
+  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white text-gray-800 shadow-sm transition-all"
+>
+  <option value="" className="text-gray-500">Selecione...</option>
+  {listaServicos.map(serv => (
+    <option key={serv.id} value={serv.id} className="text-gray-900 bg-white">
+      {serv.nome}
+    </option>
+  ))}
+</select>
           </div>
 
           {/* NOVO CAMPO: Valor a Cobrar */}
