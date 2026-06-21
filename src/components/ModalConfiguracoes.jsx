@@ -66,29 +66,29 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   return (
     <div className="absolute inset-0 bg-gray-900/60 flex justify-center items-center z-50 p-4">
       <div className="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-hidden flex flex-col">
-        <div onClick={fechar} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 cursor-pointer rounded-full flex items-center justify-center transition-colors">
+        <div onClick={fechar} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 cursor-pointer rounded-full flex items-center justify-center transition-colors z-10">
            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </div>
         
         <h2 className="text-xl font-bold mb-4">Ajustes e Personalização</h2>
 
-        <div className="flex gap-2 mb-4 border-b pb-2 overflow-x-auto scrollbar-hide">
-          <button onClick={() => setAbaAtiva('servicos')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'servicos' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Serviços</button>
-          <button onClick={() => setAbaAtiva('equipe')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'equipe' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Equipe</button>
-          <button onClick={() => setAbaAtiva('comissoes')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'comissoes' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>Comissões Esp.</button>
-          <button onClick={() => setAbaAtiva('aparencia')} className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'aparencia' ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600'}`}>🎨 Aparência</button>
+        {/* --- CORREÇÃO AQUI: flex-wrap e pb-4 para não engolir os botões --- */}
+        <div className="flex flex-wrap gap-2 mb-4 border-b pb-4">
+          <button onClick={() => setAbaAtiva('servicos')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'servicos' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Serviços</button>
+          <button onClick={() => setAbaAtiva('equipe')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'equipe' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Equipe</button>
+          <button onClick={() => setAbaAtiva('comissoes')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'comissoes' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Comissões Esp.</button>
+          <button onClick={() => setAbaAtiva('aparencia')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'aparencia' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>🎨 Aparência</button>
         </div>
 
         <div className="overflow-y-auto pr-2 pb-4 scrollbar-hide">
           
-          {/* --- NOVA ABA: APARÊNCIA --- */}
           {abaAtiva === 'aparencia' && (
             <div className="space-y-6 py-4">
               <div>
                 <h3 className="font-bold text-gray-800 mb-2">Paleta de Cores do Sistema</h3>
                 <p className="text-sm text-gray-500 mb-4">Escolha a cor que mais combina com o seu salão. A cor será salva automaticamente.</p>
                 
-                <div className="flex gap-4 justify-start">
+                <div className="flex flex-wrap gap-4 justify-start">
                   <button onClick={() => setTemaAtivo('teal')} className={`w-12 h-12 rounded-full bg-[#14b8a6] shadow-sm transition-all ${temaAtivo === 'teal' ? 'ring-4 ring-offset-2 ring-[#14b8a6] scale-110' : 'hover:scale-105'}`} title="Esmeralda"></button>
                   <button onClick={() => setTemaAtivo('pink')} className={`w-12 h-12 rounded-full bg-[#ec4899] shadow-sm transition-all ${temaAtivo === 'pink' ? 'ring-4 ring-offset-2 ring-[#ec4899] scale-110' : 'hover:scale-105'}`} title="Rosa"></button>
                   <button onClick={() => setTemaAtivo('purple')} className={`w-12 h-12 rounded-full bg-[#a855f7] shadow-sm transition-all ${temaAtivo === 'purple' ? 'ring-4 ring-offset-2 ring-[#a855f7] scale-110' : 'hover:scale-105'}`} title="Roxo"></button>
@@ -108,7 +108,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
               </form>
               <div className="space-y-2">
                 {servicos.map(s => (
-                  <div key={s.id} className="flex justify-between p-3 bg-white border rounded-xl shadow-sm text-sm">
+                  <div key={s.id} className="flex justify-between items-center p-3 bg-white border rounded-xl shadow-sm text-sm">
                     <span>{s.nome} <span className="text-teal-600 font-bold ml-2">R$ {Number(s.preco).toFixed(2)}</span></span>
                     <button onClick={() => apagarServico(s.id)} className="text-red-400 font-bold hover:text-red-600">X</button>
                   </div>
