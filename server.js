@@ -15,47 +15,40 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// --- ROTA PRINCIPAL: RESUMO E HISTÓRICO COMPLETO ---
+// --- ROTA PRINCIPAL: RESUMO E HISTÓRICO (SÓ PUXA O QUE FOI PAGO) ---
 app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
     
     const totais = await pool.query(`
       SELECT COALESCE(SUM(valor_total), 0) as faturamento_bruto, COALESCE(SUM(valor_comissao), 0) as total_comissoes, COUNT(id) as total_atendimentos 
-      FROM atendimentos WHERE EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2
+      FROM atendimentos WHERE status = 'pago' AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2
     `, [mes, ano]);
 
     const historico = await pool.query(`
       SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, a.valor_total, c.nome as profissional, a.valor_comissao
       FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id
-      WHERE EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 ORDER BY a.data_hora DESC LIMIT 100
+      WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 ORDER BY a.data_hora DESC LIMIT 100
     `, [mes, ano]);
 
     const comissoesQuery = await pool.query(`
       SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao
       FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id
-      WHERE EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY c.nome ORDER BY total_comissao DESC
+      WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY c.nome ORDER BY total_comissao DESC
     `, [mes, ano]);
 
     const topServicosQuery = await pool.query(`
       SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado
       FROM atendimentos a JOIN servicos s ON a.servico_id = s.id
-      WHERE EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY s.nome ORDER BY gerado DESC LIMIT 3
+      WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY s.nome ORDER BY gerado DESC LIMIT 3
     `, [mes, ano]);
 
     const topClientesQuery = await pool.query(`
       SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto
-      FROM atendimentos WHERE EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 3
+      FROM atendimentos WHERE status = 'pago' AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 3
     `, [mes, ano]);
 
-    res.json({
-      sucesso: true,
-      valores: totais.rows[0],
-      historico: historico.rows,
-      comissoes: comissoesQuery.rows,
-      topServicos: topServicosQuery.rows,
-      topClientes: topClientesQuery.rows
-    });
+    res.json({ sucesso: true, valores: totais.rows[0], historico: historico.rows, comissoes: comissoesQuery.rows, topServicos: topServicosQuery.rows, topClientes: topClientesQuery.rows });
   } catch (erro) { res.status(500).json({ sucesso: false, erro: erro.message }); }
 });
 
@@ -66,7 +59,7 @@ app.get('/api/comissoes-periodo', async (req, res) => {
     const resultado = await pool.query(`
       SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao
       FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id
-      WHERE a.data_hora::date BETWEEN $1 AND $2 GROUP BY c.nome ORDER BY total_comissao DESC
+      WHERE a.status = 'pago' AND a.data_hora::date BETWEEN $1 AND $2 GROUP BY c.nome ORDER BY total_comissao DESC
     `, [inicio, fim]);
     res.json({ sucesso: true, dados: resultado.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
@@ -112,23 +105,6 @@ app.delete('/api/servicos/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false, erro: "Possui histórico." }); }
 });
 
-// --- REGISTRO DE VENDAS COM REGRA DE COMISSÃO ---
-app.post('/api/atendimentos', async (req, res) => {
-  try {
-    const { colaborador_id, servico_id, cliente_nome, valor_cobrado } = req.body;
-    const s = await pool.query('SELECT preco FROM servicos WHERE id = $1', [servico_id]);
-    const valor = Number(valor_cobrado) || s.rows[0].preco;
-    
-    const esp = await pool.query('SELECT percentual_comissao FROM comissoes_especificas WHERE colaborador_id = $1 AND servico_id = $2', [colaborador_id, servico_id]);
-    let percentual = esp.rows.length > 0 ? esp.rows[0].percentual_comissao : (await pool.query('SELECT percentual_comissao FROM colaboradores WHERE id = $1', [colaborador_id])).rows[0].percentual_comissao;
-
-    const comissao = (valor * percentual) / 100;
-    await pool.query('INSERT INTO atendimentos (colaborador_id, servico_id, cliente_nome, valor_total, valor_comissao) VALUES ($1, $2, $3, $4, $5)', [colaborador_id, servico_id, cliente_nome, valor, comissao]);
-    res.json({ sucesso: true });
-  } catch (err) { res.status(500).json({sucesso: false}) }
-});
-
-// --- COMISSÕES ESPECIAIS ---
 app.get('/api/comissoes-especificas', async (req, res) => {
   const r = await pool.query(`
     SELECT ce.id, c.nome as prof, s.nome as serv, ce.percentual_comissao as percentual 
@@ -143,6 +119,52 @@ app.post('/api/comissoes-especificas', async (req, res) => {
     [req.body.colaborador_id, req.body.servico_id, req.body.percentual]
   );
   res.json({ sucesso: true });
+});
+
+// --- REGISTRO DE VENDAS (AGORA RECEBE STATUS: pendente OU pago) ---
+app.post('/api/atendimentos', async (req, res) => {
+  try {
+    const { colaborador_id, servico_id, cliente_nome, valor_cobrado, status } = req.body;
+    const s = await pool.query('SELECT preco FROM servicos WHERE id = $1', [servico_id]);
+    const valor = Number(valor_cobrado) || s.rows[0].preco;
+    
+    const esp = await pool.query('SELECT percentual_comissao FROM comissoes_especificas WHERE colaborador_id = $1 AND servico_id = $2', [colaborador_id, servico_id]);
+    let percentual = esp.rows.length > 0 ? esp.rows[0].percentual_comissao : (await pool.query('SELECT percentual_comissao FROM colaboradores WHERE id = $1', [colaborador_id])).rows[0].percentual_comissao;
+
+    const comissao = (valor * percentual) / 100;
+    const statusFinal = status || 'pago'; // Se não vier status, entra como pago (segurança)
+
+    await pool.query('INSERT INTO atendimentos (colaborador_id, servico_id, cliente_nome, valor_total, valor_comissao, status) VALUES ($1, $2, $3, $4, $5, $6)', [colaborador_id, servico_id, cliente_nome, valor, comissao, statusFinal]);
+    res.json({ sucesso: true });
+  } catch (err) { res.status(500).json({sucesso: false}) }
+});
+
+// --- NOVAS ROTAS DA FRENTE DE CAIXA (SISTEMA DE COMANDAS) ---
+
+// 1. Puxa todos os serviços que estão na "Espera"
+app.get('/api/comandas', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT a.id, a.cliente_nome, s.nome as servico, c.nome as profissional, a.valor_total, a.valor_comissao
+      FROM atendimentos a
+      JOIN servicos s ON a.servico_id = s.id
+      JOIN colaboradores c ON a.colaborador_id = c.id
+      WHERE a.status = 'pendente'
+      ORDER BY a.data_hora ASC
+    `);
+    res.json({ sucesso: true, dados: r.rows });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
+});
+
+// 2. Dar baixa no caixa (Muda status para PAGO)
+app.put('/api/comandas/pagar', async (req, res) => {
+  try {
+    const { ids } = req.body; // Recebe uma lista de IDs (ex: os 3 serviços da Maria Silva)
+    if (!ids || ids.length === 0) return res.json({ sucesso: true });
+    
+    await pool.query('UPDATE atendimentos SET status = $1 WHERE id = ANY($2)', ['pago', ids]);
+    res.json({ sucesso: true });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
 const PORT = process.env.PORT || 3000;
