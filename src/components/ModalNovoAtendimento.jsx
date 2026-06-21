@@ -12,11 +12,11 @@ export default function ModalNovoAtendimento({ aoFechar, aoSalvar }) {
   const [listaServicos, setListaServicos] = useState([]);
 
   useEffect(() => {
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores')
+    fetch('https://goldstar-backend-9m2p.onrender.com')
       .then(res => res.json())
       .then(data => setListaColaboradores(data.dados || []));
 
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos')
+    fetch('https://goldstar-backend-9m2p.onrender.com')
       .then(res => res.json())
       .then(data => setListaServicos(data.dados || []));
   }, []);
@@ -45,7 +45,7 @@ export default function ModalNovoAtendimento({ aoFechar, aoSalvar }) {
     }
 
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/atendimentos', {
+      const res = await fetch('https://goldstar-backend-9m2p.onrender.com', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
