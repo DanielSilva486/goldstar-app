@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import pg from 'pg';
+import pg from 'pg'; // Importa a biblioteca inteira
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -9,10 +9,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// --- AQUI ESTÁ A CORREÇÃO ---
+const { Pool } = pg; // Extrai o Pool da biblioteca importada
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+// ----------------------------
 
 // Rota para o Painel Principal (Corrigindo o erro 404)
 app.get('/api/resumo', async (req, res) => {
