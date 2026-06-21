@@ -9,6 +9,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// --- DETETIVE DE VARIÁVEIS ---
+if (!process.env.DATABASE_URL) {
+  console.error("🚨 ALERTA CRÍTICO: A DATABASE_URL não foi encontrada nas variáveis do Render!");
+} else {
+  console.log("✅ DATABASE_URL identificada com sucesso no servidor!");
+}
+
 const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -18,7 +25,7 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Erro inesperado na base de dados:', err);
+  console.error('❌ Erro inesperado na ligação base de dados:', err);
 });
 
 // --- ROTA DE TESTE ---
@@ -27,18 +34,18 @@ app.get('/api/teste-conexao', async (req, res) => {
     const resultado = await pool.query('SELECT NOW() as hora_atual');
     res.json({ sucesso: true, mensagem: "Ligado ao Neon com sucesso!", dados: resultado.rows[0] });
   } catch (erro) {
+    console.error("❌ ERRO NA ROTA TESTE:", erro);
     res.status(500).json({ sucesso: false, erro: "Falha na ligação com a base de dados" });
   }
 });
 
-// --- ROTA PRINCIPAL: RESUMO DO SALÃO (COM FILTRO DE MÊS/ANO) ---
+// --- ROTA PRINCIPAL: RESUMO DO SALÃO ---
 app.get('/api/resumo', async (req, res) => {
   try {
     const hoje = new Date();
     const mes = req.query.mes || (hoje.getMonth() + 1);
     const ano = req.query.ano || hoje.getFullYear();
 
-    // 1. Faturamento Total Filtrado
     const totaisQuery = await pool.query(`
       SELECT 
         COALESCE(SUM(valor_total), 0) as faturamento_bruto,
@@ -48,7 +55,6 @@ app.get('/api/resumo', async (req, res) => {
       WHERE EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2
     `, [mes, ano]);
 
-    // 2. Histórico Filtrado
     const historicoQuery = await pool.query(`
       SELECT 
         a.id, TO_CHAR(a.data_hora, 'DD/MM') as data,
@@ -61,7 +67,6 @@ app.get('/api/resumo', async (req, res) => {
       ORDER BY a.data_hora DESC LIMIT 100
     `, [mes, ano]);
 
-    // 3. Comissões Filtradas (Mensal padrão)
     const comissoesQuery = await pool.query(`
       SELECT 
         c.nome as profissional,
@@ -74,7 +79,6 @@ app.get('/api/resumo', async (req, res) => {
       ORDER BY total_comissao DESC
     `, [mes, ano]);
 
-    // 4. Top Serviços Filtrados
     const topServicosQuery = await pool.query(`
       SELECT 
         s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado
@@ -85,7 +89,6 @@ app.get('/api/resumo', async (req, res) => {
       ORDER BY gerado DESC LIMIT 3
     `, [mes, ano]);
 
-    // 5. Top Clientes VIP Filtrados
     const topClientesQuery = await pool.query(`
       SELECT 
         cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto
@@ -105,11 +108,12 @@ app.get('/api/resumo', async (req, res) => {
     });
 
   } catch (erro) {
+    // AQUI ESTÁ O SEGREDO: Imprimir o erro real no painel do Render!
+    console.error("❌ ERRO REAL AO BUSCAR RESUMO:", erro.message, erro.stack);
     res.status(500).json({ sucesso: false, erro: "Falha ao buscar os dados financeiros" });
   }
 });
 
-// --- NOVA ROTA: BUSCAR COMISSÕES POR PERÍODO CUSTOMIZADO (DATA INÍCIO E FIM) ---
 app.get('/api/comissoes-periodo', async (req, res) => {
   try {
     const { inicio, fim } = req.query;
@@ -124,28 +128,23 @@ app.get('/api/comissoes-periodo', async (req, res) => {
       GROUP BY c.nome
       ORDER BY total_comissao DESC
     `, [inicio, fim]);
-    
     res.json({ sucesso: true, dados: resultado.rows });
   } catch (erro) {
-    console.error("❌ Erro ao buscar comissões por período:", erro);
+    console.error("❌ ERRO NAS COMISSÕES:", erro.message);
     res.status(500).json({ sucesso: false, erro: "Erro ao calcular comissões do período" });
   }
 });
 
-// --- ROTA: Adicionar Novo Atendimento ---
 app.post('/api/atendimentos', async (req, res) => {
   try {
     const { colaborador_id, servico_id, cliente_nome, valor_cobrado } = req.body;
-
     let valor_total = Number(valor_cobrado);
     if (!valor_total) {
       const servicoQuery = await pool.query('SELECT preco FROM servicos WHERE id = $1', [servico_id]);
       valor_total = servicoQuery.rows[0].preco;
     }
-
     const colabQuery = await pool.query('SELECT percentual_comissao FROM colaboradores WHERE id = $1', [colaborador_id]);
     const percentual = colabQuery.rows[0].percentual_comissao;
-
     const valor_comissao = (valor_total * percentual) / 100;
 
     await pool.query(
@@ -153,20 +152,19 @@ app.post('/api/atendimentos', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5)`,
       [colaborador_id, servico_id, cliente_nome, valor_total, valor_comissao]
     );
-
     res.json({ sucesso: true, mensagem: "Atendimento guardado com sucesso!" });
-
   } catch (erro) {
+    console.error("❌ ERRO NO NOVO ATENDIMENTO:", erro.message);
     res.status(500).json({ sucesso: false, erro: "Falha ao guardar na base de dados" });
   }
 });
 
-// --- ROTAS DE GESTÃO DE SERVIÇOS ---
 app.get('/api/servicos', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM servicos ORDER BY nome ASC');
     res.json({ sucesso: true, dados: resultado.rows });
   } catch (erro) {
+    console.error("❌ ERRO AO BUSCAR SERVIÇOS:", erro.message);
     res.status(500).json({ sucesso: false, erro: "Erro ao buscar serviços" });
   }
 });
@@ -177,6 +175,7 @@ app.post('/api/servicos', async (req, res) => {
     await pool.query('INSERT INTO servicos (nome, preco) VALUES ($1, $2)', [nome, preco]);
     res.json({ sucesso: true, mensagem: "Serviço cadastrado com sucesso!" });
   } catch (erro) {
+    console.error("❌ ERRO AO CRIAR SERVIÇO:", erro.message);
     res.status(500).json({ sucesso: false, erro: "Erro ao cadastrar serviço" });
   }
 });
@@ -191,12 +190,12 @@ app.delete('/api/servicos/:id', async (req, res) => {
   }
 });
 
-// --- ROTAS DE GESTÃO DE COLABORADORES ---
 app.get('/api/colaboradores', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT id, nome, percentual_comissao FROM colaboradores ORDER BY nome ASC');
     res.json({ sucesso: true, dados: resultado.rows });
   } catch (erro) {
+    console.error("❌ ERRO AO BUSCAR EQUIPE:", erro.message);
     res.status(500).json({ sucesso: false, erro: "Erro ao buscar colaboradores" });
   }
 });
@@ -211,6 +210,7 @@ app.post('/api/colaboradores', async (req, res) => {
     );
     res.json({ sucesso: true, mensagem: "Profissional cadastrado com sucesso!" });
   } catch (erro) {
+    console.error("❌ ERRO AO CRIAR PROFISSIONAL:", erro.message);
     res.status(500).json({ sucesso: false, erro: "Erro ao cadastrar profissional" });
   }
 });
