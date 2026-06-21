@@ -15,7 +15,7 @@ export default function RelatoriosAbas({ dados }) {
   const [comissoesFiltradas, setComissoesFiltradas] = useState(null);
   const [buscandoFiltro, setBuscandoFiltro] = useState(false);
 
-  // --- NOVO: Estado para controlar os botões de pagamento visualmente ---
+  // Estado para controlar os botões de pagamento visualmente
   const [statusPagamentos, setStatusPagamentos] = useState({});
 
   const faturamentoBruto = Number(valores.faturamento_bruto || 0);
@@ -52,11 +52,11 @@ export default function RelatoriosAbas({ dados }) {
 
   const comissoesExibir = comissoesFiltradas !== null ? comissoesFiltradas : comissoesMensais;
 
-  // --- NOVO: Função para alternar entre Pago e A Receber ---
-  const alternarStatusPagamento = (nomeProfissional) => {
+  // --- CORREÇÃO: O status agora guarda o Nome + as Datas do filtro ---
+  const alternarStatusPagamento = (chaveUnica) => {
     setStatusPagamentos(prev => ({
       ...prev,
-      [nomeProfissional]: !prev[nomeProfissional]
+      [chaveUnica]: !prev[chaveUnica]
     }));
   };
 
@@ -88,7 +88,7 @@ export default function RelatoriosAbas({ dados }) {
     <button
       onClick={() => setAbaAtiva(id)}
       className={`whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-full transition-colors ${
-        abaAtiva === id ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        abaAtiva === id ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
       }`}
     >
       {titulo}
@@ -169,7 +169,11 @@ export default function RelatoriosAbas({ dados }) {
               <p className="text-center text-sm text-gray-400 py-6">Nenhuma comissão registrada neste período.</p>
             ) : (
               comissoesExibir.map((prof, index) => {
-                const estaPago = statusPagamentos[prof.profissional]; // Verifica se está pago
+                
+                // Cria uma chave única juntando o nome + datas do filtro. 
+                // Assim, a semana 1 tem uma chave diferente da semana 2.
+                const chaveUnica = `${prof.profissional}_${dataInicio}_${dataFim}`;
+                const estaPago = statusPagamentos[chaveUnica]; 
                 
                 return (
                   <div key={index} className="flex justify-between items-center mb-4 border-b border-gray-100 pb-4 last:border-0 last:mb-0 last:pb-0">
@@ -180,9 +184,8 @@ export default function RelatoriosAbas({ dados }) {
                     <div className="text-right flex flex-col items-end">
                       <p className="font-bold text-orange-600 text-lg">{formatarMoeda(prof.total_comissao)}</p>
                       
-                      {/* --- BOTÃO ATUALIZADO (VERMELHO/VERDE) --- */}
                       <button 
-                        onClick={() => alternarStatusPagamento(prof.profissional)}
+                        onClick={() => alternarStatusPagamento(chaveUnica)}
                         className={`text-[10px] px-4 py-1.5 rounded-md font-bold transition-colors mt-1 shadow-sm ${
                           estaPago 
                             ? 'bg-green-500 hover:bg-green-600 text-white' 
