@@ -10,10 +10,7 @@ import ModalConfiguracoes from './components/ModalConfiguracoes';
 export default function App() {
   const [mostrarLogin, setMostrarLogin] = useState(false);
   const [mostrarNovoAtendimento, setMostrarNovoAtendimento] = useState(false);
-  
-  // --- NOVO: Estado para abrir a tela de Configurações ---
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false); 
-  
   const [dadosSalao, setDadosSalao] = useState(null); 
 
   const dataAtual = new Date();
@@ -36,7 +33,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       
-      {/* 1. O BOTÃO FLUTUANTE (Agora no topo, livre de interferências) */}
+      {/* Botão Flutuante */}
       <button 
         onClick={() => setMostrarNovoAtendimento(true)} 
         className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-teal-500 hover:bg-teal-600 text-white rounded-full shadow-[0_10px_25px_rgba(20,184,166,0.4)] flex items-center justify-center transition-all active:scale-90"
@@ -44,49 +41,44 @@ export default function App() {
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
       </button>
 
-      {/* 2. O CORPO DO APLICATIVO */}
+      {/* Corpo do Aplicativo */}
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-2xl relative overflow-hidden flex flex-col">
         
         <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} />
         
         <main className="flex-1 overflow-y-auto scrollbar-hide pb-24 pt-4 px-4 md:px-8">
           
-          {/* Barra de Controles (Ajustes e Filtros) */}
           <div className="flex justify-between items-center mb-6">
             <button
               onClick={() => setMostrarConfiguracoes(true)}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               Ajustes
             </button>
 
             <div className="flex gap-2">
-              <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-teal-500 outline-none p-2.5">
-                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="bg-gray-50 border p-2 rounded-lg text-sm">
+                {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
               </select>
-              <select value={anoSelecionado} onChange={(e) => setAnoSelecionado(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-teal-500 outline-none p-2.5">
+              <select value={anoSelecionado} onChange={(e) => setAnoSelecionado(e.target.value)} className="bg-gray-50 border p-2 rounded-lg text-sm">
                 <option value="2025">2025</option><option value="2026">2026</option>
               </select>
             </div>
           </div>
 
-          {/* Paineis de Informação */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div className="md:col-span-4"><PainelValores valores={dadosSalao?.valores} /></div>
             <div className="md:col-span-8"><RelatoriosAbas dados={dadosSalao} /></div>
           </div>
         </main>
 
-        {/* Menu Inferior (Apenas para Telas Pequenas) */}
         <div className="md:hidden"><MenuInferior /></div>
       </div>
 
-      {/* 3. OS MODAIS (Aparecem por cima da tela) */}
-      {/* Mantenha as props (funções) que você já tinha nestes componentes */}
-      {mostrarNovoAtendimento && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} />}
+      {/* Modais com a função atualizarDados conectada */}
+      {mostrarNovoAtendimento && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} atualizarDados={carregarDados} />}
       {mostrarConfiguracoes && <ModalConfiguracoes fechar={() => setMostrarConfiguracoes(false)} />}
-      {mostrarLogin && <ModalLogin fechar={() => setMostrarLogin(false)} />}
+      {mostrarLogin && <ModalLogin aoFechar={() => setMostrarLogin(false)} />}
       
     </div>
   );
