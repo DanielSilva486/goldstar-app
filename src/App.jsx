@@ -14,23 +14,26 @@ export default function App() {
   const [dadosSalao, setDadosSalao] = useState(null); 
   const [comandas, setComandas] = useState([]);
 
-// Proteção aprimorada para carregar o usuário
   const [usuarioLogado, setUsuarioLogado] = useState(() => {
     try {
       const salvo = localStorage.getItem('usuarioGoldstar');
       if (salvo) {
         const parsed = JSON.parse(salvo);
-        // Garante que se for o 'Admin' manual, ele tenha o perfil correto
         if (parsed.nome === 'Admin') return { ...parsed, perfil: 'admin' };
         return parsed;
       }
-      return { id: 0, nome: 'Admin', perfil: 'admin' };
-    } catch (e) { return { id: 0, nome: 'Admin', perfil: 'admin' }; }
+      return null; // Retorna null se não estiver logado
+    } catch (e) { return null; }
   });
 
-  useEffect(() => { localStorage.setItem('usuarioGoldstar', JSON.stringify(usuarioLogado)); }, [usuarioLogado]);
+  useEffect(() => { 
+    if (usuarioLogado) {
+      localStorage.setItem('usuarioGoldstar', JSON.stringify(usuarioLogado)); 
+    } else {
+      localStorage.removeItem('usuarioGoldstar');
+    }
+  }, [usuarioLogado]);
 
-  // Se usuarioLogado for null, forçamos o login
   useEffect(() => { if (!usuarioLogado) setMostrarLogin(true); }, [usuarioLogado]);
 
   const isAdmin = usuarioLogado?.perfil === 'admin';
@@ -67,7 +70,7 @@ export default function App() {
             {isAdmin && (
               <button onClick={() => setMostrarConfiguracoes(true)} className="bg-gray-100 px-4 py-2 rounded-lg text-sm font-bold text-gray-700">Ajustes</button>
             )}
-            <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg">👤 {usuarioLogado?.nome}</span>
+            {usuarioLogado && <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg">👤 {usuarioLogado.nome}</span>}
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
