@@ -15,24 +15,18 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// --- ROTA DE LOGIN E PERMISSÕES (LENDO SENHA DO BANCO) ---
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
-  
   if (email.toLowerCase() === 'admin@goldstar.com' && senha === 'admin') {
     return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin', perfil: 'admin', email: 'admin@goldstar.com' } });
   }
-
   try {
     const r = await pool.query('SELECT id, nome, perfil, email, senha FROM colaboradores WHERE LOWER(email) = LOWER($1) AND ativo = TRUE', [email]);
-    
     if (r.rows.length > 0) {
       const user = r.rows[0];
-      // Verifica a senha que está gravada no banco (por padrão será 1234 até você alterar)
       const senhaGravada = user.senha || '1234'; 
-      
       if (senha === senhaGravada) {
-        delete user.senha; // Removemos a senha por segurança antes de enviar para a tela
+        delete user.senha; 
         return res.json({ sucesso: true, usuario: user });
       }
     }
@@ -49,7 +43,6 @@ app.get('/api/resumo', async (req, res) => {
     const comissoesQuery = await pool.query(`SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY c.nome ORDER BY total_comissao DESC`, [mes, ano]);
     const topServicosQuery = await pool.query(`SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado FROM atendimentos a JOIN servicos s ON a.servico_id = s.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY s.nome ORDER BY gerado DESC LIMIT 10`, [mes, ano]);
     const topClientesQuery = await pool.query(`SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 10`, [mes, ano]);
-    
     res.json({ sucesso: true, valores: { ...totais.rows[0], total_despesas: despesasTotais.rows[0].total_despesas }, historico: historico.rows, comissoes: comissoesQuery.rows, topServicos: topServicosQuery.rows, topClientes: topClientesQuery.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
@@ -68,7 +61,6 @@ app.get('/api/colaboradores', async (req, res) => {
 });
 
 app.get('/api/colaboradores/todos', async (req, res) => {
-  // Agora retornamos o e-mail e o perfil para o painel de Ajustes ler
   const r = await pool.query('SELECT id, nome, percentual_comissao, ativo, email, perfil FROM colaboradores ORDER BY nome ASC');
   res.json({ sucesso: true, dados: r.rows });
 });
@@ -76,12 +68,10 @@ app.get('/api/colaboradores/todos', async (req, res) => {
 app.post('/api/colaboradores', async (req, res) => {
   const { nome, percentual_comissao } = req.body;
   const emailProvisorio = nome.toLowerCase().replace(/\s+/g, '') + '@goldstar.com';
-  // A senha padrão 1234 é inserida automaticamente pela coluna
   await pool.query("INSERT INTO colaboradores (nome, email, percentual_comissao, perfil, ativo) VALUES ($1, $2, $3, 'profissional', TRUE)", [nome, emailProvisorio, percentual_comissao]);
   res.json({ sucesso: true });
 });
 
-// --- ROTA PARA ATUALIZAR ACESSOS (E-MAIL, SENHA E PERFIL) ---
 app.put('/api/colaboradores/:id/acesso', async (req, res) => {
   try {
     const { email, perfil, senha } = req.body;
@@ -90,6 +80,15 @@ app.put('/api/colaboradores/:id/acesso', async (req, res) => {
     } else {
       await pool.query('UPDATE colaboradores SET email = $1, perfil = $2 WHERE id = $3', [email, perfil, req.params.id]);
     }
+    res.json({ sucesso: true });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
+});
+
+// --- NOVA ROTA: SALVAR PORCENTAGEM DE COMISSÃO GERAL ---
+app.put('/api/colaboradores/:id/comissao', async (req, res) => {
+  try {
+    const { percentual_comissao } = req.body;
+    await pool.query('UPDATE colaboradores SET percentual_comissao = $1 WHERE id = $2', [percentual_comissao, req.params.id]);
     res.json({ sucesso: true });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
@@ -151,7 +150,6 @@ app.put('/api/comandas/pagar', async (req, res) => {
   try {
     const { ids, statusNovo } = req.body; 
     if (!ids || ids.length === 0) return res.json({ sucesso: true });
-    
     const st = statusNovo || 'pago';
     await pool.query('UPDATE atendimentos SET status = $1 WHERE id = ANY($2)', [st, ids]);
     res.json({ sucesso: true });
