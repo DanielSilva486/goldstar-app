@@ -1,39 +1,66 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-export default function ModalLogin({ aoFechar }) {
+export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
+  const [usuario, setUsuario] = useState('');
+  const [senha, setSenha] = useState('');
+  const [erro, setErro] = useState('');
+  const [carregando, setCarregando] = useState(false);
+
+  const fazerLogin = async (e) => {
+    e.preventDefault();
+    setCarregando(true); setErro('');
+    
+    try {
+      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario, senha })
+      });
+      const data = await res.json();
+      
+      if (data.sucesso) {
+        setUsuarioLogado(data.usuario);
+        aoFechar();
+      } else {
+        setErro(data.erro || 'Erro ao entrar. Verifique o nome.');
+      }
+    } catch (err) { setErro('Erro de conexão'); }
+    
+    setCarregando(false);
+  };
+
   return (
-    <div className="absolute inset-0 bg-gray-900/60 flex justify-center items-end sm:items-center z-50">
-      {/* Container do Modal */}
-      <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 flex flex-col items-center shadow-lg pb-12 relative">
+    <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4">
+      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 relative">
+        <button onClick={aoFechar} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex justify-center items-center text-gray-600 font-bold hover:bg-gray-200">X</button>
         
-        {/* Seta para fechar o modal */}
-        <div 
-          onClick={aoFechar}
-          className="absolute -top-4 w-10 h-10 bg-gray-400 hover:bg-gray-500 cursor-pointer rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-colors"
-        >
-           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg>
+          </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-800 mb-2 mt-4">Definições do perfil</h2>
-        <p className="text-gray-500 text-sm mb-8 text-center">
-          Guarde o seu progresso e acesse o sistema do salão.
-        </p>
-
-        {/* Botão do Google */}
-        <div className="w-full bg-blue-50/50 rounded-2xl flex items-center justify-between p-3 mb-4 shadow-sm border border-blue-100">
-          <div className="flex items-center gap-3 pl-2">
-            {/* Ícone do Google em SVG */}
-            <svg className="w-6 h-6" viewBox="0 0 48 48">
-              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-            </svg>
-            <span className="text-gray-700 font-medium">Google</span>
+        <h2 className="text-xl font-black text-gray-800 mb-6 text-center">Acesso da Equipe</h2>
+        
+        <form onSubmit={fazerLogin} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Seu Nome / Usuário</label>
+            <input type="text" value={usuario} onChange={e => setUsuario(e.target.value)} placeholder="Ex: admin ou Gaby" className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" required />
           </div>
-          <button className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-xl transition-colors">
-            Ligar
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Senha</label>
+            <input type="password" value={senha} onChange={e => setSenha(e.target.value)} placeholder="••••" className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" required />
+          </div>
+          
+          {erro && <p className="text-red-500 text-xs font-bold text-center bg-red-50 p-2 rounded-lg">{erro}</p>}
+          
+          <button type="submit" disabled={carregando} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 rounded-xl shadow-md transition-colors mt-2">
+            {carregando ? 'Entrando...' : 'Entrar no Sistema'}
           </button>
+        </form>
+
+        <div className="mt-6 text-center text-[10px] text-gray-400 bg-gray-50 p-3 rounded-xl">
+          <p className="font-bold">Informação para Teste:</p>
+          <p>Mestre: <span className="font-bold text-gray-600">admin</span> | Senha: <span className="font-bold text-gray-600">admin</span></p>
+          <p>Equipe: Escreva o nome exato e a senha padrão <span className="font-bold text-gray-600">1234</span></p>
         </div>
       </div>
     </div>

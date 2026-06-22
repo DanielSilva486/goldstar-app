@@ -158,5 +158,28 @@ app.put('/api/despesas/:id/pagar', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
+// --- ROTA DE LOGIN E PERMISSÕES ---
+app.post('/api/login', async (req, res) => {
+  const { usuario, senha } = req.body;
+  
+  // Acesso Mestre (A Dona do Salão)
+  if (usuario.toLowerCase() === 'admin' && senha === 'admin') {
+    return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin', perfil: 'admin' } });
+  }
+
+  try {
+    // Procura na tabela de colaboradores pelo nome exato
+    const r = await pool.query('SELECT id, nome, perfil FROM colaboradores WHERE LOWER(nome) = LOWER($1) AND ativo = TRUE', [usuario]);
+    
+    if (r.rows.length > 0) {
+      // Para já, todos os funcionários entram com a senha padrão '1234'
+      if (senha === '1234') {
+        return res.json({ sucesso: true, usuario: r.rows[0] });
+      }
+    }
+    res.status(401).json({ sucesso: false, erro: 'Usuário ou senha incorretos' });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor na porta ${PORT}`));
