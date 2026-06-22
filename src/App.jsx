@@ -14,7 +14,7 @@ export default function App() {
   const [dadosSalao, setDadosSalao] = useState(null); 
   const [comandas, setComandas] = useState([]);
 
- // Proteção aprimorada para carregar o usuário
+// Proteção aprimorada para carregar o usuário
   const [usuarioLogado, setUsuarioLogado] = useState(() => {
     try {
       const salvo = localStorage.getItem('usuarioGoldstar');
