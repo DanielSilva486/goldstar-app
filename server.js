@@ -15,28 +15,17 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// --- ROTA PRINCIPAL: AGORA SOMA AS DESPESAS REAIS DO MÊS ---
 app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
     const totais = await pool.query(`SELECT COALESCE(SUM(valor_total), 0) as faturamento_bruto, COALESCE(SUM(valor_comissao), 0) as total_comissoes, COUNT(id) as total_atendimentos FROM atendimentos WHERE status = 'pago' AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2`, [mes, ano]);
-    
-    // NOVO: Soma as despesas reais do mês selecionado
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2`, [mes, ano]);
-    
     const historico = await pool.query(`SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, a.valor_total, c.nome as profissional, a.valor_comissao FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 ORDER BY a.data_hora DESC LIMIT 100`, [mes, ano]);
     const comissoesQuery = await pool.query(`SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY c.nome ORDER BY total_comissao DESC`, [mes, ano]);
     const topServicosQuery = await pool.query(`SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado FROM atendimentos a JOIN servicos s ON a.servico_id = s.id WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY s.nome ORDER BY gerado DESC LIMIT 10`, [mes, ano]);
     const topClientesQuery = await pool.query(`SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto FROM atendimentos WHERE status = 'pago' AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 10`, [mes, ano]);
     
-    res.json({ 
-      sucesso: true, 
-      valores: { ...totais.rows[0], total_despesas: despesasTotais.rows[0].total_despesas }, 
-      historico: historico.rows, 
-      comissoes: comissoesQuery.rows, 
-      topServicos: topServicosQuery.rows, 
-      topClientes: topClientesQuery.rows 
-    });
+    res.json({ sucesso: true, valores: { ...totais.rows[0], total_despesas: despesasTotais.rows[0].total_despesas }, historico: historico.rows, comissoes: comissoesQuery.rows, topServicos: topServicosQuery.rows, topClientes: topClientesQuery.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
@@ -113,7 +102,8 @@ app.post('/api/atendimentos', async (req, res) => {
 
 app.get('/api/comandas', async (req, res) => {
   try {
-    const r = await pool.query(`SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status = 'pendente' ORDER BY a.data_hora ASC`);
+    // AQUI: Adicionado a.data_hora para o frontend saber quando a cliente chegou
+    const r = await pool.query(`SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao, a.data_hora FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status = 'pendente' ORDER BY a.data_hora ASC`);
     res.json({ sucesso: true, dados: r.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
@@ -147,16 +137,10 @@ app.post('/api/pagamentos-comissoes/toggle', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
-// --- NOVAS ROTAS DE DESPESAS (TABELA EXCEL) ---
 app.get('/api/despesas', async (req, res) => {
   try {
     const { mes, ano } = req.query;
-    const r = await pool.query(`
-      SELECT id, TO_CHAR(data_vencimento, 'YYYY-MM-DD') as data_vencimento, valor, descricao, fornecedor, pago, TO_CHAR(data_pagamento, 'DD/MM/YY') as data_pagamento 
-      FROM despesas 
-      WHERE EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2
-      ORDER BY data_vencimento ASC
-    `, [mes, ano]);
+    const r = await pool.query(`SELECT id, TO_CHAR(data_vencimento, 'YYYY-MM-DD') as data_vencimento, valor, descricao, fornecedor, pago, TO_CHAR(data_pagamento, 'DD/MM/YY') as data_pagamento FROM despesas WHERE EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2 ORDER BY data_vencimento ASC`, [mes, ano]);
     res.json({ sucesso: true, dados: r.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });

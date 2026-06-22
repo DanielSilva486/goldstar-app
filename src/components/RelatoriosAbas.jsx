@@ -16,13 +16,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [pagamentosDb, setPagamentosDb] = useState([]);
   const [despesas, setDespesas] = useState([]);
 
-  // Cálculos DRE
+  // NOVO: Gatilho que faz o relógio da fila atualizar a cada minuto
+  const [minutoAtual, setMinutoAtual] = useState(new Date().getMinutes());
+  useEffect(() => {
+    const intervalo = setInterval(() => setMinutoAtual(new Date().getMinutes()), 60000);
+    return () => clearInterval(intervalo);
+  }, []);
+
   const faturamentoBruto = Number(valores.faturamento_bruto || 0);
   const totalComissoes = Number(valores.total_comissoes || 0);
   const despesasFixas = Number(valores.total_despesas || 0); 
   const lucroLiquido = faturamentoBruto - totalComissoes - despesasFixas;
 
-  // Cálculo da Dona
   const comissaoDona = Number(comissoesMensais.find(c => c.profissional.toLowerCase().includes('raquel'))?.total_comissao || 0);
   const lucroOperacional = lucroLiquido + comissaoDona;
 
@@ -53,11 +58,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     setBuscandoFiltro(false);
   };
 
-  const limparFiltroPeriodo = () => {
-    setDataInicio(''); 
-    setDataFim(''); 
-    setComissoesFiltradas(null);
-  };
+  const limparFiltroPeriodo = () => { setDataInicio(''); setDataFim(''); setComissoesFiltradas(null); };
 
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
     try {
@@ -73,8 +74,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}/pagar`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pago: !statusAtual })
       });
-      carregarDadosExtras(); 
-      recarregarTudo(); 
+      carregarDadosExtras(); recarregarTudo(); 
     } catch (e) { alert("Erro ao atualizar despesa."); }
   };
 
@@ -101,17 +101,13 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     let conteudoCSV = "Profissional,Qtd de Servicos,Comissao a Pagar (R$),Status,Data da Baixa\n";
     dados.forEach(prof => {
       const isFiltrado = dataInicio && dataFim && comissoesFiltradas !== null;
-      
-      // CORREÇÃO: Chave exata para sincronizar a exportação com o banco de dados
       const chaveUnica = isFiltrado ? `P_${prof.profissional}_${dataInicio}_${dataFim}` : `M_${prof.profissional}_${mes}_${ano}`;
-      
       const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
       const estaPago = !!pagamentoInfo;
       const p = prof.profissional.replace(/,/g, '');
       const v = Number(prof.total_comissao).toFixed(2).replace('.', ',');
       const statusStr = estaPago ? "PAGO" : "A RECEBER";
       const dataStr = estaPago ? pagamentoInfo.data_pagto : "";
-      
       conteudoCSV += `${p},${prof.qtd_servicos},"${v}",${statusStr},${dataStr}\n`;
     });
     const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
@@ -160,9 +156,40 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
              ) : (
                Object.entries(comandasAgrupadas).map(([nomeCliente, itens]) => {
                  const totalComanda = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
+                 
+                 // --- MÁGICA DO TEMPO DE ESPERA ---
+                 const tempoEstimado = itens.reduce((soma, item) => soma + (item.duracao || 30), 0);
+                 const horaChegada = new Date(itens[0].data_hora); // Usa a data/hora real de quando a cliente foi adicionada
+                 const agora = new Date();
+                 // Calcula minutos passados. Uso do max para evitar números negativos se o fuso horário divergir levemente
+                 const decorridoMinutos = Math.max(0, Math.floor((agora - horaChegada) / 60000));
+                 
+                 let corTempo = "bg-green-100 text-green-700 border-green-200";
+                 let textoTempo = `${decorridoMinutos}m / ${tempoEstimado}m`;
+                 let iconeTempo = "⏱️";
+
+                 // Se passou do tempo previsto
+                 if (decorridoMinutos >= tempoEstimado) {
+                   corTempo = "bg-red-100 text-red-700 border-red-300 animate-pulse";
+                   textoTempo = `Atraso: ${decorridoMinutos - tempoEstimado}m`;
+                   iconeTempo = "⚠️";
+                 } 
+                 // Se falta 15 minutos ou menos para terminar
+                 else if (tempoEstimado - decorridoMinutos <= 15) {
+                   corTempo = "bg-orange-100 text-orange-700 border-orange-200";
+                 }
+
                  return (
                    <div key={nomeCliente} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-                     <div className="bg-blue-50 px-4 py-2 border-b border-blue-100"><h4 className="font-bold text-gray-800">Cliente: <span className="text-blue-600">{nomeCliente}</span></h4></div>
+                     <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex justify-between items-center">
+                       <h4 className="font-bold text-gray-800">Cliente: <span className="text-blue-600">{nomeCliente}</span></h4>
+                       
+                       {/* O BADGE DISCRETO DE TEMPO */}
+                       <span className={`text-[10px] px-2 py-0.5 rounded-full border shadow-sm flex items-center gap-1 font-bold ${corTempo}`} title={`Chegou às ${horaChegada.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`}>
+                          {iconeTempo} {textoTempo}
+                       </span>
+
+                     </div>
                      <div className="p-4">
                        <ul className="space-y-2 mb-4">
                          {itens.map(item => (
@@ -214,9 +241,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <div className="flex flex-col gap-2">
               <div>
                 <h3 className="font-bold text-orange-800">Repasses Acumulados</h3>
-                <p className="text-[10px] text-orange-600 font-medium">
-                  {comissoesFiltradas !== null ? "📊 Analisando período escolhido" : "📅 Mostrando mês cheio"}
-                </p>
+                <p className="text-[10px] text-orange-600 font-medium">{comissoesFiltradas !== null ? "📊 Analisando período" : "📅 Mostrando mês cheio"}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" /> <span className="text-xs font-bold">até</span> <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" />
@@ -243,20 +268,13 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
                     <p className="font-bold text-orange-600 text-lg">{formatarMoeda(prof.total_comissao)}</p>
-                    
                     <div className="flex items-center gap-2 mt-1">
                       {estaPago ? (
                         <span className="text-[11px] font-bold text-[#2d6a4f] bg-[#d8f3dc] px-2 py-1 rounded">Pago em: {pagamentoInfo.data_pagto}</span>
                       ) : (
                         <span className="text-[11px] font-bold text-[#e07a5f] bg-red-50 px-2 py-1 rounded">A Receber</span>
                       )}
-                      <input 
-                        type="checkbox" 
-                        checked={estaPago} 
-                        onChange={() => alternarStatusPagamento(prof.profissional, chaveUnica)}
-                        className="w-5 h-5 cursor-pointer accent-[#2d6a4f]"
-                        title="Marcar como Pago"
-                      />
+                      <input type="checkbox" checked={estaPago} onChange={() => alternarStatusPagamento(prof.profissional, chaveUnica)} className="w-5 h-5 cursor-pointer accent-[#2d6a4f]"/>
                     </div>
                   </div>
                 </div>
@@ -282,12 +300,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           <h3 className="font-bold text-gray-200 mb-4 border-b border-gray-600 pb-2">Resumo Financeiro (DRE)</h3>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-gray-400">Faturamento Bruto</span><span className="font-bold text-green-400">+ {formatarMoeda(faturamentoBruto)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Repasses (Todas as Profissionais)</span><span className="font-bold text-orange-400">- {formatarMoeda(totalComissoes)}</span></div>
-            <div className="flex justify-between border-b border-gray-600 pb-3"><span className="text-gray-400">Despesas e Contas do Mês</span><span className="font-bold text-red-400">- {formatarMoeda(despesasFixas)}</span></div>
-            
-            <div className="flex justify-between pt-2"><span className="text-gray-400">Saldo Líquido (Caixa do Salão)</span><span className={lucroLiquido >= 0 ? 'text-teal-300' : 'text-red-400'}>{formatarMoeda(lucroLiquido)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Comissão da Dona (Raquel)</span><span className="font-bold text-green-400">+ {formatarMoeda(comissaoDona)}</span></div>
-            
+            <div className="flex justify-between"><span className="text-gray-400">Repasses (Todas)</span><span className="font-bold text-orange-400">- {formatarMoeda(totalComissoes)}</span></div>
+            <div className="flex justify-between border-b border-gray-600 pb-3"><span className="text-gray-400">Despesas do Mês</span><span className="font-bold text-red-400">- {formatarMoeda(despesasFixas)}</span></div>
+            <div className="flex justify-between pt-2"><span className="text-gray-400">Saldo Líquido</span><span className={lucroLiquido >= 0 ? 'text-teal-300' : 'text-red-400'}>{formatarMoeda(lucroLiquido)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Comissão da Dona</span><span className="font-bold text-green-400">+ {formatarMoeda(comissaoDona)}</span></div>
             <div className="flex justify-between pt-3 mt-2 border-t border-gray-500 text-lg"><span className="font-bold text-white">Lucro Operacional Total</span><span className="font-bold text-teal-300">{formatarMoeda(lucroOperacional)}</span></div>
           </div>
         </div>
@@ -299,62 +315,27 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <h3 className="font-bold text-white">Gestão de Despesas</h3>
             <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
           </div>
-          
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="bg-[#2d6a4f] text-white">
-                <tr>
-                  <th className="p-3 font-bold border-r border-[#1b4332]">Vencimento</th>
-                  <th className="p-3 font-bold border-r border-[#1b4332]">Valor</th>
-                  <th className="p-3 font-bold border-r border-[#1b4332]">Serviços/Produto</th>
-                  <th className="p-3 font-bold border-r border-[#1b4332]">Fornecedor</th>
-                  <th className="p-3 font-bold border-r border-[#1b4332]">Status</th>
-                  <th className="p-3 font-bold border-r border-[#1b4332]">Data Pagamento</th>
-                  <th className="p-3 font-bold text-center">Pago</th>
-                </tr>
+                <tr><th className="p-3 font-bold border-r border-[#1b4332]">Vencimento</th><th className="p-3 font-bold border-r border-[#1b4332]">Valor</th><th className="p-3 font-bold border-r border-[#1b4332]">Serviços/Produto</th><th className="p-3 font-bold border-r border-[#1b4332]">Fornecedor</th><th className="p-3 font-bold border-r border-[#1b4332]">Status</th><th className="p-3 font-bold border-r border-[#1b4332]">Data Pagamento</th><th className="p-3 font-bold text-center">Pago</th></tr>
               </thead>
               <tbody className="divide-y divide-gray-200 border-b border-gray-200">
-                {despesas.length === 0 ? (
-                  <tr><td colSpan="7" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr>
-                ) : (
-                  despesas.map(d => {
-                    const hoje = new Date();
-                    hoje.setHours(0,0,0,0);
-                    const partes = d.data_vencimento.split('-');
-                    const venc = new Date(partes[0], partes[1] - 1, partes[2]);
+                {despesas.length === 0 ? <tr><td colSpan="7" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr> : despesas.map(d => {
+                    const hoje = new Date(); hoje.setHours(0,0,0,0);
+                    const partes = d.data_vencimento.split('-'); const venc = new Date(partes[0], partes[1] - 1, partes[2]);
                     const diferencaDias = Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
-                    
                     let classeLinha = ""; let textoStatus = ""; let classeStatus = "font-bold text-center ";
-
-                    if (d.pago) {
-                      classeLinha = "bg-[#2d6a4f] text-white"; 
-                      textoStatus = "Pago"; classeStatus += "text-white";
-                    } else if (diferencaDias < 0) {
-                      classeLinha = "bg-[#e07a5f] text-white"; 
-                      textoStatus = "Venceu"; classeStatus += "text-white";
-                    } else {
-                      classeLinha = "bg-[#d8f3dc] text-gray-800 hover:bg-[#b7e4c7]"; 
-                      textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`;
-                      classeStatus += "text-gray-800";
-                    }
-
+                    if (d.pago) { classeLinha = "bg-[#2d6a4f] text-white"; textoStatus = "Pago"; classeStatus += "text-white";
+                    } else if (diferencaDias < 0) { classeLinha = "bg-[#e07a5f] text-white"; textoStatus = "Venceu"; classeStatus += "text-white";
+                    } else { classeLinha = "bg-[#d8f3dc] text-gray-800 hover:bg-[#b7e4c7]"; textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`; classeStatus += "text-gray-800"; }
                     const dataVencFormatada = `${partes[2]}/${partes[1]}/${partes[0].substring(2)}`;
-
                     return (
                       <tr key={d.id} className={`${classeLinha} transition-colors border-b border-gray-300/30`}>
-                        <td className="p-3 font-bold border-r border-gray-300/30">{dataVencFormatada}</td>
-                        <td className="p-3 font-bold border-r border-gray-300/30">{formatarMoeda(d.valor)}</td>
-                        <td className="p-3 border-r border-gray-300/30 truncate max-w-[200px]" title={d.descricao}>{d.descricao}</td>
-                        <td className="p-3 border-r border-gray-300/30 truncate max-w-[150px]">{d.fornecedor || '-'}</td>
-                        <td className={`p-3 border-r border-gray-300/30 ${classeStatus}`}>{textoStatus}</td>
-                        <td className="p-3 border-r border-gray-300/30 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td>
-                        <td className="p-3 text-center flex justify-center items-center h-full">
-                          <input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-[#2d6a4f]" />
-                        </td>
+                        <td className="p-3 font-bold border-r border-gray-300/30">{dataVencFormatada}</td><td className="p-3 font-bold border-r border-gray-300/30">{formatarMoeda(d.valor)}</td><td className="p-3 border-r border-gray-300/30 truncate max-w-[200px]">{d.descricao}</td><td className="p-3 border-r border-gray-300/30 truncate max-w-[150px]">{d.fornecedor || '-'}</td><td className={`p-3 border-r border-gray-300/30 ${classeStatus}`}>{textoStatus}</td><td className="p-3 border-r border-gray-300/30 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td><td className="p-3 text-center flex items-center justify-center"><input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-[#2d6a4f]" /></td>
                       </tr>
                     );
-                  })
-                )}
+                })}
               </tbody>
             </table>
           </div>
