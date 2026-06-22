@@ -192,6 +192,23 @@ app.put('/api/despesas/:id/pagar', async (req, res) => {
     res.json({ sucesso: true });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
+
+// --- NOVA ROTA: ADICIONAR DESPESA ---
+app.post('/api/despesas', async (req, res) => {
+  try {
+    const { descricao, valor, data_vencimento, fornecedor, pago } = req.body;
+    const dataPagto = pago ? new Date() : null;
+    await pool.query(
+      'INSERT INTO despesas (descricao, valor, data_vencimento, fornecedor, pago, data_pagamento) VALUES ($1, $2, $3, $4, $5, $6)',
+      [descricao, valor, data_vencimento, fornecedor, pago, dataPagto]
+    );
+    res.json({ sucesso: true });
+  } catch (erro) { 
+    res.status(500).json({ sucesso: false }); 
+  }
+});
+
+
 // ... (mantenha todo o código anterior até o app.listen)
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor na porta ${PORT}`));

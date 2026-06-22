@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
+import ModalNovaDespesa from './ModalNovaDespesa';
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
   
   // PERMISSÕES
@@ -27,6 +27,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [buscandoFiltro, setBuscandoFiltro] = useState(false);
   const [pagamentosDb, setPagamentosDb] = useState([]);
   const [despesas, setDespesas] = useState([]);
+  const [mostrarNovaDespesa, setMostrarNovaDespesa] = useState(false);
   const [colaboradores, setColaboradores] = useState([]);
 
   const [minutoAtual, setMinutoAtual] = useState(new Date().getMinutes());
@@ -355,8 +356,16 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       {/* Tabela de Despesas Corrigida e Segura */}
       {isAdmin && abaAtiva === 5 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center"><h3 className="font-bold text-white">Despesas</h3><span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span></div>
-          <div className="overflow-x-auto">
+          
+           <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+  <div className="flex items-center gap-4">
+    <h3 className="font-bold text-white">Despesas</h3>
+    <button onClick={() => setMostrarNovaDespesa(true)} className="bg-teal-500 hover:bg-teal-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors">+ Lançar Despesa</button>
+  </div>
+  <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
+</div>
+            
+<div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="bg-teal-500 text-white">
                 <tr><th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th><th className="p-3 font-bold border-r border-teal-600/30">Valor</th><th className="p-3 font-bold border-r border-teal-600/30">Serviços/Produto</th><th className="p-3 font-bold border-r border-teal-600/30">Fornecedor</th><th className="p-3 font-bold border-r border-teal-600/30">Status</th><th className="p-3 font-bold border-r border-teal-600/30">Data Pagamento</th><th className="p-3 font-bold text-center">Pago</th></tr>
@@ -393,7 +402,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             </table>
           </div>
         </div>
-      )}
+     {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={recarregarTudo} />}
     </div>
   );
 }
