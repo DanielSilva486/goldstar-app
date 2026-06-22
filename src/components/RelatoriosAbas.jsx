@@ -101,13 +101,17 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     let conteudoCSV = "Profissional,Qtd de Servicos,Comissao a Pagar (R$),Status,Data da Baixa\n";
     dados.forEach(prof => {
       const isFiltrado = dataInicio && dataFim && comissoesFiltradas !== null;
-      const chaveUnica = isFiltrado ? `PERIODO_${prof.profissional}_${dataInicio}_${dataFim}` : `MES_${prof.profissional}_${mes}_${ano}`;
+      
+      // CORREÇÃO: Chave exata para sincronizar a exportação com o banco de dados
+      const chaveUnica = isFiltrado ? `P_${prof.profissional}_${dataInicio}_${dataFim}` : `M_${prof.profissional}_${mes}_${ano}`;
+      
       const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
       const estaPago = !!pagamentoInfo;
       const p = prof.profissional.replace(/,/g, '');
       const v = Number(prof.total_comissao).toFixed(2).replace('.', ',');
       const statusStr = estaPago ? "PAGO" : "A RECEBER";
       const dataStr = estaPago ? pagamentoInfo.data_pagto : "";
+      
       conteudoCSV += `${p},${prof.qtd_servicos},"${v}",${statusStr},${dataStr}\n`;
     });
     const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
@@ -204,7 +208,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* ABA 2: COMISSÕES COM CAIXINHA DE SELEÇÃO E DATA IGUAL DESPESAS */}
       {abaAtiva === 2 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
