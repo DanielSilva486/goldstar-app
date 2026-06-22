@@ -11,6 +11,7 @@ export default function App() {
   const [mostrarLogin, setMostrarLogin] = useState(false);
   const [mostrarNovoAtendimento, setMostrarNovoAtendimento] = useState(false);
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false); 
+  const [mostrarConfirmacaoSair, setMostrarConfirmacaoSair] = useState(false); // NOVO: Controle da tela de sair
   const [dadosSalao, setDadosSalao] = useState(null); 
   const [comandas, setComandas] = useState([]);
 
@@ -29,10 +30,10 @@ export default function App() {
   useEffect(() => { 
     if (usuarioLogado) {
       localStorage.setItem('usuarioGoldstar', JSON.stringify(usuarioLogado)); 
-      setMostrarLogin(false); // Fecha o modal automaticamente ao logar
+      setMostrarLogin(false);
     } else {
       localStorage.removeItem('usuarioGoldstar');
-      setMostrarLogin(true); // Força abrir o modal se deslogar
+      setMostrarLogin(true);
     }
   }, [usuarioLogado]);
 
@@ -59,13 +60,13 @@ export default function App() {
   const cor = paleta[temaAtivo] || paleta.teal;
 
   const carregarDados = () => {
-    if (!usuarioLogado) return; // SEGURANÇA: Não busca dados se estiver deslogado
+    if (!usuarioLogado) return; 
     fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
       .then(r => r.json()).then(d => { if(d.sucesso) setDadosSalao(d); });
   };
   
   const buscarComandas = () => {
-    if (!usuarioLogado) return; // SEGURANÇA: Não busca comandas se estiver deslogado
+    if (!usuarioLogado) return; 
     fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas')
       .then(r => r.json()).then(d => { if (d.sucesso) setComandas(d.dados); });
   };
@@ -80,13 +81,12 @@ export default function App() {
     buscarComandas(); 
   };
 
-  // Recarrega sempre que o usuário mudar (Logar/Deslogar) ou mudar a data
   useEffect(() => { recarregarTudo(); }, [mesSelecionado, anoSelecionado, usuarioLogado]); 
 
-  const fazerLogout = () => {
-    if (window.confirm('Deseja realmente sair do sistema?')) {
-      setUsuarioLogado(null);
-    }
+  // Função atualizada para abrir o nosso Modal bonito em vez do alerta do navegador
+  const confirmarLogout = () => {
+    setUsuarioLogado(null);
+    setMostrarConfirmacaoSair(false);
   };
 
   return (
@@ -113,7 +113,6 @@ export default function App() {
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col">
         <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} />
         
-        {/* MAGIA DA SEGURANÇA: Se não tem usuário logado, ESCONDE a tela e mostra o cadeado! */}
         {!usuarioLogado ? (
           <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 text-center">
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 max-w-sm w-full animate-fade-in-up">
@@ -128,7 +127,6 @@ export default function App() {
             </div>
           </main>
         ) : (
-          /* SE ESTIVER LOGADO, MOSTRA O DASHBOARD NORMALMENTE */
           <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4 md:px-8">
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
               <div className="flex items-center gap-3">
@@ -144,7 +142,7 @@ export default function App() {
                     <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
                       👤 {usuarioLogado.nome}
                     </span>
-                    <button onClick={fazerLogout} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors border border-red-100 shadow-sm">
+                    <button onClick={() => setMostrarConfirmacaoSair(true)} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors border border-red-100 shadow-sm">
                       Sair
                     </button>
                   </div>
@@ -175,9 +173,25 @@ export default function App() {
 
       {mostrarNovoAtendimento && usuarioLogado && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} recarregarTudo={recarregarTudo} comandas={comandas} />}
       {mostrarConfiguracoes && usuarioLogado && <ModalConfiguracoes fechar={() => setMostrarConfiguracoes(false)} temaAtivo={temaAtivo} setTemaAtivo={setTemaAtivo} />}
-      
-      {/* SEGURANÇA NO MODAL: Bloqueia fechar no "X" se não tiver logado */}
       {mostrarLogin && <ModalLogin aoFechar={() => { if(usuarioLogado) setMostrarLogin(false); }} setUsuarioLogado={setUsuarioLogado} />}
+
+      {/* NOVA TELA DE CONFIRMAÇÃO DE SAÍDA */}
+      {mostrarConfirmacaoSair && (
+        <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 text-center transform transition-all scale-100">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </div>
+            <h2 className="text-xl font-black text-gray-800 mb-2">Sair do Sistema</h2>
+            <p className="text-sm text-gray-500 mb-6">Tem a certeza que deseja encerrar a sua sessão no Goldstar?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setMostrarConfirmacaoSair(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition-colors">Cancelar</button>
+              <button onClick={confirmarLogout} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-md transition-colors">Sim, Sair</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
