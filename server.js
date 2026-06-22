@@ -84,7 +84,6 @@ app.put('/api/colaboradores/:id/acesso', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-// --- NOVA ROTA: SALVAR PORCENTAGEM DE COMISSÃO GERAL ---
 app.put('/api/colaboradores/:id/comissao', async (req, res) => {
   try {
     const { percentual_comissao } = req.body;
@@ -163,14 +162,19 @@ app.get('/api/pagamentos-comissoes', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
+// AQUI ESTÁ A MAGIA! Quando marca a comissão como Paga, abate os Vales.
 app.post('/api/pagamentos-comissoes/toggle', async (req, res) => {
   try {
     const { profissional, chave_periodo } = req.body;
     const existe = await pool.query('SELECT id FROM pagamentos_comissoes WHERE chave_periodo = $1', [chave_periodo]);
     if (existe.rows.length > 0) {
+      // Reverter o pagamento: Desmarca a comissão e volta os vales para Pendentes
       await pool.query('DELETE FROM pagamentos_comissoes WHERE chave_periodo = $1', [chave_periodo]);
+      await pool.query('UPDATE vales SET pago = FALSE, chave_periodo = NULL WHERE chave_periodo = $1', [chave_periodo]);
     } else {
+      // Dar Baixa: Marca a comissão como paga e "tranca" os vales pendentes com essa chave
       await pool.query('INSERT INTO pagamentos_comissoes (profissional, chave_periodo) VALUES ($1, $2)', [profissional, chave_periodo]);
+      await pool.query('UPDATE vales SET pago = TRUE, chave_periodo = $1 WHERE profissional = $2 AND pago = FALSE', [chave_periodo, profissional]);
     }
     res.json({ sucesso: true });
   } catch (e) { res.status(500).json({ sucesso: false }); }
@@ -184,16 +188,6 @@ app.get('/api/despesas', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-app.put('/api/despesas/:id/pagar', async (req, res) => {
-  try {
-    const { pago } = req.body;
-    const dataPagto = pago ? new Date() : null;
-    await pool.query('UPDATE despesas SET pago = $1, data_pagamento = $2 WHERE id = $3', [pago, dataPagto, req.params.id]);
-    res.json({ sucesso: true });
-  } catch (erro) { res.status(500).json({ sucesso: false }); }
-});
-
-// --- NOVA ROTA: ADICIONAR DESPESA ---
 app.post('/api/despesas', async (req, res) => {
   try {
     const { descricao, valor, data_vencimento, fornecedor, pago } = req.body;
@@ -208,8 +202,37 @@ app.post('/api/despesas', async (req, res) => {
   }
 });
 
+app.put('/api/despesas/:id/pagar', async (req, res) => {
+  try {
+    const { pago } = req.body;
+    const dataPagto = pago ? new Date() : null;
+    await pool.query('UPDATE despesas SET pago = $1, data_pagamento = $2 WHERE id = $3', [pago, dataPagto, req.params.id]);
+    res.json({ sucesso: true });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
+});
 
-// ... (mantenha todo o código anterior até o app.listen)
+// ROTAS PARA OS VALES / CONSUMO
+app.get('/api/vales', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT id, profissional, descricao, valor, pago, chave_periodo FROM vales ORDER BY id DESC");
+    res.json({ sucesso: true, dados: r.rows });
+  } catch (e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/vales', async (req, res) => {
+  try {
+    const { profissional, descricao, valor } = req.body;
+    await pool.query('INSERT INTO vales (profissional, descricao, valor) VALUES ($1, $2, $3)', [profissional, descricao, valor]);
+    res.json({ sucesso: true });
+  } catch (e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.delete('/api/vales/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM vales WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (e) { res.status(500).json({ sucesso: false }); }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor na porta ${PORT}`));
-// NÃO COLOQUE MAIS NADA AQUI (sem chaves extras)

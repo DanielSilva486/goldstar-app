@@ -42,7 +42,22 @@ export default function App() {
   const dataAtual = new Date();
   const [mesSelecionado, setMesSelecionado] = useState(dataAtual.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = useState(dataAtual.getFullYear());
+  
+  // --- MÁGICA DOS TEMAS RESTAURADA ---
   const [temaAtivo, setTemaAtivo] = useState(localStorage.getItem('temaGoldstar') || 'teal');
+
+  useEffect(() => {
+    localStorage.setItem('temaGoldstar', temaAtivo); 
+  }, [temaAtivo]);
+
+  const paleta = {
+    teal: { main: '#14b8a6', hover: '#0d9488', light: '#f0fdfa', text: '#115e59' }, // Verde Padrão
+    pink: { main: '#ec4899', hover: '#db2777', light: '#fdf2f8', text: '#831843' }, // Rosa
+    purple: { main: '#a855f7', hover: '#9333ea', light: '#faf5ff', text: '#581c87' }, // Roxo
+    gold: { main: '#eab308', hover: '#ca8a04', light: '#fefce8', text: '#713f12' }, // Dourado
+    black: { main: '#1f2937', hover: '#111827', light: '#f3f4f6', text: '#030712' }, // Escuro
+  };
+  const cor = paleta[temaAtivo] || paleta.teal;
 
   const carregarDados = () => {
     fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
@@ -57,6 +72,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
+      
+      {/* INJETOR GLOBAL DE CORES QUE EU TINHA APAGADO SEM QUERER! */}
+      <style>{`
+        .bg-teal-500 { background-color: ${cor.main} !important; }
+        .hover\\:bg-teal-600:hover { background-color: ${cor.hover} !important; }
+        .text-teal-600, .text-teal-500 { color: ${cor.main} !important; }
+        .text-teal-400 { color: ${cor.main} !important; }
+        .border-teal-500 { border-color: ${cor.main} !important; }
+        .focus\\:border-teal-500:focus { border-color: ${cor.main} !important; }
+        .bg-teal-50 { background-color: ${cor.light} !important; }
+        .text-teal-900 { color: ${cor.text} !important; }
+        .focus\\:ring-teal-500:focus { --tw-ring-color: ${cor.main} !important; }
+      `}</style>
+
       {podeOperarCaixa && (
         <button onClick={() => setMostrarNovoAtendimento(true)} className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-teal-500 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-90">
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -67,7 +96,6 @@ export default function App() {
         <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} />
         <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4 md:px-8">
           
-          {/* CABEÇALHO RESTAURADO COM OS MESES E ANOS */}
           <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
             <div className="flex items-center gap-3">
               {isAdmin && (
@@ -88,7 +116,6 @@ export default function App() {
               </select>
             </div>
           </div>
-          {/* FIM DO CABEÇALHO */}
           
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {isAdmin && (

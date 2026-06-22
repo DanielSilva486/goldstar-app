@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import ModalNovaDespesa from './ModalNovaDespesa';
+import ModalNovoVale from './ModalNovoVale';
 
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
   
-  // PERMISSÕES
   const isAdmin = usuario?.perfil === 'admin';
   const isCaixa = usuario?.perfil === 'caixa';
   const isProfissional = usuario?.perfil === 'profissional';
@@ -11,7 +11,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const [abaAtiva, setAbaAtiva] = useState(podeVerCaixa ? 0 : 1);
 
-  // FILTRA OS DADOS SE FOR PROFISSIONAL
   const historicoGeral = dados?.historico || [];
   const historico = isProfissional ? historicoGeral.filter(h => h.profissional === usuario?.nome) : historicoGeral;
 
@@ -25,13 +24,13 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [comissoesFiltradas, setComissoesFiltradas] = useState(null);
-  const [buscandoFiltro, setBuscandoFiltro] = useState(false);
   const [pagamentosDb, setPagamentosDb] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
+  const [vales, setVales] = useState([]);
   
-  // Controle do Modal de Nova Despesa
   const [mostrarNovaDespesa, setMostrarNovaDespesa] = useState(false);
+  const [mostrarNovoVale, setMostrarNovoVale] = useState(false);
 
   const [minutoAtual, setMinutoAtual] = useState(new Date().getMinutes());
   useEffect(() => {
@@ -60,6 +59,11 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       const jsonPagamentos = await resPagamentos.json();
       if(jsonPagamentos.sucesso) setPagamentosDb(jsonPagamentos.dados);
 
+      // NOVO: Busca a lista de vales para os descontos
+      const resVales = await fetch('https://goldstar-backend-9m2p.onrender.com/api/vales');
+      const jsonVales = await resVales.json();
+      if(jsonVales.sucesso) setVales(jsonVales.dados);
+
       if (isAdmin) {
         const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}`);
         const jsonDespesas = await resDespesas.json();
@@ -78,7 +82,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const filtrarComissoesPeriodo = async () => {
     if (!dataInicio || !dataFim) return;
-    setBuscandoFiltro(true);
     try {
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
       const json = await res.json();
@@ -87,7 +90,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
          setComissoesFiltradas(filtrado);
       }
     } catch (e) {}
-    setBuscandoFiltro(false);
   };
 
   const limparFiltroPeriodo = () => { setDataInicio(''); setDataFim(''); setComissoesFiltradas(null); };
@@ -107,6 +109,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}/pagar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pago: !statusAtual }) });
       carregarDadosExtras(); recarregarTudo(); 
     } catch (e) {}
+  };
+
+  const apagarVale = async (id) => {
+    if(!window.confirm("Deseja apagar este lançamento?")) return;
+    try {
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales/${id}`, { method: 'DELETE' });
+      carregarDadosExtras();
+    } catch(e) {}
   };
 
   const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
@@ -133,19 +143,30 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const exportarPlanilhaComissoes = () => {
     const dados = comissoesFiltradas || comissoesMensais;
     if (dados.length === 0) return alert("Vazio.");
-    let conteudoCSV = "Profissional,Qtd de Servicos,Comissao (R$),Status,Data Baixa\n";
+    let conteudoCSV = "Profissional,Qtd Servicos,Bruto (R$),Descontos (R$),Liquido (R$),Status,Data Baixa\n";
+    
     dados.forEach(prof => {
       const isFiltrado = dataInicio && dataFim && comissoesFiltradas !== null;
       const chaveUnica = isFiltrado ? `P_${prof.profissional}_${dataInicio}_${dataFim}` : `M_${prof.profissional}_${mes}_${ano}`;
       const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
       const estaPago = !!pagamentoInfo;
+      
+      const valesProf = vales.filter(v => v.profissional === prof.profissional);
+      const valesAtivos = estaPago ? valesProf.filter(v => v.chave_periodo === chaveUnica) : valesProf.filter(v => !v.pago);
+      const totalVales = valesAtivos.reduce((a, v) => a + Number(v.valor), 0);
+      const liquido = Number(prof.total_comissao) - totalVales;
+
       const p = prof.profissional.replace(/,/g, '');
-      const v = Number(prof.total_comissao).toFixed(2).replace('.', ',');
-      conteudoCSV += `${p},${prof.qtd_servicos},"${v}",${estaPago ? "PAGO" : "A RECEBER"},${estaPago ? pagamentoInfo.data_pagto : ""}\n`;
+      const brutoStr = Number(prof.total_comissao).toFixed(2).replace('.', ',');
+      const descStr = totalVales.toFixed(2).replace('.', ',');
+      const liqStr = liquido.toFixed(2).replace('.', ',');
+      
+      conteudoCSV += `${p},${prof.qtd_servicos},"${brutoStr}","${descStr}","${liqStr}",${estaPago ? "PAGO" : "A RECEBER"},${estaPago ? pagamentoInfo.data_pagto : ""}\n`;
     });
+    
     const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
-    link.download = `comissoes_${dataInicio ? 'semana' : 'mensal'}.csv`; link.click();
+    link.download = `comissoes_com_descontos_${dataInicio ? 'semana' : 'mensal'}.csv`; link.click();
   };
 
   const exportarPlanilhaGeral = () => {
@@ -287,41 +308,75 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
+      {/* ABA DE COMISSÕES COM A MATEMÁTICA DE VALES */}
       {abaAtiva === 2 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-col gap-2">
-              <div>
-                <h3 className="font-bold text-orange-800">{isProfissional ? 'Minha Comissão Acumulada' : 'Repasses Acumulados da Equipe'}</h3>
-              </div>
+              <div><h3 className="font-bold text-orange-800">{isProfissional ? 'Minha Comissão Acumulada' : 'Repasses Acumulados da Equipe'}</h3></div>
               <div className="flex flex-wrap items-center gap-2">
                 <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" /> <span className="text-xs font-bold">até</span> <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" />
                 <button onClick={filtrarComissoesPeriodo} className="bg-orange-500 text-white text-xs font-bold px-3 py-2 rounded-lg">Filtrar</button>
                 {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 text-xs font-bold px-3 py-2 rounded-lg">Limpar</button>}
               </div>
             </div>
-            {podeVerCaixa && <button onClick={exportarPlanilhaComissoes} className="bg-green-100 text-green-700 text-xs font-bold px-3 py-2 rounded-lg shadow-sm">📥 Baixar Tabela</button>}
+            
+            {podeVerCaixa && (
+              <div className="flex gap-2 w-full md:w-auto">
+                <button onClick={() => setMostrarNovoVale(true)} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-sm whitespace-nowrap">+ Vale / Desconto</button>
+                <button onClick={exportarPlanilhaComissoes} className="bg-green-100 text-green-700 text-xs font-bold px-3 py-2 rounded-lg shadow-sm flex items-center justify-center gap-1">📥 Baixar</button>
+              </div>
+            )}
           </div>
           <div className="p-4">
             {(comissoesFiltradas || comissoesMensais).map((prof, index) => {
               const chaveUnica = comissoesFiltradas ? `P_${prof.profissional}_${dataInicio}_${dataFim}` : `M_${prof.profissional}_${mes}_${ano}`;
               const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
               const estaPago = !!pagamentoInfo;
+
+              // LÓGICA DE VALES: Se já foi pago neste período, mostra os vales trancados com a chave. Se não, mostra os pendentes atuais.
+              const valesDoProfissional = vales.filter(v => v.profissional === prof.profissional);
+              const valesAtivos = estaPago ? valesDoProfissional.filter(v => v.chave_periodo === chaveUnica) : valesDoProfissional.filter(v => !v.pago);
+              
+              const totalVales = valesAtivos.reduce((a, v) => a + Number(v.valor), 0);
+              const liquidoAPagar = Number(prof.total_comissao) - totalVales;
+
               return (
-                <div key={index} className="flex justify-between items-center mb-4 border-b pb-4 last:border-0 last:pb-0">
-                  <div>
-                    <p className="font-bold text-gray-800">{prof.profissional}</p>
-                    <p className="text-xs text-gray-500">{prof.qtd_servicos} serviço(s)</p>
+                <div key={index} className="flex justify-between items-start mb-6 border-b border-gray-100 pb-6 last:border-0 last:pb-0">
+                  <div className="w-1/2">
+                    <p className="font-bold text-gray-800 text-base">{prof.profissional}</p>
+                    <p className="text-xs text-gray-500 mb-2">{prof.qtd_servicos} serviço(s) feitos</p>
+                    
+                    {valesAtivos.length > 0 && (
+                      <div className="mt-2 bg-red-50/50 p-2 rounded-lg border border-red-100">
+                        <p className="text-[10px] font-bold text-red-800 uppercase tracking-wide border-b border-red-200/50 mb-1.5 pb-1">Descontos a aplicar:</p>
+                        {valesAtivos.map(v => (
+                          <div key={v.id} className="flex justify-between text-xs text-red-600 items-center mt-1">
+                            <span className="truncate pr-2">- {v.descricao}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold whitespace-nowrap">{formatarMoeda(v.valor)}</span>
+                              {!estaPago && isAdmin && <button onClick={() => apagarVale(v.id)} className="text-red-400 hover:text-red-700 bg-red-100 w-4 h-4 rounded-full flex items-center justify-center font-bold pb-0.5" title="Remover desconto">x</button>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right flex flex-col items-end gap-1">
-                    <p className="font-bold text-orange-600 text-lg">{formatarMoeda(prof.total_comissao)}</p>
-                    <div className="flex items-center gap-2 mt-1">
+
+                  <div className="w-1/2 flex flex-col items-end gap-1">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 font-medium">Bruto: <span className="font-bold text-gray-700">{formatarMoeda(prof.total_comissao)}</span></p>
+                      {totalVales > 0 && <p className="text-xs text-red-500 font-bold border-b border-gray-200 pb-1 mb-1">- {formatarMoeda(totalVales)}</p>}
+                      <p className="font-black text-teal-600 text-xl">{formatarMoeda(liquidoAPagar)}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2">
                       {estaPago ? (
-                        <span className="text-[11px] font-bold text-[#2d6a4f] bg-[#d8f3dc] px-2 py-1 rounded">Pago em: {pagamentoInfo.data_pagto}</span>
+                        <span className="text-[11px] font-bold text-[#2d6a4f] bg-[#d8f3dc] px-2 py-1.5 rounded-lg border border-[#b7e4c7]">Pago: {pagamentoInfo.data_pagto}</span>
                       ) : (
-                        <span className="text-[11px] font-bold text-[#e07a5f] bg-red-50 px-2 py-1 rounded">A Receber</span>
+                        <span className="text-[11px] font-bold text-[#e07a5f] bg-red-50 px-2 py-1.5 rounded-lg border border-red-100">A Receber</span>
                       )}
-                      {isAdmin && <input type="checkbox" checked={estaPago} onChange={() => alternarStatusPagamento(prof.profissional, chaveUnica)} className="w-5 h-5 cursor-pointer accent-[#2d6a4f]"/>}
+                      {isAdmin && <input type="checkbox" checked={estaPago} onChange={() => alternarStatusPagamento(prof.profissional, chaveUnica)} className="w-6 h-6 cursor-pointer accent-teal-600 shadow-sm"/>}
                     </div>
                   </div>
                 </div>
@@ -404,8 +459,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* Renderiza o Modal de Nova Despesa */}
       {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={recarregarTudo} />}
+      
+      {/* RENDERIZA O NOVO MODAL DE VALES */}
+      {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} />}
 
     </div>
   );
