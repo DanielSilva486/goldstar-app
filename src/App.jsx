@@ -22,7 +22,7 @@ export default function App() {
         if (parsed.nome === 'Admin') return { ...parsed, perfil: 'admin' };
         return parsed;
       }
-      return null; // Retorna null se não estiver logado
+      return null;
     } catch (e) { return null; }
   });
 
@@ -66,12 +66,29 @@ export default function App() {
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col">
         <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} />
         <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4 md:px-8">
-          <div className="flex justify-between items-center mb-6">
-            {isAdmin && (
-              <button onClick={() => setMostrarConfiguracoes(true)} className="bg-gray-100 px-4 py-2 rounded-lg text-sm font-bold text-gray-700">Ajustes</button>
-            )}
-            {usuarioLogado && <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg">👤 {usuarioLogado.nome}</span>}
+          
+          {/* CABEÇALHO RESTAURADO COM OS MESES E ANOS */}
+          <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <button onClick={() => setMostrarConfiguracoes(true)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  Ajustes
+                </button>
+              )}
+              {usuarioLogado && <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">👤 {usuarioLogado.nome}</span>}
+            </div>
+
+            <div className="flex gap-2">
+              <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-teal-500 outline-none p-2.5 cursor-pointer">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <select value={anoSelecionado} onChange={(e) => setAnoSelecionado(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-teal-500 outline-none p-2.5 cursor-pointer">
+                <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
+              </select>
+            </div>
           </div>
+          {/* FIM DO CABEÇALHO */}
           
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {isAdmin && (
