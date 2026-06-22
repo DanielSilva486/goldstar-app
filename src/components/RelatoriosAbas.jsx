@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo }) {
-  // Aba 0 é a nova aba de Fila/Caixa
   const [abaAtiva, setAbaAtiva] = useState(0);
 
   const historico = dados?.historico || [];
@@ -15,18 +14,36 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [comissoesFiltradas, setComissoesFiltradas] = useState(null);
   const [buscandoFiltro, setBuscandoFiltro] = useState(false);
   const [pagamentosDb, setPagamentosDb] = useState([]);
+  
+  // NOVO: Estado para guardar as despesas do mês
+  const [despesas, setDespesas] = useState([]);
 
   const faturamentoBruto = Number(valores.faturamento_bruto || 0);
   const totalComissoes = Number(valores.total_comissoes || 0);
-  const lucroLiquido = faturamentoBruto - totalComissoes - 150.00;
+  
+  // AQUI ACONTECE A MÁGICA: O DRE AGORA USA O VALOR REAL DE DESPESAS!
+  const despesasFixas = Number(valores.total_despesas || 0); 
+  const lucroLiquido = faturamentoBruto - totalComissoes - despesasFixas;
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  useEffect(() => {
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes')
-      .then(res => res.json()).then(j => { if(j.sucesso) setPagamentosDb(j.dados); })
-      .catch(e => console.error(e));
-  }, [mes, ano]);
+  // Carrega pagamentos de comissão e as despesas da aba 5
+  const carregarDadosExtras = async () => {
+    try {
+      // Puxa as comissões pagas
+      const resPagamentos = await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes');
+      const jsonPagamentos = await resPagamentos.json();
+      if(jsonPagamentos.sucesso) setPagamentosDb(jsonPagamentos.dados);
+
+      // Puxa a tabela de Despesas do mês
+      const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}`);
+      const jsonDespesas = await resDespesas.json();
+      if(jsonDespesas.sucesso) setDespesas(jsonDespesas.dados);
+      
+    } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => { carregarDadosExtras(); }, [mes, ano]);
 
   const filtrarComissoesPeriodo = async () => {
     if (!dataInicio || !dataFim) return;
@@ -45,24 +62,32 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profissional, chave_periodo: chaveUnica })
       });
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes');
-      const j = await res.json();
-      if(j.sucesso) setPagamentosDb(j.dados);
+      carregarDadosExtras(); 
     } catch (e) {}
   };
 
-  // --- FUNÇÃO DO NOVO CAIXA ---
+  // --- FUNÇÃO PARA MARCAR DESPESA COMO PAGA ---
+  const marcarDespesaPaga = async (id, statusAtual) => {
+    try {
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}/pagar`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pago: !statusAtual })
+      });
+      carregarDadosExtras(); // Atualiza a tabela
+      recarregarTudo(); // Atualiza o DRE geral do sistema
+    } catch (e) { alert("Erro ao atualizar despesa."); }
+  };
+
   const cobrarComanda = async (itensDaComanda) => {
     const idsParaPagar = itensDaComanda.map(item => item.id);
     try {
       await fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas/pagar', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: idsParaPagar })
       });
-      recarregarTudo(); // Atualiza a fila e o Faturamento Geral na hora!
+      recarregarTudo(); 
     } catch (erro) { alert('Erro ao finalizar cobrança.'); }
   };
 
-  // Agrupar Comandas por Cliente
   const comandasAgrupadas = comandas.reduce((grupos, item) => {
     if (!grupos[item.cliente_nome]) grupos[item.cliente_nome] = [];
     grupos[item.cliente_nome].push(item);
@@ -81,13 +106,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     <div className="mt-2 px-4 pb-24">
       <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
         <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />
-        <BotaoAba id={1} titulo="1. Geral (Mensal)" />
+        <BotaoAba id={1} titulo="1. Geral" />
         <BotaoAba id={2} titulo="2. Comissões" />
         <BotaoAba id={3} titulo="3. Top 10" />
         <BotaoAba id={4} titulo="4. DRE" />
+        <BotaoAba id={5} titulo="5. Despesas" />
       </div>
 
-      {/* --- ABA 0: NOVO CAIXA / GESTÃO DE FILA --- */}
+      {/* ABA 0: CAIXA / FILA */}
       {abaAtiva === 0 && (
         <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden min-h-[400px]">
           <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
@@ -188,7 +214,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
       {/* ABA 3: TOP 10 */}
       {abaAtiva === 3 && (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl border p-4"><h3 className="font-bold text-purple-800 mb-3 border-b pb-2">Top 10 Serviços</h3>
             <ul className="text-sm space-y-3">{topServicos.map((s, i) => <li key={i} className="flex justify-between"><span className="text-gray-600"><span className="font-bold mr-2">{i+1}º</span>{s.nome}</span><span className="font-bold">{formatarMoeda(s.gerado)}</span></li>)}</ul>
           </div>
@@ -201,11 +227,98 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       {/* ABA 4: DRE */}
       {abaAtiva === 4 && (
         <div className="bg-gray-800 rounded-2xl p-5 text-white">
-          <h3 className="font-bold text-gray-200 mb-4 border-b border-gray-600 pb-2">DRE</h3>
+          <h3 className="font-bold text-gray-200 mb-4 border-b border-gray-600 pb-2">Resumo Financeiro (DRE)</h3>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-gray-400">Total Entradas</span><span className="font-bold text-green-400">+ {formatarMoeda(faturamentoBruto)}</span></div>
-            <div className="flex justify-between border-b border-gray-600 pb-3"><span className="text-gray-400">Repasses</span><span className="font-bold text-orange-400">- {formatarMoeda(totalComissoes)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Repasses e Comissões</span><span className="font-bold text-orange-400">- {formatarMoeda(totalComissoes)}</span></div>
+            
+            {/* O DRE AGORA PUXA AS DESPESAS DINÂMICAS */}
+            <div className="flex justify-between border-b border-gray-600 pb-3"><span className="text-gray-400">Despesas e Contas do Mês</span><span className="font-bold text-red-400">- {formatarMoeda(despesasFixas)}</span></div>
+            
             <div className="flex justify-between pt-2 text-lg"><span className="font-bold">Lucro Líquido</span><span className={lucroLiquido >= 0 ? 'text-teal-300' : 'text-red-400'}>{formatarMoeda(lucroLiquido)}</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* --- NOVA ABA 5: DESPESAS E CONTAS (Estilo Excel) --- */}
+      {abaAtiva === 5 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+            <h3 className="font-bold text-white">Gestão de Despesas</h3>
+            <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs whitespace-nowrap">
+              <thead className="bg-[#2d6a4f] text-white">
+                <tr>
+                  <th className="p-3 font-bold border-r border-[#1b4332]">Vencimento</th>
+                  <th className="p-3 font-bold border-r border-[#1b4332]">Valor</th>
+                  <th className="p-3 font-bold border-r border-[#1b4332]">Serviços/Produto</th>
+                  <th className="p-3 font-bold border-r border-[#1b4332]">Fornecedor</th>
+                  <th className="p-3 font-bold border-r border-[#1b4332]">Status</th>
+                  <th className="p-3 font-bold border-r border-[#1b4332]">Data Pagamento</th>
+                  <th className="p-3 font-bold text-center">Pago</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 border-b border-gray-200">
+                {despesas.length === 0 ? (
+                  <tr><td colSpan="7" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr>
+                ) : (
+                  despesas.map(d => {
+                    // Cálculo inteligente das datas
+                    const hoje = new Date();
+                    hoje.setHours(0,0,0,0);
+                    
+                    const partes = d.data_vencimento.split('-'); // 2026-06-10
+                    const venc = new Date(partes[0], partes[1] - 1, partes[2]);
+                    
+                    const diferencaDias = Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
+                    
+                    // Definição das cores igual à sua planilha
+                    let classeLinha = "";
+                    let textoStatus = "";
+                    let classeStatus = "font-bold text-center ";
+
+                    if (d.pago) {
+                      classeLinha = "bg-[#2d6a4f] text-white"; // Verde Escuro (Pago)
+                      textoStatus = "Pago";
+                      classeStatus += "text-white";
+                    } else if (diferencaDias < 0) {
+                      classeLinha = "bg-[#e07a5f] text-white"; // Vermelho (Venceu)
+                      textoStatus = "Venceu";
+                      classeStatus += "text-white";
+                    } else {
+                      classeLinha = "bg-[#d8f3dc] text-gray-800 hover:bg-[#b7e4c7]"; // Verde Claro (No prazo)
+                      textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`;
+                      classeStatus += "text-gray-800";
+                    }
+
+                    // Formatar a data para visualização (DD/MM/YY)
+                    const dataVencFormatada = `${partes[2]}/${partes[1]}/${partes[0].substring(2)}`;
+
+                    return (
+                      <tr key={d.id} className={`${classeLinha} transition-colors border-b border-gray-300/30`}>
+                        <td className="p-3 font-bold border-r border-gray-300/30">{dataVencFormatada}</td>
+                        <td className="p-3 font-bold border-r border-gray-300/30">{formatarMoeda(d.valor)}</td>
+                        <td className="p-3 border-r border-gray-300/30 truncate max-w-[200px]" title={d.descricao}>{d.descricao}</td>
+                        <td className="p-3 border-r border-gray-300/30 truncate max-w-[150px]">{d.fornecedor || '-'}</td>
+                        <td className={`p-3 border-r border-gray-300/30 ${classeStatus}`}>{textoStatus}</td>
+                        <td className="p-3 border-r border-gray-300/30 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td>
+                        <td className="p-3 text-center flex justify-center items-center h-full">
+                          <input 
+                            type="checkbox" 
+                            checked={d.pago} 
+                            onChange={() => marcarDespesaPaga(d.id, d.pago)}
+                            className="w-5 h-5 cursor-pointer accent-[#2d6a4f]"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
