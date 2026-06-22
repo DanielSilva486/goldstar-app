@@ -15,10 +15,34 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// --- ROTA DE LOGIN E PERMISSÕES (LENDO SENHA DO BANCO) ---
+app.post('/api/login', async (req, res) => {
+  const { email, senha } = req.body;
+  
+  if (email.toLowerCase() === 'admin@goldstar.com' && senha === 'admin') {
+    return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin', perfil: 'admin', email: 'admin@goldstar.com' } });
+  }
+
+  try {
+    const r = await pool.query('SELECT id, nome, perfil, email, senha FROM colaboradores WHERE LOWER(email) = LOWER($1) AND ativo = TRUE', [email]);
+    
+    if (r.rows.length > 0) {
+      const user = r.rows[0];
+      // Verifica a senha que está gravada no banco (por padrão será 1234 até você alterar)
+      const senhaGravada = user.senha || '1234'; 
+      
+      if (senha === senhaGravada) {
+        delete user.senha; // Removemos a senha por segurança antes de enviar para a tela
+        return res.json({ sucesso: true, usuario: user });
+      }
+    }
+    res.status(401).json({ sucesso: false, erro: 'E-mail ou senha incorretos' });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
+});
+
 app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
-    // O FINANCEIRO AGORA SOMA 'pago' E 'pago_antecipado'
     const totais = await pool.query(`SELECT COALESCE(SUM(valor_total), 0) as faturamento_bruto, COALESCE(SUM(valor_comissao), 0) as total_comissoes, COUNT(id) as total_atendimentos FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2`, [mes, ano]);
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2`, [mes, ano]);
     const historico = await pool.query(`SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, a.valor_total, c.nome as profissional, a.valor_comissao FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 ORDER BY a.data_hora DESC LIMIT 100`, [mes, ano]);
@@ -44,15 +68,30 @@ app.get('/api/colaboradores', async (req, res) => {
 });
 
 app.get('/api/colaboradores/todos', async (req, res) => {
-  const r = await pool.query('SELECT id, nome, percentual_comissao, ativo FROM colaboradores ORDER BY nome ASC');
+  // Agora retornamos o e-mail e o perfil para o painel de Ajustes ler
+  const r = await pool.query('SELECT id, nome, percentual_comissao, ativo, email, perfil FROM colaboradores ORDER BY nome ASC');
   res.json({ sucesso: true, dados: r.rows });
 });
 
 app.post('/api/colaboradores', async (req, res) => {
   const { nome, percentual_comissao } = req.body;
   const emailProvisorio = nome.toLowerCase().replace(/\s+/g, '') + '@goldstar.com';
+  // A senha padrão 1234 é inserida automaticamente pela coluna
   await pool.query("INSERT INTO colaboradores (nome, email, percentual_comissao, perfil, ativo) VALUES ($1, $2, $3, 'profissional', TRUE)", [nome, emailProvisorio, percentual_comissao]);
   res.json({ sucesso: true });
+});
+
+// --- ROTA PARA ATUALIZAR ACESSOS (E-MAIL, SENHA E PERFIL) ---
+app.put('/api/colaboradores/:id/acesso', async (req, res) => {
+  try {
+    const { email, perfil, senha } = req.body;
+    if (senha && senha.trim() !== '') {
+      await pool.query('UPDATE colaboradores SET email = $1, perfil = $2, senha = $3 WHERE id = $4', [email, perfil, senha, req.params.id]);
+    } else {
+      await pool.query('UPDATE colaboradores SET email = $1, perfil = $2 WHERE id = $3', [email, perfil, req.params.id]);
+    }
+    res.json({ sucesso: true });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
 app.put('/api/colaboradores/:id/status', async (req, res) => {
@@ -103,7 +142,6 @@ app.post('/api/atendimentos', async (req, res) => {
 
 app.get('/api/comandas', async (req, res) => {
   try {
-    // A FILA AGORA PUXA 'pendente' E 'pago_antecipado'
     const r = await pool.query(`SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao, a.data_hora, a.status FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pendente', 'pago_antecipado') ORDER BY a.data_hora ASC`);
     res.json({ sucesso: true, dados: r.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
@@ -111,7 +149,6 @@ app.get('/api/comandas', async (req, res) => {
 
 app.put('/api/comandas/pagar', async (req, res) => {
   try {
-    // O BOTÃO DE PAGAR AGORA PODE ENVIAR O STATUS ESPECÍFICO
     const { ids, statusNovo } = req.body; 
     if (!ids || ids.length === 0) return res.json({ sucesso: true });
     
@@ -155,29 +192,6 @@ app.put('/api/despesas/:id/pagar', async (req, res) => {
     const dataPagto = pago ? new Date() : null;
     await pool.query('UPDATE despesas SET pago = $1, data_pagamento = $2 WHERE id = $3', [pago, dataPagto, req.params.id]);
     res.json({ sucesso: true });
-  } catch (erro) { res.status(500).json({ sucesso: false }); }
-});
-
-// --- ROTA DE LOGIN E PERMISSÕES (AGORA POR E-MAIL) ---
-app.post('/api/login', async (req, res) => {
-  const { email, senha } = req.body;
-  
-  // Acesso Mestre (A Dona do Salão) - Login com o e-mail de admin
-  if (email.toLowerCase() === 'admin@goldstar.com' && senha === 'admin') {
-    return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin', perfil: 'admin', email: 'admin@goldstar.com' } });
-  }
-
-  try {
-    // Procura na tabela de colaboradores pelo E-MAIL exato
-    const r = await pool.query('SELECT id, nome, perfil, email FROM colaboradores WHERE LOWER(email) = LOWER($1) AND ativo = TRUE', [email]);
-    
-    if (r.rows.length > 0) {
-      // Para já, todos os funcionários entram com a senha padrão '1234'
-      if (senha === '1234') {
-        return res.json({ sucesso: true, usuario: r.rows[0] });
-      }
-    }
-    res.status(401).json({ sucesso: false, erro: 'E-mail ou senha incorretos' });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 

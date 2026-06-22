@@ -1,179 +1,118 @@
 import React, { useState, useEffect } from 'react';
 
 export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) {
-  const [abaAtiva, setAbaAtiva] = useState('servicos');
-  const [servicos, setServicos] = useState([]);
-  const [colaboradores, setColaboradores] = useState([]);
-  const [comissoesEsp, setComissoesEsp] = useState([]);
-  
-  const [novoServicoNome, setNovoServicoNome] = useState('');
-  const [novoServicoPreco, setNovoServicoPreco] = useState('');
-  const [novoServicoDuracao, setNovoServicoDuracao] = useState(''); // NOVO: Tempo do Serviço
-  
-  const [novoColabNome, setNovoColabNome] = useState('');
-  const [novoColabComissao, setNovoColabComissao] = useState('');
-  const [novoColabId, setNovoColabId] = useState('');
-  const [novoServicoId, setNovoServicoId] = useState('');
-  const [novaComissao, setNovaComissao] = useState('');
+  const [aba, setAba] = useState('tema');
+  const [equipe, setEquipe] = useState([]);
+  const [salvando, setSalvando] = useState(null);
 
-  const carregarDados = async () => {
-    const [resS, resC, resCE] = await Promise.all([
-      fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos').then(r => r.json()),
-      fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos').then(r => r.json()),
-      fetch('https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas').then(r => r.json())
-    ]);
-    setServicos(resS.dados || []);
-    setColaboradores(resC.dados || []);
-    setComissoesEsp(resCE.dados || []);
+  const temas = [
+    { id: 'teal', nome: 'Verde (Padrão)' },
+    { id: 'pink', nome: 'Rosa' },
+    { id: 'purple', nome: 'Roxo' },
+    { id: 'gold', nome: 'Dourado' },
+    { id: 'black', nome: 'Escuro (Dark)' }
+  ];
+
+  useEffect(() => {
+    if (aba === 'equipe') {
+      fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos')
+        .then(r => r.json())
+        .then(d => { if(d.sucesso) setEquipe(d.dados); });
+    }
+  }, [aba]);
+
+  const handleChange = (id, campo, valor) => {
+    setEquipe(equipe.map(c => c.id === id ? { ...c, [campo]: valor } : c));
   };
 
-  useEffect(() => { carregarDados(); }, []);
-
-  const adicionarServico = async (e) => {
-    e.preventDefault();
-    await fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos', {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ 
-        nome: novoServicoNome, 
-        preco: Number(novoServicoPreco),
-        duracao: Number(novoServicoDuracao) || 30 // Manda o tempo ou 30 min por padrão
-      })
-    });
-    setNovoServicoNome(''); setNovoServicoPreco(''); setNovoServicoDuracao(''); carregarDados();
-  };
-
-  const apagarServico = async (id) => {
-    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos/${id}`, { method: 'DELETE' });
-    carregarDados();
-  };
-
-  const adicionarColaborador = async (e) => {
-    e.preventDefault();
-    await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: novoColabNome, percentual_comissao: Number(novoColabComissao) })
-    });
-    setNovoColabNome(''); setNovoColabComissao(''); carregarDados();
-  };
-
-  const alternarStatus = async (id, statusAtual) => {
-    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${id}/status`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: !statusAtual })
-    });
-    carregarDados();
-  };
-
-  const salvarComissaoEsp = async (e) => {
-    e.preventDefault();
-    await fetch('https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ colaborador_id: novoColabId, servico_id: novoServicoId, percentual: novaComissao })
-    });
-    carregarDados();
+  const salvarAcesso = async (colab) => {
+    setSalvando(colab.id);
+    try {
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}/acesso`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: colab.email, perfil: colab.perfil, senha: colab.novaSenha })
+      });
+      alert('✅ Acesso atualizado com sucesso!');
+      
+      // Limpa a caixinha da senha após salvar
+      setEquipe(equipe.map(c => c.id === colab.id ? { ...c, novaSenha: '' } : c));
+    } catch (e) {
+      alert('Erro ao salvar acessos.');
+    }
+    setSalvando(null);
   };
 
   return (
-    <div className="absolute inset-0 bg-gray-900/60 flex justify-center items-center z-50 p-4">
-      <div className="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-hidden flex flex-col">
-        <div onClick={fechar} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 cursor-pointer rounded-full flex items-center justify-center transition-colors z-10">
-           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-        </div>
+    <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4">
+      <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
         
-        <h2 className="text-xl font-bold mb-4">Ajustes e Personalização</h2>
-
-        <div className="flex flex-wrap gap-2 mb-4 border-b pb-4">
-          <button onClick={() => setAbaAtiva('servicos')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'servicos' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Serviços</button>
-          <button onClick={() => setAbaAtiva('equipe')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'equipe' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Equipe</button>
-          <button onClick={() => setAbaAtiva('comissoes')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'comissoes' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Comissões Esp.</button>
-          <button onClick={() => setAbaAtiva('aparencia')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${abaAtiva === 'aparencia' ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>🎨 Aparência</button>
+        <div className="bg-gray-800 p-4 flex justify-between items-center shrink-0">
+          <h2 className="text-white font-bold tracking-wide flex items-center gap-2">
+            <svg className="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Painel do Administrador
+          </h2>
+          <button onClick={fechar} className="w-8 h-8 bg-gray-700 hover:bg-red-500 text-white rounded-full flex justify-center items-center transition-colors">X</button>
         </div>
 
-        <div className="overflow-y-auto pr-2 pb-4 scrollbar-hide">
+        <div className="flex bg-gray-100 border-b border-gray-200 shrink-0">
+          <button onClick={() => setAba('tema')} className={`flex-1 py-3 text-sm font-bold transition-colors ${aba === 'tema' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Aparência</button>
+          <button onClick={() => setAba('equipe')} className={`flex-1 py-3 text-sm font-bold transition-colors ${aba === 'equipe' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Acessos & Equipe</button>
+        </div>
+
+        <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
           
-          {abaAtiva === 'aparencia' && (
-            <div className="space-y-6 py-4">
-              <div>
-                <h3 className="font-bold text-gray-800 mb-2">Paleta de Cores do Sistema</h3>
-                <p className="text-sm text-gray-500 mb-4">Escolha a cor que mais combina com o seu salão. A cor será salva automaticamente.</p>
-                <div className="flex flex-wrap gap-4 justify-start">
-                  <button onClick={() => setTemaAtivo('teal')} className={`w-12 h-12 rounded-full bg-[#14b8a6] shadow-sm transition-all ${temaAtivo === 'teal' ? 'ring-4 ring-offset-2 ring-[#14b8a6] scale-110' : 'hover:scale-105'}`} title="Esmeralda"></button>
-                  <button onClick={() => setTemaAtivo('pink')} className={`w-12 h-12 rounded-full bg-[#ec4899] shadow-sm transition-all ${temaAtivo === 'pink' ? 'ring-4 ring-offset-2 ring-[#ec4899] scale-110' : 'hover:scale-105'}`} title="Rosa"></button>
-                  <button onClick={() => setTemaAtivo('purple')} className={`w-12 h-12 rounded-full bg-[#a855f7] shadow-sm transition-all ${temaAtivo === 'purple' ? 'ring-4 ring-offset-2 ring-[#a855f7] scale-110' : 'hover:scale-105'}`} title="Roxo"></button>
-                  <button onClick={() => setTemaAtivo('gold')} className={`w-12 h-12 rounded-full bg-[#eab308] shadow-sm transition-all ${temaAtivo === 'gold' ? 'ring-4 ring-offset-2 ring-[#eab308] scale-110' : 'hover:scale-105'}`} title="Dourado"></button>
-                  <button onClick={() => setTemaAtivo('black')} className={`w-12 h-12 rounded-full bg-[#1f2937] shadow-sm transition-all ${temaAtivo === 'black' ? 'ring-4 ring-offset-2 ring-[#1f2937] scale-110' : 'hover:scale-105'}`} title="Preto Minimalista"></button>
-                </div>
-              </div>
+          {aba === 'tema' && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {temas.map(t => (
+                <button key={t.id} onClick={() => setTemaAtivo(t.id)} className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${temaAtivo === t.id ? 'border-teal-500 bg-teal-50 scale-105 shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                  <div className={`w-8 h-8 rounded-full ${t.id === 'teal' ? 'bg-teal-500' : t.id === 'pink' ? 'bg-pink-500' : t.id === 'purple' ? 'bg-purple-500' : t.id === 'gold' ? 'bg-yellow-500' : 'bg-gray-800'}`}></div>
+                  <span className={`text-sm font-bold ${temaAtivo === t.id ? 'text-teal-700' : 'text-gray-600'}`}>{t.nome}</span>
+                </button>
+              ))}
             </div>
           )}
 
-          {abaAtiva === 'servicos' && (
-            <div>
-              <form onSubmit={adicionarServico} className="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <input required type="text" placeholder="Nome do Serviço" value={novoServicoNome} onChange={e => setNovoServicoNome(e.target.value)} className="flex-1 border rounded-lg p-2 text-sm outline-none min-w-[120px]" />
-                <input required type="number" step="0.01" placeholder="R$ 0,00" value={novoServicoPreco} onChange={e => setNovoServicoPreco(e.target.value)} className="w-24 border rounded-lg p-2 text-sm outline-none" />
-                <input required type="number" placeholder="Minutos" value={novoServicoDuracao} onChange={e => setNovoServicoDuracao(e.target.value)} className="w-20 border rounded-lg p-2 text-sm outline-none" title="Tempo estimado" />
-                <button type="submit" className="bg-teal-500 text-white px-4 rounded-lg font-bold">+</button>
-              </form>
-              <div className="space-y-2">
-                {servicos.map(s => (
-                  <div key={s.id} className="flex justify-between items-center p-3 bg-white border rounded-xl shadow-sm text-sm">
-                    <div className="flex flex-col">
-                       <span className="font-bold text-gray-800">{s.nome}</span>
-                       <span className="text-[10px] text-gray-500 font-medium">⏱️ Duração: {s.duracao || 30} min</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-teal-600 font-bold">R$ {Number(s.preco).toFixed(2)}</span>
-                      <button onClick={() => apagarServico(s.id)} className="text-red-400 font-bold hover:text-red-600">X</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ... as abas equipe e comissoes continuam iguais ao código anterior */}
-          {abaAtiva === 'equipe' && (
-            <div>
-              <form onSubmit={adicionarColaborador} className="flex gap-2 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <input required type="text" placeholder="Nova Profissional..." value={novoColabNome} onChange={e => setNovoColabNome(e.target.value)} className="w-full border rounded-lg p-2 text-sm outline-none" />
-                <input required type="number" placeholder="Comissão (%)" value={novoColabComissao} onChange={e => setNovoColabComissao(e.target.value)} className="w-28 border rounded-lg p-2 text-sm outline-none" />
-                <button type="submit" className="bg-teal-500 text-white px-3 rounded-lg font-bold">+</button>
-              </form>
-              <div className="space-y-2">
-                {colaboradores.map(c => (
-                  <div key={c.id} className={`flex justify-between items-center p-3 border rounded-xl shadow-sm ${c.ativo === false ? 'bg-gray-100' : 'bg-white'}`}>
-                    <span className={`text-sm ${c.ativo === false ? 'line-through text-gray-400' : 'text-gray-700'}`}>{c.nome} <span className="font-bold ml-2 text-orange-500">{Number(c.percentual_comissao)}%</span></span>
-                    <button onClick={() => alternarStatus(c.id, c.ativo)} className="p-1.5 rounded-md">{c.ativo === false ? "✅" : "🚫"}</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {abaAtiva === 'comissoes' && (
+          {aba === 'equipe' && (
             <div className="space-y-4">
-              <form onSubmit={salvarComissaoEsp} className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <select onChange={e => setNovoColabId(e.target.value)} className="border p-2 rounded-lg text-sm bg-white outline-none">
-                  <option>Profissional</option>
-                  {colaboradores.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-                <select onChange={e => setNovoServicoId(e.target.value)} className="border p-2 rounded-lg text-sm bg-white outline-none">
-                  <option>Serviço</option>
-                  {servicos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                </select>
-                <input required placeholder="% Comissão" type="number" onChange={e => setNovaComissao(e.target.value)} className="border p-2 rounded-lg text-sm outline-none" />
-                <button type="submit" className="bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-bold">Salvar Regra</button>
-              </form>
-              <div className="space-y-2">
-                {comissoesEsp.map(item => (
-                  <div key={item.id} className="flex justify-between p-3 border rounded-xl bg-white shadow-sm text-sm">
-                    <span className="text-gray-700">{item.prof} - {item.serv}</span>
-                    <span className="font-bold text-teal-600">{item.percentual}%</span>
-                  </div>
-                ))}
+              <div className="bg-blue-50 text-blue-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-blue-200 shadow-sm">
+                Defina o e-mail exato e o nível de acesso (Caixa ou Profissional) de cada membro. Se quiser trocar a senha de alguém, digite-a e clique em salvar. Caso contrário, deixe a senha em branco para mantê-la.
               </div>
+              
+              {equipe.map(c => (
+                <div key={c.id} className="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm flex flex-col gap-4">
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                    <span className="font-black text-gray-800 text-lg">{c.nome}</span>
+                    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${c.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{c.ativo ? 'Em Atividade' : 'Inativo'}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">E-mail de Login</label>
+                      <input type="email" value={c.email || ''} onChange={(e) => handleChange(c.id, 'email', e.target.value.toLowerCase())} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Trocar Senha</label>
+                      <input type="text" placeholder="Deixe em branco p/ manter" value={c.novaSenha || ''} onChange={(e) => handleChange(c.id, 'novaSenha', e.target.value)} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nível de Permissão</label>
+                      <select value={c.perfil || 'profissional'} onChange={(e) => handleChange(c.id, 'perfil', e.target.value)} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none">
+                        <option value="profissional">Profissional (Apenas Visão Própria)</option>
+                        <option value="caixa">Caixa (Fila e Recebimentos)</option>
+                        <option value="admin">Administrador (Acesso Total)</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <button onClick={() => salvarAcesso(c)} disabled={salvando === c.id} className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-xl text-sm mt-1 transition-colors w-full md:w-auto self-end px-6 shadow-md">
+                    {salvando === c.id ? 'A salvar...' : 'Salvar Alterações de Acesso'}
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-
+          
         </div>
       </div>
     </div>
