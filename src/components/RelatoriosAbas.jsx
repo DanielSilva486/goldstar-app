@@ -352,12 +352,12 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-{isAdmin && abaAtiva === 5 && (
+      {/* Tabela de Despesas Corrigida e Segura */}
+      {isAdmin && abaAtiva === 5 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center"><h3 className="font-bold text-white">Despesas</h3><span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span></div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
-              {/* CABEÇALHO USANDO A COR DO TEMA (teal-500) */}
               <thead className="bg-teal-500 text-white">
                 <tr><th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th><th className="p-3 font-bold border-r border-teal-600/30">Valor</th><th className="p-3 font-bold border-r border-teal-600/30">Serviços/Produto</th><th className="p-3 font-bold border-r border-teal-600/30">Fornecedor</th><th className="p-3 font-bold border-r border-teal-600/30">Status</th><th className="p-3 font-bold border-r border-teal-600/30">Data Pagamento</th><th className="p-3 font-bold text-center">Pago</th></tr>
               </thead>
@@ -368,17 +368,16 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                     const diferencaDias = Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
                     let classeLinha = ""; let textoStatus = ""; let classeStatus = "font-bold text-center ";
                     
-                    // LÓGICA DE CORES ATUALIZADA
                     if (d.pago) { 
-                      classeLinha = "bg-teal-500 text-white"; // Usa a cor principal do seu tema!
+                      classeLinha = "bg-teal-500 text-white"; 
                       textoStatus = "Pago"; 
                       classeStatus += "text-white";
                     } else if (diferencaDias < 0) { 
-                      classeLinha = "bg-red-400 text-white"; // Vermelho Claro para Vencido
+                      classeLinha = "bg-red-400 text-white"; 
                       textoStatus = "Venceu"; 
                       classeStatus += "text-white";
                     } else { 
-                      classeLinha = "bg-gray-50 text-gray-800 hover:bg-gray-100"; // Fundo claro para pendentes
+                      classeLinha = "bg-gray-50 text-gray-800 hover:bg-gray-100"; 
                       textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`; 
                       classeStatus += "text-gray-800"; 
                     }
@@ -395,3 +394,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           </div>
         </div>
       )}
+    </div>
+  );
+}
