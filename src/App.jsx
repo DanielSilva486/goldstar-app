@@ -14,11 +14,17 @@ export default function App() {
   const [dadosSalao, setDadosSalao] = useState(null); 
   const [comandas, setComandas] = useState([]);
 
-  // PROTEÇÃO: Carregamento seguro do utilizador
+ // Proteção aprimorada para carregar o usuário
   const [usuarioLogado, setUsuarioLogado] = useState(() => {
     try {
       const salvo = localStorage.getItem('usuarioGoldstar');
-      return salvo ? JSON.parse(salvo) : { id: 0, nome: 'Admin', perfil: 'admin' };
+      if (salvo) {
+        const parsed = JSON.parse(salvo);
+        // Garante que se for o 'Admin' manual, ele tenha o perfil correto
+        if (parsed.nome === 'Admin') return { ...parsed, perfil: 'admin' };
+        return parsed;
+      }
+      return { id: 0, nome: 'Admin', perfil: 'admin' };
     } catch (e) { return { id: 0, nome: 'Admin', perfil: 'admin' }; }
   });
 

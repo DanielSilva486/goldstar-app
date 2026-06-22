@@ -279,15 +279,24 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {isAdmin && abaAtiva === 5 && (
+      {/* ABA 5: AGORA COM VERIFICAÇÃO DE PERMISSÃO CORRETA */}
+      {(isAdmin || abaAtiva === 5) && abaAtiva === 5 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center"><h3 className="font-bold text-white">Despesas</h3><span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span></div>
-          <div className="overflow-x-auto p-4">
-             {/* A tabela de despesas mantém-se igual (Encurtada aqui por limite de texto, mas funciona igual) */}
-             <p className="text-gray-500 text-sm">Lista de despesas (Visualização reservada ao administrador).</p>
-          </div>
+          {isAdmin ? (
+            <>
+              <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+                <h3 className="font-bold text-white">Gestão de Despesas</h3>
+                <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
+              </div>
+              <div className="overflow-x-auto p-4">
+                {/* Aqui vai a tabela de despesas que você já tem no código */}
+                <p className="text-gray-500 text-sm">Lista de despesas completa...</p>
+              </div>
+            </>
+          ) : (
+            <div className="p-10 text-center text-gray-400">
+              <p>🚫 Acesso restrito. Apenas administradores podem ver as despesas.</p>
+            </div>
+          )}
         </div>
       )}
-    </div>
-  );
-}
