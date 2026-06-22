@@ -43,7 +43,6 @@ export default function App() {
   const [mesSelecionado, setMesSelecionado] = useState(dataAtual.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = useState(dataAtual.getFullYear());
   
-  // --- MÁGICA DOS TEMAS RESTAURADA ---
   const [temaAtivo, setTemaAtivo] = useState(localStorage.getItem('temaGoldstar') || 'teal');
 
   useEffect(() => {
@@ -51,11 +50,11 @@ export default function App() {
   }, [temaAtivo]);
 
   const paleta = {
-    teal: { main: '#14b8a6', hover: '#0d9488', light: '#f0fdfa', text: '#115e59' }, // Verde Padrão
-    pink: { main: '#ec4899', hover: '#db2777', light: '#fdf2f8', text: '#831843' }, // Rosa
-    purple: { main: '#a855f7', hover: '#9333ea', light: '#faf5ff', text: '#581c87' }, // Roxo
-    gold: { main: '#eab308', hover: '#ca8a04', light: '#fefce8', text: '#713f12' }, // Dourado
-    black: { main: '#1f2937', hover: '#111827', light: '#f3f4f6', text: '#030712' }, // Escuro
+    teal: { main: '#14b8a6', hover: '#0d9488', light: '#f0fdfa', text: '#115e59' },
+    pink: { main: '#ec4899', hover: '#db2777', light: '#fdf2f8', text: '#831843' },
+    purple: { main: '#a855f7', hover: '#9333ea', light: '#faf5ff', text: '#581c87' },
+    gold: { main: '#eab308', hover: '#ca8a04', light: '#fefce8', text: '#713f12' },
+    black: { main: '#1f2937', hover: '#111827', light: '#f3f4f6', text: '#030712' },
   };
   const cor = paleta[temaAtivo] || paleta.teal;
 
@@ -70,10 +69,16 @@ export default function App() {
   const recarregarTudo = () => { carregarDados(); buscarComandas(); };
   useEffect(() => { recarregarTudo(); }, [mesSelecionado, anoSelecionado]);
 
+  // --- NOVA FUNÇÃO DE LOGOUT ---
+  const fazerLogout = () => {
+    if (window.confirm('Deseja realmente sair do sistema?')) {
+      setUsuarioLogado(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       
-      {/* INJETOR GLOBAL DE CORES QUE EU TINHA APAGADO SEM QUERER! */}
       <style>{`
         .bg-teal-500 { background-color: ${cor.main} !important; }
         .hover\\:bg-teal-600:hover { background-color: ${cor.hover} !important; }
@@ -104,7 +109,18 @@ export default function App() {
                   Ajustes
                 </button>
               )}
-              {usuarioLogado && <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">👤 {usuarioLogado.nome}</span>}
+              
+              {/* BOTÃO DE SAIR ADICIONADO AQUI */}
+              {usuarioLogado && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                    👤 {usuarioLogado.nome}
+                  </span>
+                  <button onClick={fazerLogout} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors border border-red-100 shadow-sm">
+                    Sair
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">
