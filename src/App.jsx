@@ -12,6 +12,9 @@ export default function App() {
   const [mostrarNovoAtendimento, setMostrarNovoAtendimento] = useState(false);
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false); 
   const [dadosSalao, setDadosSalao] = useState(null); 
+  
+  // NOVO: Estado central das Comandas/Fila
+  const [comandas, setComandas] = useState([]);
 
   const dataAtual = new Date();
   const [mesSelecionado, setMesSelecionado] = useState(dataAtual.getMonth() + 1);
@@ -19,9 +22,7 @@ export default function App() {
 
   const [temaAtivo, setTemaAtivo] = useState(localStorage.getItem('temaGoldstar') || 'teal');
 
-  useEffect(() => {
-    localStorage.setItem('temaGoldstar', temaAtivo);
-  }, [temaAtivo]);
+  useEffect(() => { localStorage.setItem('temaGoldstar', temaAtivo); }, [temaAtivo]);
 
   const paleta = {
     teal: { main: '#14b8a6', hover: '#0d9488', light: '#f0fdfa', text: '#115e59' },
@@ -32,18 +33,32 @@ export default function App() {
   };
   const cor = paleta[temaAtivo] || paleta.teal;
 
+  // Busca resumo financeiro
   const carregarDados = () => {
     fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
       .then(resposta => resposta.json())
       .then(dados => { if(dados.sucesso) setDadosSalao(dados); })
-      .catch(erro => console.error("Erro ao puxar dados:", erro));
+      .catch(erro => console.error("Erro:", erro));
   };
 
-  useEffect(() => { carregarDados(); }, [mesSelecionado, anoSelecionado]);
+  // Busca a Fila de Espera
+  const buscarComandas = () => {
+    fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas')
+      .then(res => res.json())
+      .then(data => { if (data.sucesso) setComandas(data.dados); })
+      .catch(e => console.error(e));
+  };
+
+  // Recarrega tudo de uma vez
+  const recarregarTudo = () => {
+    carregarDados();
+    buscarComandas();
+  };
+
+  useEffect(() => { recarregarTudo(); }, [mesSelecionado, anoSelecionado]);
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      
       <style>{`
         .bg-teal-500 { background-color: ${cor.main} !important; }
         .hover\\:bg-teal-600:hover { background-color: ${cor.hover} !important; }
@@ -80,14 +95,16 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div className="md:col-span-4"><PainelValores valores={dadosSalao?.valores} /></div>
             
-            {/* AQUI PASSAMOS O MÊS E ANO PARA O RELATÓRIO */}
-            <div className="md:col-span-8"><RelatoriosAbas dados={dadosSalao} mes={mesSelecionado} ano={anoSelecionado} /></div>
+            {/* AQUI PASSAMOS AS COMANDAS E A FUNÇÃO DE RECARREGAR */}
+            <div className="md:col-span-8">
+              <RelatoriosAbas dados={dadosSalao} mes={mesSelecionado} ano={anoSelecionado} comandas={comandas} recarregarTudo={recarregarTudo} />
+            </div>
           </div>
         </main>
         <div className="md:hidden"><MenuInferior /></div>
       </div>
 
-      {mostrarNovoAtendimento && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} atualizarDados={carregarDados} />}
+      {mostrarNovoAtendimento && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} recarregarTudo={recarregarTudo} comandas={comandas} />}
       {mostrarConfiguracoes && <ModalConfiguracoes fechar={() => setMostrarConfiguracoes(false)} temaAtivo={temaAtivo} setTemaAtivo={setTemaAtivo} />}
       {mostrarLogin && <ModalLogin aoFechar={() => setMostrarLogin(false)} />}
     </div>
