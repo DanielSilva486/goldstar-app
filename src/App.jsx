@@ -12,14 +12,11 @@ export default function App() {
   const [mostrarNovoAtendimento, setMostrarNovoAtendimento] = useState(false);
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false); 
   const [dadosSalao, setDadosSalao] = useState(null); 
-  
-  // NOVO: Estado central das Comandas/Fila
   const [comandas, setComandas] = useState([]);
 
   const dataAtual = new Date();
   const [mesSelecionado, setMesSelecionado] = useState(dataAtual.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = useState(dataAtual.getFullYear());
-
   const [temaAtivo, setTemaAtivo] = useState(localStorage.getItem('temaGoldstar') || 'teal');
 
   useEffect(() => { localStorage.setItem('temaGoldstar', temaAtivo); }, [temaAtivo]);
@@ -33,7 +30,6 @@ export default function App() {
   };
   const cor = paleta[temaAtivo] || paleta.teal;
 
-  // Busca resumo financeiro
   const carregarDados = () => {
     fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
       .then(resposta => resposta.json())
@@ -41,7 +37,6 @@ export default function App() {
       .catch(erro => console.error("Erro:", erro));
   };
 
-  // Busca a Fila de Espera
   const buscarComandas = () => {
     fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas')
       .then(res => res.json())
@@ -49,12 +44,7 @@ export default function App() {
       .catch(e => console.error(e));
   };
 
-  // Recarrega tudo de uma vez
-  const recarregarTudo = () => {
-    carregarDados();
-    buscarComandas();
-  };
-
+  const recarregarTudo = () => { carregarDados(); buscarComandas(); };
   useEffect(() => { recarregarTudo(); }, [mesSelecionado, anoSelecionado]);
 
   return (
@@ -93,9 +83,10 @@ export default function App() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            <div className="md:col-span-4"><PainelValores valores={dadosSalao?.valores} /></div>
             
-            {/* AQUI PASSAMOS AS COMANDAS E A FUNÇÃO DE RECARREGAR */}
+            {/* CORREÇÃO AQUI: Enviando 'comissoes' para o painel */}
+            <div className="md:col-span-4"><PainelValores valores={dadosSalao?.valores} comissoes={dadosSalao?.comissoes} /></div>
+            
             <div className="md:col-span-8">
               <RelatoriosAbas dados={dadosSalao} mes={mesSelecionado} ano={anoSelecionado} comandas={comandas} recarregarTudo={recarregarTudo} />
             </div>

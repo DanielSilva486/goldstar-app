@@ -16,10 +16,15 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [pagamentosDb, setPagamentosDb] = useState([]);
   const [despesas, setDespesas] = useState([]);
 
+  // Cálculos DRE
   const faturamentoBruto = Number(valores.faturamento_bruto || 0);
   const totalComissoes = Number(valores.total_comissoes || 0);
   const despesasFixas = Number(valores.total_despesas || 0); 
   const lucroLiquido = faturamentoBruto - totalComissoes - despesasFixas;
+
+  // Cálculo da Dona
+  const comissaoDona = Number(comissoesMensais.find(c => c.profissional.toLowerCase().includes('raquel'))?.total_comissao || 0);
+  const lucroOperacional = lucroLiquido + comissaoDona;
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -48,7 +53,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     setBuscandoFiltro(false);
   };
 
-  // --- CORREÇÃO: Função Limpar de volta para evitar tela branca! ---
   const limparFiltroPeriodo = () => {
     setDataInicio(''); 
     setDataFim(''); 
@@ -58,8 +62,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
     try {
       await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profissional, chave_periodo: chaveUnica })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica })
       });
       carregarDadosExtras(); 
     } catch (e) {}
@@ -68,8 +71,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const marcarDespesaPaga = async (id, statusAtual) => {
     try {
       await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}/pagar`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pago: !statusAtual })
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pago: !statusAtual })
       });
       carregarDadosExtras(); 
       recarregarTudo(); 
@@ -92,6 +94,41 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     return grupos;
   }, {});
   const totalClientesNaFila = Object.keys(comandasAgrupadas).length;
+
+  // FUNÇÕES DE EXPORTAR DE VOLTA!
+  const exportarPlanilhaComissoes = () => {
+    const dados = comissoesFiltradas || comissoesMensais;
+    if (dados.length === 0) { alert("Não há comissões para exportar."); return; }
+    let conteudoCSV = "Profissional,Qtd de Servicos,Comissao a Pagar (R$),Status,Data da Baixa\n";
+    dados.forEach(prof => {
+      const isFiltrado = dataInicio && dataFim && comissoesFiltradas !== null;
+      const chaveUnica = isFiltrado ? `PERIODO_${prof.profissional}_${dataInicio}_${dataFim}` : `MES_${prof.profissional}_${mes}_${ano}`;
+      const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
+      const estaPago = !!pagamentoInfo;
+      const p = prof.profissional.replace(/,/g, '');
+      const v = Number(prof.total_comissao).toFixed(2).replace('.', ',');
+      const statusStr = estaPago ? "PAGO" : "A RECEBER";
+      const dataStr = estaPago ? pagamentoInfo.data_pagto : "";
+      conteudoCSV += `${p},${prof.qtd_servicos},"${v}",${statusStr},${dataStr}\n`;
+    });
+    const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+    link.download = `comissoes_${dataInicio ? 'semana' : 'mensal'}.csv`; link.click();
+  };
+
+  const exportarPlanilhaGeral = () => {
+    if (historico.length === 0) { alert("Vazio."); return; }
+    let conteudoCSV = "Data,Cliente,Serviço,Profissional,Valor Total (R$),Comissão (R$)\n";
+    historico.forEach(item => {
+      const c = item.cliente_nome.replace(/,/g, ''); const s = item.servico.replace(/,/g, '');
+      const p = item.profissional ? item.profissional.replace(/,/g, '') : '';
+      const v = Number(item.valor_total).toFixed(2).replace('.', ','); const com = Number(item.valor_comissao).toFixed(2).replace('.', ',');
+      conteudoCSV += `${item.data},${c},${s},${p},"${v}","${com}"\n`;
+    });
+    const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+    link.download = "historico_atendimentos.csv"; link.click();
+  };
 
   const BotaoAba = ({ id, titulo, destaque }) => (
     <button onClick={() => setAbaAtiva(id)} className={`relative whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-full transition-colors ${abaAtiva === id ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600'}`}>
@@ -145,9 +182,15 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
+      {/* ABA 1 COM O BOTÃO BAIXAR DE VOLTA */}
       {abaAtiva === 1 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 bg-gray-50 border-b border-gray-100"><h3 className="font-bold text-gray-800">Histórico</h3></div>
+          <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+            <h3 className="font-bold text-gray-800">Histórico</h3>
+            <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm">
+              📥 Baixar
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-gray-500"><tr><th className="p-3">Data</th><th className="p-3">Cliente</th><th className="p-3">Serviço</th><th className="p-3 text-right">Valor</th></tr></thead>
@@ -163,17 +206,29 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
+      {/* ABA 2 COM O BOTÃO BAIXAR SEPARADO DO FILTRO */}
       {abaAtiva === 2 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col gap-3">
-            <div><h3 className="font-bold text-orange-800">Repasses Acumulados</h3></div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" /> <span className="text-xs font-bold">até</span> <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" />
-              <button onClick={filtrarComissoesPeriodo} className="bg-orange-500 text-white text-xs font-bold px-3 py-2 rounded-lg">Filtrar</button>
-              
-              {/* O Botão Limpar volta a funcionar sem quebrar a tela */}
-              {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 text-xs font-bold px-3 py-2 rounded-lg">Limpar</button>}
+          <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            
+            <div className="flex flex-col gap-2">
+              <div>
+                <h3 className="font-bold text-orange-800">Repasses Acumulados</h3>
+                <p className="text-[10px] text-orange-600 font-medium">
+                  {comissoesFiltradas !== null ? "📊 Analisando período escolhido" : "📅 Mostrando mês cheio"}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" /> <span className="text-xs font-bold">até</span> <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" />
+                <button onClick={filtrarComissoesPeriodo} className="bg-orange-500 text-white text-xs font-bold px-3 py-2 rounded-lg">Filtrar</button>
+                {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 text-xs font-bold px-3 py-2 rounded-lg">Limpar</button>}
+              </div>
             </div>
+
+            <button onClick={exportarPlanilhaComissoes} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm md:self-start">
+              📥 Baixar Tabela
+            </button>
+
           </div>
           <div className="p-4">
             {(comissoesFiltradas || comissoesMensais).map((prof, index) => {
@@ -204,14 +259,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
+      {/* ABA 4: O DRE AGORA COM LUCRO OPERACIONAL EXPLICADO */}
       {abaAtiva === 4 && (
         <div className="bg-gray-800 rounded-2xl p-5 text-white">
           <h3 className="font-bold text-gray-200 mb-4 border-b border-gray-600 pb-2">Resumo Financeiro (DRE)</h3>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-gray-400">Total Entradas</span><span className="font-bold text-green-400">+ {formatarMoeda(faturamentoBruto)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Repasses e Comissões</span><span className="font-bold text-orange-400">- {formatarMoeda(totalComissoes)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Faturamento Bruto</span><span className="font-bold text-green-400">+ {formatarMoeda(faturamentoBruto)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Repasses (Todas as Profissionais)</span><span className="font-bold text-orange-400">- {formatarMoeda(totalComissoes)}</span></div>
             <div className="flex justify-between border-b border-gray-600 pb-3"><span className="text-gray-400">Despesas e Contas do Mês</span><span className="font-bold text-red-400">- {formatarMoeda(despesasFixas)}</span></div>
-            <div className="flex justify-between pt-2 text-lg"><span className="font-bold">Lucro Líquido</span><span className={lucroLiquido >= 0 ? 'text-teal-300' : 'text-red-400'}>{formatarMoeda(lucroLiquido)}</span></div>
+            
+            <div className="flex justify-between pt-2"><span className="text-gray-400">Saldo Líquido (Caixa do Salão)</span><span className={lucroLiquido >= 0 ? 'text-teal-300' : 'text-red-400'}>{formatarMoeda(lucroLiquido)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Comissão da Dona (Raquel)</span><span className="font-bold text-green-400">+ {formatarMoeda(comissaoDona)}</span></div>
+            
+            <div className="flex justify-between pt-3 mt-2 border-t border-gray-500 text-lg"><span className="font-bold text-white">Lucro Operacional Total</span><span className="font-bold text-teal-300">{formatarMoeda(lucroOperacional)}</span></div>
           </div>
         </div>
       )}

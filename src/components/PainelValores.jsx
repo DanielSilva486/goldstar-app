@@ -1,21 +1,27 @@
 import React from 'react';
 
-export default function PainelValores({ valores }) {
+export default function PainelValores({ valores, comissoes }) {
   const bruto = Number(valores?.faturamento_bruto || 0);
-  const comissoes = Number(valores?.total_comissoes || 0);
-  
-  // AQUI: Agora ele puxa o valor real do banco de dados!
+  const totalComissoes = Number(valores?.total_comissoes || 0);
   const despesas = Number(valores?.total_despesas || 0); 
-  
   const atendimentos = Number(valores?.total_atendimentos || 0);
-  const liquido = bruto - comissoes - despesas;
+  
+  // Saldo puro do caixa da empresa (pode ser negativo se a dona tirou muito)
+  const liquido = bruto - totalComissoes - despesas;
+
+  // A MÁGICA DO LUCRO OPERACIONAL:
+  // Procura a comissão da Dona (Raquel) na lista de comissões
+  const comissaoDonaObj = comissoes?.find(c => c.profissional.toLowerCase().includes('raquel'));
+  const comissaoDona = Number(comissaoDonaObj?.total_comissao || 0);
+
+  // Lucro Operacional = O que sobrou na empresa + O que foi pro bolso da dona
+  const lucroOperacional = liquido + comissaoDona;
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Calcula o tamanho das barrinhas coloridas
-  const pctLiquido = bruto > 0 ? (liquido / bruto) * 100 : 0;
+  const pctLucro = bruto > 0 ? (lucroOperacional / bruto) * 100 : 0;
   const pctDespesas = bruto > 0 ? (despesas / bruto) * 100 : 0;
-  const pctComissoes = bruto > 0 ? (comissoes / bruto) * 100 : 0;
+  const pctComissoes = bruto > 0 ? ((totalComissoes - comissaoDona) / bruto) * 100 : 0;
 
   return (
     <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col gap-6">
@@ -25,17 +31,19 @@ export default function PainelValores({ valores }) {
       </div>
 
       <div className="flex w-full h-3 rounded-full overflow-hidden gap-1 bg-gray-100">
-        <div style={{ width: `${Math.max(pctLiquido, 0)}%` }} className="bg-teal-500 h-full rounded-full transition-all duration-500"></div>
+        <div style={{ width: `${Math.max(pctLucro, 0)}%` }} className="bg-teal-500 h-full rounded-full transition-all duration-500"></div>
         <div style={{ width: `${pctDespesas}%` }} className="bg-red-400 h-full rounded-full transition-all duration-500"></div>
         <div style={{ width: `${pctComissoes}%` }} className="bg-orange-400 h-full rounded-full transition-all duration-500"></div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
+        
+        {/* CORREÇÃO: Mostra o Lucro Operacional Real */}
         <div className="bg-teal-50 rounded-2xl p-3 flex gap-3 items-center border border-teal-100/50">
           <div className="w-1.5 h-10 bg-teal-500 rounded-full"></div>
           <div>
-            <p className="text-[11px] text-gray-500 uppercase font-bold">Saldo Líquido</p>
-            <p className="text-sm font-black text-gray-800">{formatarMoeda(liquido)}</p>
+            <p className="text-[10px] text-gray-500 uppercase font-bold">Lucro Operacional</p>
+            <p className="text-sm font-black text-gray-800">{formatarMoeda(lucroOperacional)}</p>
           </div>
         </div>
         
@@ -51,7 +59,7 @@ export default function PainelValores({ valores }) {
           <div className="w-1.5 h-10 bg-orange-400 rounded-full"></div>
           <div>
             <p className="text-[11px] text-gray-500 uppercase font-bold">Comissões</p>
-            <p className="text-sm font-black text-gray-800">{formatarMoeda(comissoes)}</p>
+            <p className="text-sm font-black text-gray-800">{formatarMoeda(totalComissoes)}</p>
           </div>
         </div>
 
