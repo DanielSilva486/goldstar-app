@@ -14,14 +14,15 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     { id: 'black', nome: 'Escuro (Dark)' }
   ];
 
-  useEffect(() => {
-    // Carrega a equipe quando clica na aba de Equipe ou na de Comissões
-    if (aba === 'equipe' || aba === 'comissoes') {
-      fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos')
-        .then(r => r.json())
-        .then(d => { if(d.sucesso) setEquipe(d.dados); });
-    }
-  }, [aba]);
+  // Apenas substitua a parte do useEffect no seu ModalConfiguracoes.jsx
+useEffect(() => {
+  if ((aba === 'equipe' || aba === 'comissoes') && equipe.length === 0) {
+    fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos')
+      .then(r => r.json())
+      .then(d => { if(d.sucesso) setEquipe(d.dados); })
+      .catch(e => console.error("Erro ao carregar equipe"));
+  }
+}, [aba]);
 
   const handleChange = (id, campo, valor) => {
     setEquipe(equipe.map(c => c.id === id ? { ...c, [campo]: valor } : c));
