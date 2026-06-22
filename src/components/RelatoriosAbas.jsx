@@ -15,6 +15,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [buscandoFiltro, setBuscandoFiltro] = useState(false);
   const [pagamentosDb, setPagamentosDb] = useState([]);
   const [despesas, setDespesas] = useState([]);
+  
+  // NOVO: Precisamos da lista de profissionais para mostrar o painel de status
+  const [colaboradores, setColaboradores] = useState([]);
 
   const [minutoAtual, setMinutoAtual] = useState(new Date().getMinutes());
   useEffect(() => {
@@ -31,6 +34,13 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // Formatador de tempo para a fila
+  const formatarTempo = (minutosTotal) => {
+    const horas = Math.floor(minutosTotal / 60);
+    const min = minutosTotal % 60;
+    return horas > 0 ? `${horas}h ${min > 0 ? min + 'm' : ''}` : `${min}m`;
+  };
+
   const carregarDadosExtras = async () => {
     try {
       const resPagamentos = await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes');
@@ -40,6 +50,12 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}`);
       const jsonDespesas = await resDespesas.json();
       if(jsonDespesas.sucesso) setDespesas(jsonDespesas.dados);
+
+      // NOVO: Busca os colaboradores para o painel superior
+      const resColab = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores');
+      const jsonColab = await resColab.json();
+      if(jsonColab.sucesso) setColaboradores(jsonColab.dados);
+
     } catch (e) { console.error(e); }
   };
 
@@ -76,7 +92,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch (e) { alert("Erro ao atualizar despesa."); }
   };
 
-  // --- NOVA FUNÇÃO PARA PROCESSAR O PAGAMENTO (Normal ou Antecipado) ---
   const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
     const ids = itensDaComanda.map(item => item.id);
     try {
@@ -94,6 +109,13 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     return grupos;
   }, {});
   const totalClientesNaFila = Object.keys(comandasAgrupadas).length;
+
+  // Calcula a fila total de cada profissional para o Painel Superior
+  const filaPorProfissional = comandas.reduce((acc, item) => {
+    if (!acc[item.profissional]) acc[item.profissional] = 0;
+    acc[item.profissional] += (item.duracao || 30);
+    return acc;
+  }, {});
 
   const exportarPlanilhaComissoes = () => {
     const dados = comissoesFiltradas || comissoesMensais;
@@ -148,92 +170,114 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       </div>
 
       {abaAtiva === 0 && (
-        <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden min-h-[400px]">
-          <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center"><h3 className="font-bold text-gray-800">Clientes Aguardando Pagamento</h3></div>
-          <div className="p-4 space-y-4">
-             {totalClientesNaFila === 0 ? (
-               <div className="flex flex-col items-center justify-center py-16 text-gray-400"><p>A fila de espera está vazia. 🎉</p></div>
-             ) : (
-               Object.entries(comandasAgrupadas).map(([nomeCliente, itens]) => {
-                 
-                 // --- LÓGICA DO DINHEIRO ---
-                 const valorTotal = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
-                 const valorJaPago = itens.reduce((soma, item) => item.status === 'pago_antecipado' ? soma + Number(item.valor_total) : soma, 0);
-                 const valorPendente = valorTotal - valorJaPago;
-                 
-                 // --- LÓGICA DO CRONÔMETRO SLA ---
-                 const tempoEstimado = itens.reduce((soma, item) => soma + (item.duracao || 30), 0);
-                 const horaChegada = new Date(itens[0].data_hora); 
-                 const agora = new Date();
-                 const decorridoMinutos = Math.max(0, Math.floor((agora - horaChegada) / 60000));
-                 
-                 let corTempo = "bg-green-100 text-green-700 border-green-200";
-                 let textoTempo = `${decorridoMinutos}m / ${tempoEstimado}m`;
-                 let iconeTempo = "⏱️";
-
-                 if (decorridoMinutos >= tempoEstimado) {
-                   corTempo = "bg-red-100 text-red-700 border-red-300 animate-pulse";
-                   textoTempo = `Atraso: ${decorridoMinutos - tempoEstimado}m`;
-                   iconeTempo = "⚠️";
-                 } else if (tempoEstimado - decorridoMinutos <= 15) {
-                   corTempo = "bg-orange-100 text-orange-700 border-orange-200";
-                 }
-
-                 return (
-                   <div key={nomeCliente} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-                     <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex justify-between items-center">
-                       <h4 className="font-bold text-gray-800">Cliente: <span className="text-blue-600">{nomeCliente}</span></h4>
-                       <span className={`text-[10px] px-2 py-0.5 rounded-full border shadow-sm flex items-center gap-1 font-bold ${corTempo}`} title={`Chegou às ${horaChegada.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`}>
-                          {iconeTempo} {textoTempo}
-                       </span>
+        <div className="space-y-4">
+          
+          {/* --- NOVO PAINEL DE DISPONIBILIDADE DA EQUIPE --- */}
+          <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-3 overflow-x-auto scrollbar-hide items-center">
+             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-2">Disponibilidade:</span>
+             {colaboradores.map(c => {
+                const tempo = filaPorProfissional[c.nome] || 0;
+                const livre = tempo === 0;
+                return (
+                  <div key={c.id} className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border ${livre ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
+                     <div className={`w-2 h-2 rounded-full ${livre ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></div>
+                     <div>
+                       <p className="text-xs font-bold text-gray-700">{c.nome}</p>
+                       <p className={`text-[10px] font-bold ${livre ? 'text-green-600' : 'text-orange-600'}`}>
+                         {livre ? 'Livre agora' : `Fila: ${formatarTempo(tempo)}`}
+                       </p>
                      </div>
-                     
-                     <div className="p-4">
-                       <ul className="space-y-2 mb-4">
-                         {itens.map(item => (
-                           <li key={item.id} className="flex justify-between text-sm text-gray-600 items-center">
-                             <div className="flex flex-col">
-                               <span className="font-medium text-gray-800">
-                                 {item.servico} 
-                                 {item.status === 'pago_antecipado' && <span className="text-[9px] text-green-700 bg-green-100 border border-green-200 px-1 rounded font-bold ml-2">✅ Pago</span>}
-                               </span>
-                               <span className="text-[10px] text-gray-400">por {item.profissional}</span>
-                             </div>
-                             <span className="font-medium">{item.status === 'pago_antecipado' ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}</span>
-                           </li>
-                         ))}
-                       </ul>
+                  </div>
+                )
+             })}
+          </div>
+
+          <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden min-h-[400px]">
+            <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center"><h3 className="font-bold text-gray-800">Clientes Aguardando Pagamento</h3></div>
+            <div className="p-4 space-y-4">
+               {totalClientesNaFila === 0 ? (
+                 <div className="flex flex-col items-center justify-center py-16 text-gray-400"><p>A fila de espera está vazia. 🎉</p></div>
+               ) : (
+                 Object.entries(comandasAgrupadas).map(([nomeCliente, itens]) => {
+                   
+                   const valorTotal = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
+                   const valorJaPago = itens.reduce((soma, item) => item.status === 'pago_antecipado' ? soma + Number(item.valor_total) : soma, 0);
+                   const valorPendente = valorTotal - valorJaPago;
+                   
+                   const tempoEstimado = itens.reduce((soma, item) => soma + (item.duracao || 30), 0);
+                   const horaChegada = new Date(itens[0].data_hora); 
+                   const agora = new Date();
+                   const decorridoMinutos = Math.max(0, Math.floor((agora - horaChegada) / 60000));
+                   
+                   let corTempo = "bg-green-100 text-green-700 border-green-200";
+                   let textoTempo = `${decorridoMinutos}m / ${tempoEstimado}m`;
+                   let iconeTempo = "⏱️";
+
+                   if (decorridoMinutos >= tempoEstimado) {
+                     corTempo = "bg-red-100 text-red-700 border-red-300 animate-pulse";
+                     textoTempo = `Atraso: ${decorridoMinutos - tempoEstimado}m`;
+                     iconeTempo = "⚠️";
+                   } else if (tempoEstimado - decorridoMinutos <= 15) {
+                     corTempo = "bg-orange-100 text-orange-700 border-orange-200";
+                   }
+
+                   return (
+                     <div key={nomeCliente} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                       <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex justify-between items-center">
+                         <h4 className="font-bold text-gray-800">Cliente: <span className="text-blue-600">{nomeCliente}</span></h4>
+                         <span className={`text-[10px] px-2 py-0.5 rounded-full border shadow-sm flex items-center gap-1 font-bold ${corTempo}`} title={`Chegou às ${horaChegada.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`}>
+                            {iconeTempo} {textoTempo}
+                         </span>
+                       </div>
                        
-                       <div className="border-t border-dashed border-gray-300 pt-3 flex flex-col md:flex-row md:justify-between md:items-end gap-3">
-                         <div>
-                           <p className="text-xs text-gray-500 font-bold uppercase">Total a Cobrar</p>
-                           {valorPendente > 0 ? (
-                             <p className="text-xl md:text-2xl font-black text-gray-800">{formatarMoeda(valorPendente)}</p>
-                           ) : (
-                             <p className="text-xl md:text-2xl font-black text-green-600">✅ Tudo Pago</p>
-                           )}
-                         </div>
+                       <div className="p-4">
+                         <ul className="space-y-2 mb-4">
+                           {itens.map(item => (
+                             <li key={item.id} className="flex justify-between text-sm text-gray-600 items-center">
+                               <div className="flex flex-col">
+                                 <span className="font-medium text-gray-800">
+                                   {item.servico} 
+                                   {item.status === 'pago_antecipado' && <span className="text-[9px] text-green-700 bg-green-100 border border-green-200 px-1 rounded font-bold ml-2">✅ Pago</span>}
+                                 </span>
+                                 <span className="text-[10px] text-gray-400">por {item.profissional}</span>
+                               </div>
+                               <span className="font-medium">{item.status === 'pago_antecipado' ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}</span>
+                             </li>
+                           ))}
+                         </ul>
                          
-                         <div className="flex gap-2 w-full md:w-auto">
-                           {valorPendente > 0 && (
-                             <button onClick={() => atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado')} className="flex-1 md:flex-none bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 font-bold py-2 px-3 rounded-xl shadow-sm text-xs sm:text-sm transition-colors">
-                               Receber Antecipado
+                         <div className="border-t border-dashed border-gray-300 pt-3 flex flex-col md:flex-row md:justify-between md:items-end gap-3">
+                           <div>
+                             <p className="text-xs text-gray-500 font-bold uppercase">Total a Cobrar</p>
+                             {valorPendente > 0 ? (
+                               <p className="text-xl md:text-2xl font-black text-gray-800">{formatarMoeda(valorPendente)}</p>
+                             ) : (
+                               <p className="text-xl md:text-2xl font-black text-green-600">✅ Tudo Pago</p>
+                             )}
+                           </div>
+                           
+                           <div className="flex gap-2 w-full md:w-auto">
+                             {valorPendente > 0 && (
+                               <button onClick={() => atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado')} className="flex-1 md:flex-none bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 font-bold py-2 px-3 rounded-xl shadow-sm text-xs sm:text-sm transition-colors">
+                                 Receber Antecipado
+                               </button>
+                             )}
+                             <button onClick={() => atualizarStatusComanda(itens, 'pago')} className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl shadow-md text-xs sm:text-sm transition-colors">
+                               {valorPendente === 0 ? "Encerrar Atendimento" : "Dar Baixa Final"}
                              </button>
-                           )}
-                           <button onClick={() => atualizarStatusComanda(itens, 'pago')} className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl shadow-md text-xs sm:text-sm transition-colors">
-                             {valorPendente === 0 ? "Encerrar Atendimento" : "Dar Baixa Final"}
-                           </button>
+                           </div>
                          </div>
                        </div>
                      </div>
-                   </div>
-                 );
-               })
-             )}
+                   );
+                 })
+               )}
+            </div>
           </div>
         </div>
       )}
 
+      {/* AS RESTANTES ABAS (1, 2, 3, 4, 5) CONTINUAM EXATAMENTE IGUAIS... */}
       {abaAtiva === 1 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
