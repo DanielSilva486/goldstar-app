@@ -95,7 +95,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   }, {});
   const totalClientesNaFila = Object.keys(comandasAgrupadas).length;
 
-  // FUNÇÕES DE EXPORTAR DE VOLTA!
   const exportarPlanilhaComissoes = () => {
     const dados = comissoesFiltradas || comissoesMensais;
     if (dados.length === 0) { alert("Não há comissões para exportar."); return; }
@@ -182,7 +181,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* ABA 1 COM O BOTÃO BAIXAR DE VOLTA */}
       {abaAtiva === 1 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
@@ -206,11 +204,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* ABA 2 COM O BOTÃO BAIXAR SEPARADO DO FILTRO */}
+      {/* ABA 2: COMISSÕES COM CAIXINHA DE SELEÇÃO E DATA IGUAL DESPESAS */}
       {abaAtiva === 2 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            
             <div className="flex flex-col gap-2">
               <div>
                 <h3 className="font-bold text-orange-800">Repasses Acumulados</h3>
@@ -224,22 +221,40 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                 {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 text-xs font-bold px-3 py-2 rounded-lg">Limpar</button>}
               </div>
             </div>
-
             <button onClick={exportarPlanilhaComissoes} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm md:self-start">
               📥 Baixar Tabela
             </button>
-
           </div>
+          
           <div className="p-4">
             {(comissoesFiltradas || comissoesMensais).map((prof, index) => {
               const chaveUnica = comissoesFiltradas ? `P_${prof.profissional}_${dataInicio}_${dataFim}` : `M_${prof.profissional}_${mes}_${ano}`;
-              const estaPago = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
+              const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
+              const estaPago = !!pagamentoInfo;
+              
               return (
                 <div key={index} className="flex justify-between items-center mb-4 border-b pb-4 last:border-0 last:pb-0">
-                  <div><p className="font-bold text-gray-800">{prof.profissional}</p><p className="text-xs text-gray-500">{prof.qtd_servicos} serviço(s)</p></div>
-                  <div className="text-right flex flex-col items-end">
+                  <div>
+                    <p className="font-bold text-gray-800">{prof.profissional}</p>
+                    <p className="text-xs text-gray-500">{prof.qtd_servicos} serviço(s)</p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-1">
                     <p className="font-bold text-orange-600 text-lg">{formatarMoeda(prof.total_comissao)}</p>
-                    <button onClick={() => alternarStatusPagamento(prof.profissional, chaveUnica)} className={`text-[10px] px-4 py-1.5 rounded-md font-bold mt-1 shadow-sm ${estaPago ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>{estaPago ? 'PAGO ✅' : 'A RECEBER'}</button>
+                    
+                    <div className="flex items-center gap-2 mt-1">
+                      {estaPago ? (
+                        <span className="text-[11px] font-bold text-[#2d6a4f] bg-[#d8f3dc] px-2 py-1 rounded">Pago em: {pagamentoInfo.data_pagto}</span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-[#e07a5f] bg-red-50 px-2 py-1 rounded">A Receber</span>
+                      )}
+                      <input 
+                        type="checkbox" 
+                        checked={estaPago} 
+                        onChange={() => alternarStatusPagamento(prof.profissional, chaveUnica)}
+                        className="w-5 h-5 cursor-pointer accent-[#2d6a4f]"
+                        title="Marcar como Pago"
+                      />
+                    </div>
                   </div>
                 </div>
               );
@@ -259,7 +274,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* ABA 4: O DRE AGORA COM LUCRO OPERACIONAL EXPLICADO */}
       {abaAtiva === 4 && (
         <div className="bg-gray-800 rounded-2xl p-5 text-white">
           <h3 className="font-bold text-gray-200 mb-4 border-b border-gray-600 pb-2">Resumo Financeiro (DRE)</h3>
