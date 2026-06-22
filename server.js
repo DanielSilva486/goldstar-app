@@ -18,12 +18,13 @@ const pool = new Pool({
 app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
-    const totais = await pool.query(`SELECT COALESCE(SUM(valor_total), 0) as faturamento_bruto, COALESCE(SUM(valor_comissao), 0) as total_comissoes, COUNT(id) as total_atendimentos FROM atendimentos WHERE status = 'pago' AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2`, [mes, ano]);
+    // O FINANCEIRO AGORA SOMA 'pago' E 'pago_antecipado'
+    const totais = await pool.query(`SELECT COALESCE(SUM(valor_total), 0) as faturamento_bruto, COALESCE(SUM(valor_comissao), 0) as total_comissoes, COUNT(id) as total_atendimentos FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2`, [mes, ano]);
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2`, [mes, ano]);
-    const historico = await pool.query(`SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, a.valor_total, c.nome as profissional, a.valor_comissao FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 ORDER BY a.data_hora DESC LIMIT 100`, [mes, ano]);
-    const comissoesQuery = await pool.query(`SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY c.nome ORDER BY total_comissao DESC`, [mes, ano]);
-    const topServicosQuery = await pool.query(`SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado FROM atendimentos a JOIN servicos s ON a.servico_id = s.id WHERE a.status = 'pago' AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY s.nome ORDER BY gerado DESC LIMIT 10`, [mes, ano]);
-    const topClientesQuery = await pool.query(`SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto FROM atendimentos WHERE status = 'pago' AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 10`, [mes, ano]);
+    const historico = await pool.query(`SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, a.valor_total, c.nome as profissional, a.valor_comissao FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 ORDER BY a.data_hora DESC LIMIT 100`, [mes, ano]);
+    const comissoesQuery = await pool.query(`SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY c.nome ORDER BY total_comissao DESC`, [mes, ano]);
+    const topServicosQuery = await pool.query(`SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado FROM atendimentos a JOIN servicos s ON a.servico_id = s.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 GROUP BY s.nome ORDER BY gerado DESC LIMIT 10`, [mes, ano]);
+    const topClientesQuery = await pool.query(`SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 10`, [mes, ano]);
     
     res.json({ sucesso: true, valores: { ...totais.rows[0], total_despesas: despesasTotais.rows[0].total_despesas }, historico: historico.rows, comissoes: comissoesQuery.rows, topServicos: topServicosQuery.rows, topClientes: topClientesQuery.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
@@ -32,7 +33,7 @@ app.get('/api/resumo', async (req, res) => {
 app.get('/api/comissoes-periodo', async (req, res) => {
   try {
     const { inicio, fim } = req.query;
-    const resultado = await pool.query(`SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status = 'pago' AND a.data_hora::date BETWEEN $1 AND $2 GROUP BY c.nome ORDER BY total_comissao DESC`, [inicio, fim]);
+    const resultado = await pool.query(`SELECT c.nome as profissional, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status IN ('pago', 'pago_antecipado') AND a.data_hora::date BETWEEN $1 AND $2 GROUP BY c.nome ORDER BY total_comissao DESC`, [inicio, fim]);
     res.json({ sucesso: true, dados: resultado.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
@@ -102,17 +103,20 @@ app.post('/api/atendimentos', async (req, res) => {
 
 app.get('/api/comandas', async (req, res) => {
   try {
-    // AQUI: Adicionado a.data_hora para o frontend saber quando a cliente chegou
-    const r = await pool.query(`SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao, a.data_hora FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status = 'pendente' ORDER BY a.data_hora ASC`);
+    // A FILA AGORA PUXA 'pendente' E 'pago_antecipado'
+    const r = await pool.query(`SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao, a.data_hora, a.status FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pendente', 'pago_antecipado') ORDER BY a.data_hora ASC`);
     res.json({ sucesso: true, dados: r.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
 app.put('/api/comandas/pagar', async (req, res) => {
   try {
-    const { ids } = req.body; 
+    // O BOTÃO DE PAGAR AGORA PODE ENVIAR O STATUS ESPECÍFICO
+    const { ids, statusNovo } = req.body; 
     if (!ids || ids.length === 0) return res.json({ sucesso: true });
-    await pool.query('UPDATE atendimentos SET status = $1 WHERE id = ANY($2)', ['pago', ids]);
+    
+    const st = statusNovo || 'pago';
+    await pool.query('UPDATE atendimentos SET status = $1 WHERE id = ANY($2)', [st, ids]);
     res.json({ sucesso: true });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
