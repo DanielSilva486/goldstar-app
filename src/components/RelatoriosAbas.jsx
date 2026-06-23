@@ -12,11 +12,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const [abaAtiva, setAbaAtiva] = useState(podeVerCaixa ? 0 : 1);
 
+  // --- TRAVA DE SEGURANÇA MÁXIMA ---
+  // Limpamos espaços e deixamos tudo em minúsculas para a comparação não falhar
+  const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
+
   const historicoGeral = dados?.historico || [];
-  const historico = isProfissional ? historicoGeral.filter(h => h.profissional === usuario?.nome) : historicoGeral;
+  const historico = isProfissional 
+    ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) 
+    : historicoGeral;
 
   const comissoesGerais = dados?.comissoes || [];
-  const comissoesMensais = isProfissional ? comissoesGerais.filter(c => c.profissional === usuario?.nome) : comissoesGerais;
+  const comissoesMensais = isProfissional 
+    ? comissoesGerais.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) 
+    : comissoesGerais;
 
   const topServicos = dados?.topServicos || [];
   const topClientes = dados?.topClientes || [];
@@ -43,7 +51,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const totalComissoes = Number(valores.total_comissoes || 0);
   const despesasFixas = Number(valores.total_despesas || 0); 
   const lucroLiquido = faturamentoBruto - totalComissoes - despesasFixas;
-  const comissaoDona = Number(comissoesGerais.find(c => c.profissional.toLowerCase().includes('raquel'))?.total_comissao || 0);
+  const comissaoDona = Number(comissoesGerais.find(c => String(c.profissional).toLowerCase().includes('raquel'))?.total_comissao || 0);
   const lucroOperacional = lucroLiquido + comissaoDona;
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -86,7 +94,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
       const json = await res.json();
       if (json.sucesso) {
-         const filtrado = isProfissional ? json.dados.filter(c => c.profissional === usuario.nome) : json.dados;
+         // TRAVA DE SEGURANÇA TAMBÉM NO FILTRO DE DATAS
+         const filtrado = isProfissional 
+           ? json.dados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) 
+           : json.dados;
          setComissoesFiltradas(filtrado);
       }
     } catch (e) {}
@@ -427,7 +438,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       {isAdmin && abaAtiva === 6 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           
-          {/* TOPO: Mantém a cor escura elegante e o botão segue o Tema */}
           <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <h3 className="font-bold text-white">Despesas</h3>
@@ -439,7 +449,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
               
-              {/* CABEÇALHO DA TABELA: Fica dinâmico com o Tema (usando o teal padrão que o seu tema altera) */}
               <thead className="bg-teal-500 text-white">
                 <tr>
                   <th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th>
@@ -452,7 +461,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                 </tr>
               </thead>
               
-              {/* LINHAS: Ficam 100% estáticas, clarinhas e não mudam com o tema */}
               <tbody className="divide-y divide-gray-200 border-b border-gray-200">
                 {despesas.length === 0 ? (
                   <tr><td colSpan="7" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr>
@@ -464,19 +472,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                     let classeLinha = ""; 
                     let textoStatus = ""; 
                     let classeStatus = "font-bold text-center ";
-                    let classeTexto = "text-gray-800"; // Texto sempre escuro para dar leitura
+                    let classeTexto = "text-gray-800"; 
                     
-                    // A MÁGICA DAS CORES ESTÁTICAS E CLARAS
                     if (d.pago) { 
-                      classeLinha = "bg-green-50 hover:bg-green-100"; // Verdinho clarinho
+                      classeLinha = "bg-green-50 hover:bg-green-100"; 
                       textoStatus = "Pago"; 
                       classeStatus += "text-green-700";
                     } else if (diferencaDias < 0) { 
-                      classeLinha = "bg-red-50 hover:bg-red-100"; // Vermelhinho clarinho
+                      classeLinha = "bg-red-50 hover:bg-red-100"; 
                       textoStatus = "Venceu"; 
                       classeStatus += "text-red-700";
                     } else { 
-                      classeLinha = "bg-white hover:bg-gray-50"; // Fundo branco normal
+                      classeLinha = "bg-white hover:bg-gray-50"; 
                       textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`; 
                       classeStatus += diferencaDias === 0 ? "text-orange-600" : "text-gray-600"; 
                     }
