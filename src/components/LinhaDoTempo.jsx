@@ -1,24 +1,136 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function LinhaDoTempo({ comandas }) {
-  // Blindagem: Se o array de comandas estiver vazio ou indefinido, evita erro
+  const [horaAtual, setHoraAtual] = useState(new Date());
+
+  // Atualiza a linha vermelha a cada 1 minuto
+  useEffect(() => {
+    const timer = setInterval(() => setHoraAtual(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Proteção: Se não houver comandas, exibe a mensagem de vazio
   if (!comandas || comandas.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 text-center">
-        <p className="text-gray-400 font-medium">Nenhum atendimento registrado para hoje.</p>
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center mt-4">
+        <p className="text-gray-400 font-medium text-lg">Ainda não há atendimentos registrados hoje. 🍃</p>
       </div>
     );
   }
 
+  // Dicionário de tempos de cada serviço em minutos (pode ajustar à vontade)
+  const temposServicos = {
+    'Mão': 45,
+    'Pé': 45,
+    'Pé e Mão': 90,
+    'Corte': 40,
+    'Corte Com Escova': 60,
+    'Mechas e Luzes': 180,
+    'Progressiva': 120,
+    'Coloração': 90,
+    'Sobrancelha': 30,
+    'SPA': 60,
+  };
+
+  // Horário de funcionamento do gráfico (08:00 às 20:00)
+  const HORA_INICIO = 8;
+  const HORA_FIM = 20;
+  const TOTAL_MINUTOS = (HORA_FIM - HORA_INICIO) * 60;
+
+  // Mágica do Gráfico: Agrupar as clientes na mesma linha do profissional
+  const agendaPorProfissional = {};
+  
+  comandas.forEach(c => {
+    // Se o profissional ainda não tem uma linha, cria uma
+    if (!agendaPorProfissional[c.profissional]) {
+      agendaPorProfissional[c.profissional] = [];
+    }
+    
+    // Pega a hora exata que a cliente chegou para posicionar o bloco
+    let dataHora = c.data_hora ? new Date(c.data_hora) : new Date(); 
+    
+    const minutosInicio = (dataHora.getHours() - HORA_INICIO) * 60 + dataHora.getMinutes();
+    const duracao = temposServicos[c.servico] || 60; // Se não achar o serviço, coloca 1 hora
+    
+    agendaPorProfissional[c.profissional].push({
+      id: c.id,
+      cliente: c.cliente_nome || 'Cliente',
+      servico: c.servico,
+      minutosInicio,
+      duracao
+    });
+  });
+
+  // Calcula a posição da linha vermelha (Hora Atual)
+  const minutosAtuais = (horaAtual.getHours() - HORA_INICIO) * 60 + horaAtual.getMinutes();
+  const posicaoLinhaAtual = Math.max(0, Math.min(100, (minutosAtuais / TOTAL_MINUTOS) * 100));
+
+  const horasGrade = Array.from({ length: HORA_FIM - HORA_INICIO + 1 }, (_, i) => HORA_INICIO + i);
+
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 overflow-x-auto">
-      <h3 className="text-lg font-black text-gray-800 mb-6">Agenda Visual (Teste)</h3>
-      <div className="space-y-4">
-        {comandas.map((c) => (
-          <div key={c.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            <div className="w-24 text-xs font-bold text-gray-600 truncate">{c.profissional}</div>
-            <div className="flex-1 bg-teal-100 text-teal-800 px-3 py-2 rounded-lg text-xs font-bold">
-              {c.cliente_nome} - {c.servico}
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-4 overflow-x-auto animate-fade-in-up">
+      <div className="flex items-center gap-2 mb-8 border-b border-gray-100 pb-3">
+        <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <h3 className="text-lg font-black text-gray-800">Linha do Tempo de Hoje</h3>
+      </div>
+      
+      {/* O Gráfico Horizontal começa aqui */}
+      <div className="min-w-[800px] relative mt-4">
+        
+        {/* Régua de Horas (08:00, 09:00...) */}
+        <div className="flex border-b-2 border-gray-100 pb-2 mb-4 relative ml-24">
+          {horasGrade.map(hora => (
+            <div key={hora} className="flex-1 text-xs font-black text-gray-400 text-center relative">
+              {hora.toString().padStart(2, '0')}:00
+              {/* Linhas verticais de fundo */}
+              <div className="absolute top-6 left-1/2 w-px h-[400px] bg-gray-50 -translate-x-1/2 -z-10"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Fio Vermelho Mágico (Hora em Tempo Real) */}
+        {horaAtual.getHours() >= HORA_INICIO && horaAtual.getHours() <= HORA_FIM && (
+          <div 
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 flex flex-col items-center transition-all duration-1000"
+            style={{ left: `calc(6rem + ${posicaoLinhaAtual}%)` }}
+          >
+            <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-md -mt-6 shadow-md border border-red-600">
+              {horaAtual.getHours().toString().padStart(2, '0')}:{horaAtual.getMinutes().toString().padStart(2, '0')}
+            </div>
+          </div>
+        )}
+
+        {/* Renderiza a pista de cada Profissional (Gaby, Elaine, etc) */}
+        {Object.entries(agendaPorProfissional).map(([profissional, atendimentos]) => (
+          <div key={profissional} className="flex items-center mb-6 relative">
+            
+            {/* Nome do Profissional fixo na esquerda */}
+            <div className="w-24 shrink-0 pr-4 text-right">
+              <span className="font-bold text-sm text-gray-700 block truncate">{profissional}</span>
+            </div>
+
+            {/* Pista Cinza Horizontal */}
+            <div className="flex-1 h-14 bg-gray-50/80 rounded-xl relative border border-gray-200 overflow-hidden shadow-inner">
+              
+              {/* Blocos de Clientes sendo posicionados na Pista */}
+              {atendimentos.map(atend => {
+                const leftPercent = Math.max(0, (atend.minutosInicio / TOTAL_MINUTOS) * 100);
+                const widthPercent = Math.min(100 - leftPercent, (atend.duracao / TOTAL_MINUTOS) * 100);
+                
+                if (leftPercent >= 100 || leftPercent + widthPercent <= 0) return null;
+
+                return (
+                  <div 
+                    key={atend.id}
+                    className="absolute top-1 bottom-1 bg-teal-100 border border-teal-300 rounded-lg shadow-sm px-3 py-1 flex flex-col justify-center overflow-hidden hover:bg-teal-200 transition-colors"
+                    style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
+                    title={`${atend.cliente} - ${atend.servico}`}
+                  >
+                    <span className="text-xs font-black text-teal-800 truncate">{atend.cliente}</span>
+                    <span className="text-[10px] font-medium text-teal-600 truncate">{atend.servico}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
