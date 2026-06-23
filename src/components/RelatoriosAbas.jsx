@@ -191,16 +191,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up">
+    <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up pt-4">
       
-      {/* Banner Superior Elegante */}
-      <div className="bg-gradient-to-r from-teal-700 to-teal-900 rounded-b-3xl -mx-4 p-6 mb-6 shadow-md flex items-center justify-between">
-        <div>
-          <h2 className="text-white text-2xl font-black tracking-tight">Gestão Goldstar</h2>
-          <p className="text-teal-100 text-sm font-medium opacity-90">Painel de Controle Profissional</p>
-        </div>
-      </div>
-
       {/* Abas */}
       <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
         {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
@@ -269,7 +261,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                      <div key={nomeCliente} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                        <div className="bg-blue-50/50 px-4 py-3 border-b border-blue-100 flex flex-wrap gap-2 justify-between items-center">
                          
-                         {/* NOVA HORA DE CHEGADA AQUI */}
                          <h4 className="font-bold text-gray-800 flex items-center gap-2 flex-wrap">
                            <span>Cliente: <span className="text-blue-600">{nomeCliente}</span></span>
                            <span className="text-[10px] font-bold text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-md shadow-sm">
@@ -311,7 +302,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
             <h3 className="font-bold text-gray-800">{isProfissional ? 'Meus Serviços Realizados' : 'Histórico Geral'}</h3>
-            {/* BOTÃO DE BAIXAR CORRIGIDO AQUI */}
             {(isAdmin || podeVerCaixa) && <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm">📥 Baixar</button>}
           </div>
           <div className="overflow-x-auto">
@@ -405,7 +395,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* RENDERIZANDO A ABA 3: AGENDA VISUAL (AQUI ESTAVA O PROBLEMA DO BRANCO) */}
       {abaAtiva === 3 && podeVerCaixa && (
         <LinhaDoTempo comandas={comandas} />
       )}
