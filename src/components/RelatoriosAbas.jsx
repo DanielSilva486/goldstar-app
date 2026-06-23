@@ -12,8 +12,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const [abaAtiva, setAbaAtiva] = useState(podeVerCaixa ? 0 : 1);
 
-  // --- TRAVA DE SEGURANÇA MÁXIMA ---
-  // Limpamos espaços e deixamos tudo em minúsculas para a comparação não falhar
+  // Trava de segurança para minúsculas e espaços
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
 
   const historicoGeral = dados?.historico || [];
@@ -94,7 +93,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
       const json = await res.json();
       if (json.sucesso) {
-         // TRAVA DE SEGURANÇA TAMBÉM NO FILTRO DE DATAS
          const filtrado = isProfissional 
            ? json.dados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) 
            : json.dados;
@@ -370,9 +368,13 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                     {valesAtivos.length > 0 && (
                       <div className="mt-2 bg-red-50/50 p-2 rounded-lg border border-red-100">
                         <p className="text-[10px] font-bold text-red-800 uppercase tracking-wide border-b border-red-200/50 mb-1.5 pb-1">Descontos a aplicar:</p>
+                        
+                        {/* A MÁGICA DA DATA APARECE AQUI */}
                         {valesAtivos.map(v => (
                           <div key={v.id} className="flex justify-between text-xs text-red-600 items-center mt-1">
-                            <span className="truncate pr-2">- {v.descricao}</span>
+                            <span className="truncate pr-2">
+                              - <span className="font-semibold opacity-75">[{v.data_formatada || 'Antigo'}]</span> {v.descricao}
+                            </span>
                             <div className="flex items-center gap-2">
                               <span className="font-bold whitespace-nowrap">{formatarMoeda(v.valor)}</span>
                               {!estaPago && isAdmin && <button onClick={() => apagarVale(v.id)} className="text-red-400 hover:text-red-700 bg-red-100 w-4 h-4 rounded-full flex items-center justify-center font-bold pb-0.5" title="Remover desconto">x</button>}
@@ -404,10 +406,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             })}
           </div>
         </div>
-      )}
-
-      {abaAtiva === 3 && podeVerCaixa && (
-        <LinhaDoTempo comandas={comandas} />
       )}
 
       {isAdmin && abaAtiva === 4 && (
