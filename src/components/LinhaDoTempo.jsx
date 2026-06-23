@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 export default function LinhaDoTempo({ comandas }) {
+  console.log("Comandas recebidas no gráfico:", comandas); // Adicione isto!
   const [horaAtual, setHoraAtual] = useState(new Date());
+  // ... resto do código
 
   useEffect(() => {
     const timer = setInterval(() => setHoraAtual(new Date()), 60000);
