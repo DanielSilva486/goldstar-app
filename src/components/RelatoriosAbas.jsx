@@ -373,7 +373,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                         {valesAtivos.map(v => (
                           <div key={v.id} className="flex justify-between text-xs text-red-600 items-center mt-1">
                             <span className="truncate pr-2">
-                              - <span className="font-semibold opacity-75">[{v.data_formatada || 'Antigo'}]</span> {v.descricao}
+                              {v.data_formatada && <span className="font-semibold opacity-75">[{v.data_formatada}] </span>} {v.descricao}
                             </span>
                             <div className="flex items-center gap-2">
                               <span className="font-bold whitespace-nowrap">{formatarMoeda(v.valor)}</span>
