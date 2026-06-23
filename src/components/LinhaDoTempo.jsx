@@ -3,13 +3,11 @@ import React, { useState, useEffect } from 'react';
 export default function LinhaDoTempo({ comandas }) {
   const [horaAtual, setHoraAtual] = useState(new Date());
 
-  // Atualiza a linha vermelha a cada 1 minuto
   useEffect(() => {
     const timer = setInterval(() => setHoraAtual(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Proteção: Se não houver comandas, exibe a mensagem de vazio
   if (!comandas || comandas.length === 0) {
     return (
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center mt-4">
@@ -18,39 +16,22 @@ export default function LinhaDoTempo({ comandas }) {
     );
   }
 
-  // Dicionário de tempos de cada serviço em minutos (pode ajustar à vontade)
-  const temposServicos = {
-    'Mão': 45,
-    'Pé': 45,
-    'Pé e Mão': 90,
-    'Corte': 40,
-    'Corte Com Escova': 60,
-    'Mechas e Luzes': 180,
-    'Progressiva': 120,
-    'Coloração': 90,
-    'Sobrancelha': 30,
-    'SPA': 60,
-  };
-
-  // Horário de funcionamento do gráfico (08:00 às 20:00)
   const HORA_INICIO = 8;
   const HORA_FIM = 20;
   const TOTAL_MINUTOS = (HORA_FIM - HORA_INICIO) * 60;
 
-  // Mágica do Gráfico: Agrupar as clientes na mesma linha do profissional
   const agendaPorProfissional = {};
   
   comandas.forEach(c => {
-    // Se o profissional ainda não tem uma linha, cria uma
     if (!agendaPorProfissional[c.profissional]) {
       agendaPorProfissional[c.profissional] = [];
     }
     
-    // Pega a hora exata que a cliente chegou para posicionar o bloco
     let dataHora = c.data_hora ? new Date(c.data_hora) : new Date(); 
-    
     const minutosInicio = (dataHora.getHours() - HORA_INICIO) * 60 + dataHora.getMinutes();
-    const duracao = temposServicos[c.servico] || 60; // Se não achar o serviço, coloca 1 hora
+    
+    // CORREÇÃO: Usa a duração que vem do banco de dados (c.duracao) ou 30 min por segurança
+    const duracao = Number(c.duracao) || 30; 
     
     agendaPorProfissional[c.profissional].push({
       id: c.id,
@@ -61,10 +42,8 @@ export default function LinhaDoTempo({ comandas }) {
     });
   });
 
-  // Calcula a posição da linha vermelha (Hora Atual)
   const minutosAtuais = (horaAtual.getHours() - HORA_INICIO) * 60 + horaAtual.getMinutes();
   const posicaoLinhaAtual = Math.max(0, Math.min(100, (minutosAtuais / TOTAL_MINUTOS) * 100));
-
   const horasGrade = Array.from({ length: HORA_FIM - HORA_INICIO + 1 }, (_, i) => HORA_INICIO + i);
 
   return (
@@ -74,21 +53,16 @@ export default function LinhaDoTempo({ comandas }) {
         <h3 className="text-lg font-black text-gray-800">Linha do Tempo de Hoje</h3>
       </div>
       
-      {/* O Gráfico Horizontal começa aqui */}
       <div className="min-w-[800px] relative mt-4">
-        
-        {/* Régua de Horas (08:00, 09:00...) */}
         <div className="flex border-b-2 border-gray-100 pb-2 mb-4 relative ml-24">
           {horasGrade.map(hora => (
             <div key={hora} className="flex-1 text-xs font-black text-gray-400 text-center relative">
               {hora.toString().padStart(2, '0')}:00
-              {/* Linhas verticais de fundo */}
               <div className="absolute top-6 left-1/2 w-px h-[400px] bg-gray-50 -translate-x-1/2 -z-10"></div>
             </div>
           ))}
         </div>
 
-        {/* Fio Vermelho Mágico (Hora em Tempo Real) */}
         {horaAtual.getHours() >= HORA_INICIO && horaAtual.getHours() <= HORA_FIM && (
           <div 
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 flex flex-col items-center transition-all duration-1000"
@@ -100,19 +74,13 @@ export default function LinhaDoTempo({ comandas }) {
           </div>
         )}
 
-        {/* Renderiza a pista de cada Profissional (Gaby, Elaine, etc) */}
         {Object.entries(agendaPorProfissional).map(([profissional, atendimentos]) => (
           <div key={profissional} className="flex items-center mb-6 relative">
-            
-            {/* Nome do Profissional fixo na esquerda */}
             <div className="w-24 shrink-0 pr-4 text-right">
               <span className="font-bold text-sm text-gray-700 block truncate">{profissional}</span>
             </div>
 
-            {/* Pista Cinza Horizontal */}
             <div className="flex-1 h-14 bg-gray-50/80 rounded-xl relative border border-gray-200 overflow-hidden shadow-inner">
-              
-              {/* Blocos de Clientes sendo posicionados na Pista */}
               {atendimentos.map(atend => {
                 const leftPercent = Math.max(0, (atend.minutosInicio / TOTAL_MINUTOS) * 100);
                 const widthPercent = Math.min(100 - leftPercent, (atend.duracao / TOTAL_MINUTOS) * 100);
