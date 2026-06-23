@@ -34,7 +34,7 @@ app.post('/api/login', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-aapp.get('/api/resumo', async (req, res) => {
+app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
     
