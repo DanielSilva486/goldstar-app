@@ -234,5 +234,26 @@ app.delete('/api/vales/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
+// 1. ROTA GET: Agora o sistema só vai buscar os serviços que estão ATIVOS
+app.get('/api/servicos', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT id, nome, preco, duracao FROM servicos WHERE ativo = TRUE ORDER BY nome ASC');
+    res.json({ sucesso: true, dados: r.rows });
+  } catch (erro) {
+    res.status(500).json({ sucesso: false });
+  }
+});
+
+// 2. ROTA DELETE: Em vez de apagar (DELETE), agora ele atualiza (UPDATE) escondendo o serviço
+app.delete('/api/servicos/:id', async (req, res) => {
+  try {
+    // A mágica acontece aqui: mudamos o ativo para FALSE
+    await pool.query('UPDATE servicos SET ativo = FALSE WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (e) { 
+    res.status(500).json({ sucesso: false, erro: "Erro ao ocultar o serviço." }); 
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor na porta ${PORT}`));
