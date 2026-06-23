@@ -97,22 +97,28 @@ app.put('/api/colaboradores/:id/status', async (req, res) => {
   res.json({ sucesso: true });
 });
 
+// --- NOVAS ROTAS DE SERVIÇOS (COM EXCLUSÃO LÓGICA) ---
 app.get('/api/servicos', async (req, res) => {
-  const r = await pool.query('SELECT id, nome, preco, duracao FROM servicos ORDER BY nome ASC');
-  res.json({ sucesso: true, dados: r.rows });
+  try {
+    const r = await pool.query('SELECT id, nome, preco, duracao FROM servicos WHERE ativo = TRUE ORDER BY nome ASC');
+    res.json({ sucesso: true, dados: r.rows });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
 app.post('/api/servicos', async (req, res) => {
-  await pool.query('INSERT INTO servicos (nome, preco, duracao) VALUES ($1, $2, $3)', [req.body.nome, req.body.preco, req.body.duracao || 30]);
-  res.json({ sucesso: true });
+  try {
+    await pool.query('INSERT INTO servicos (nome, preco, duracao) VALUES ($1, $2, $3)', [req.body.nome, req.body.preco, req.body.duracao || 30]);
+    res.json({ sucesso: true });
+  } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
 app.delete('/api/servicos/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM servicos WHERE id = $1', [req.params.id]);
+    await pool.query('UPDATE servicos SET ativo = FALSE WHERE id = $1', [req.params.id]);
     res.json({ sucesso: true });
-  } catch (e) { res.status(500).json({ sucesso: false, erro: "Possui histórico." }); }
+  } catch (e) { res.status(500).json({ sucesso: false, erro: "Erro ao ocultar o serviço." }); }
 });
+// -----------------------------------------------------
 
 app.get('/api/comissoes-especificas', async (req, res) => {
   const r = await pool.query(`SELECT ce.id, c.nome as prof, s.nome as serv, ce.percentual_comissao as percentual FROM comissoes_especificas ce JOIN colaboradores c ON ce.colaborador_id = c.id JOIN servicos s ON ce.servico_id = s.id`);
@@ -162,17 +168,14 @@ app.get('/api/pagamentos-comissoes', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
-// AQUI ESTÁ A MAGIA! Quando marca a comissão como Paga, abate os Vales.
 app.post('/api/pagamentos-comissoes/toggle', async (req, res) => {
   try {
     const { profissional, chave_periodo } = req.body;
     const existe = await pool.query('SELECT id FROM pagamentos_comissoes WHERE chave_periodo = $1', [chave_periodo]);
     if (existe.rows.length > 0) {
-      // Reverter o pagamento: Desmarca a comissão e volta os vales para Pendentes
       await pool.query('DELETE FROM pagamentos_comissoes WHERE chave_periodo = $1', [chave_periodo]);
       await pool.query('UPDATE vales SET pago = FALSE, chave_periodo = NULL WHERE chave_periodo = $1', [chave_periodo]);
     } else {
-      // Dar Baixa: Marca a comissão como paga e "tranca" os vales pendentes com essa chave
       await pool.query('INSERT INTO pagamentos_comissoes (profissional, chave_periodo) VALUES ($1, $2)', [profissional, chave_periodo]);
       await pool.query('UPDATE vales SET pago = TRUE, chave_periodo = $1 WHERE profissional = $2 AND pago = FALSE', [chave_periodo, profissional]);
     }
@@ -211,7 +214,6 @@ app.put('/api/despesas/:id/pagar', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-// ROTAS PARA OS VALES / CONSUMO
 app.get('/api/vales', async (req, res) => {
   try {
     const r = await pool.query("SELECT id, profissional, descricao, valor, pago, chave_periodo FROM vales ORDER BY id DESC");
@@ -232,27 +234,6 @@ app.delete('/api/vales/:id', async (req, res) => {
     await pool.query('DELETE FROM vales WHERE id = $1', [req.params.id]);
     res.json({ sucesso: true });
   } catch (e) { res.status(500).json({ sucesso: false }); }
-});
-
-// 1. ROTA GET: Agora o sistema só vai buscar os serviços que estão ATIVOS
-app.get('/api/servicos', async (req, res) => {
-  try {
-    const r = await pool.query('SELECT id, nome, preco, duracao FROM servicos WHERE ativo = TRUE ORDER BY nome ASC');
-    res.json({ sucesso: true, dados: r.rows });
-  } catch (erro) {
-    res.status(500).json({ sucesso: false });
-  }
-});
-
-// 2. ROTA DELETE: Em vez de apagar (DELETE), agora ele atualiza (UPDATE) escondendo o serviço
-app.delete('/api/servicos/:id', async (req, res) => {
-  try {
-    // A mágica acontece aqui: mudamos o ativo para FALSE
-    await pool.query('UPDATE servicos SET ativo = FALSE WHERE id = $1', [req.params.id]);
-    res.json({ sucesso: true });
-  } catch (e) { 
-    res.status(500).json({ sucesso: false, erro: "Erro ao ocultar o serviço." }); 
-  }
 });
 
 const PORT = process.env.PORT || 3000;
