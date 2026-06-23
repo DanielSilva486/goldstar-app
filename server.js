@@ -154,7 +154,16 @@ app.post('/api/atendimentos', async (req, res) => {
 
 app.get('/api/comandas', async (req, res) => {
   try {
-    const r = await pool.query(`SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, a.valor_total, a.valor_comissao, a.data_hora, a.status FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pendente', 'pago_antecipado') ORDER BY a.data_hora ASC`);
+    // Verifique se o "s.duracao" está presente no SELECT:
+    const r = await pool.query(`
+      SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, 
+             a.valor_total, a.valor_comissao, a.data_hora, a.status 
+      FROM atendimentos a 
+      JOIN servicos s ON a.servico_id = s.id 
+      JOIN colaboradores c ON a.colaborador_id = c.id 
+      WHERE a.status IN ('pendente', 'pago_antecipado') 
+      ORDER BY a.data_hora ASC
+    `);
     res.json({ sucesso: true, dados: r.rows });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
