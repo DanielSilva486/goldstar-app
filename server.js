@@ -224,10 +224,11 @@ app.put('/api/despesas/:id/pagar', async (req, res) => {
 
 app.get('/api/vales', async (req, res) => {
   try {
-    // Adicionamos a busca da data_criacao formatada no padrão brasileiro
     const r = await pool.query("SELECT id, profissional, descricao, valor, pago, chave_periodo, TO_CHAR(COALESCE(data_criacao, CURRENT_TIMESTAMP) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') as data_formatada FROM vales ORDER BY id DESC");
     res.json({ sucesso: true, dados: r.rows });
-  } catch (e) { res.status(500).json({ sucesso: false }); }
+  } catch (e) { 
+    res.status(500).json({ sucesso: false }); 
+  }
 });
 
 app.post('/api/vales', async (req, res) => {
