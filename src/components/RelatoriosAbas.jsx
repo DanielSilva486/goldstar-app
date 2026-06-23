@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import ModalNovaDespesa from './ModalNovaDespesa';
 import ModalNovoVale from './ModalNovoVale';
+import LinhaDoTempo from './LinhaDoTempo';
 
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
   
   const isAdmin = usuario?.perfil === 'admin';
-  const isCaixa = usuario?.perfil === 'caixa';
+  const isCaixa = usuario?.perfil === 'caixa' || usuario?.nome === 'Raquel Patroa'; 
   const isProfissional = usuario?.perfil === 'profissional';
   const podeVerCaixa = isAdmin || isCaixa;
 
@@ -59,7 +60,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       const jsonPagamentos = await resPagamentos.json();
       if(jsonPagamentos.sucesso) setPagamentosDb(jsonPagamentos.dados);
 
-      // NOVO: Busca a lista de vales para os descontos
       const resVales = await fetch('https://goldstar-backend-9m2p.onrender.com/api/vales');
       const jsonVales = await resVales.json();
       if(jsonVales.sucesso) setVales(jsonVales.dados);
@@ -191,31 +191,31 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   );
 
   return (
-    // 1. Mude a div principal para um fundo mais suave
-<div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up">
-  
-  {/* 2. Banner Elegante no topo */}
-  <div className="bg-gradient-to-r from-teal-600 to-teal-800 rounded-b-3xl -mx-4 p-6 mb-6 shadow-lg">
-    <h2 className="text-white text-xl font-bold">Gestão Goldstar</h2>
-    <p className="text-teal-100 text-sm">Painel de Controle Profissional</p>
-  </div>
+    <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up">
+      
+      {/* Banner Superior Elegante */}
+      <div className="bg-gradient-to-r from-teal-700 to-teal-900 rounded-b-3xl -mx-4 p-6 mb-6 shadow-md flex items-center justify-between">
+        <div>
+          <h2 className="text-white text-2xl font-black tracking-tight">Gestão Goldstar</h2>
+          <p className="text-teal-100 text-sm font-medium opacity-90">Painel de Controle Profissional</p>
+        </div>
+      </div>
 
-  <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
-    {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
-    <BotaoAba id={1} titulo="1. Histórico" />
-    <BotaoAba id={2} titulo="2. Comissões" />
-    <BotaoAba id={3} titulo="3. Agenda Visual" /> {/* Agora aparece para todos */}
-    
-    {isAdmin && (
-      <>
-        <BotaoAba id={4} titulo="4. Top 10" />
-        <BotaoAba id={5} titulo="5. DRE" />
-        <BotaoAba id={6} titulo="6. Despesas" />
-      </>
-    )}
-  </div>
-
-  {/* ... restante do código ... */}
+      {/* Abas */}
+      <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
+        {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
+        <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
+        <BotaoAba id={2} titulo={isProfissional ? "2. Minha Comissão" : "2. Comissões da Equipe"} />
+        {podeVerCaixa && <BotaoAba id={3} titulo="3. Agenda Visual" />}
+        
+        {isAdmin && (
+          <>
+            <BotaoAba id={4} titulo="4. Top 10" />
+            <BotaoAba id={5} titulo="5. DRE (Finanças)" />
+            <BotaoAba id={6} titulo="6. Despesas" />
+          </>
+        )}
+      </div>
 
       {abaAtiva === 0 && podeVerCaixa && (
         <div className="space-y-4">
@@ -236,9 +236,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
              })}
           </div>
 
-          <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden min-h-[400px]">
-            <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center"><h3 className="font-bold text-gray-800">Clientes Aguardando</h3></div>
-            <div className="p-4 space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden min-h-[400px] shadow-sm">
+            <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center"><h3 className="font-bold text-gray-800">Clientes Aguardando</h3></div>
+            <div className="p-4 space-y-4 bg-gray-50/50">
                {totalClientesNaFila === 0 ? (
                  <div className="flex flex-col items-center justify-center py-16 text-gray-400"><p>A fila de espera está vazia. 🎉</p></div>
                ) : (
@@ -251,6 +251,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                    const horaChegada = new Date(itens[0].data_hora); 
                    const agora = new Date();
                    const decorridoMinutos = Math.max(0, Math.floor((agora - horaChegada) / 60000));
+                   const horaChegadaFormatada = horaChegada.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
                    
                    let corTempo = "bg-green-100 text-green-700 border-green-200";
                    let textoTempo = `${decorridoMinutos}m / ${tempoEstimado}m`;
@@ -266,9 +267,17 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
                    return (
                      <div key={nomeCliente} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-                       <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 flex justify-between items-center">
-                         <h4 className="font-bold text-gray-800">Cliente: <span className="text-blue-600">{nomeCliente}</span></h4>
-                         <span className={`text-[10px] px-2 py-0.5 rounded-full border shadow-sm flex items-center gap-1 font-bold ${corTempo}`} title={`Chegou às ${horaChegada.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`}>
+                       <div className="bg-blue-50/50 px-4 py-3 border-b border-blue-100 flex flex-wrap gap-2 justify-between items-center">
+                         
+                         {/* NOVA HORA DE CHEGADA AQUI */}
+                         <h4 className="font-bold text-gray-800 flex items-center gap-2 flex-wrap">
+                           <span>Cliente: <span className="text-blue-600">{nomeCliente}</span></span>
+                           <span className="text-[10px] font-bold text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-md shadow-sm">
+                             Chegou às {horaChegadaFormatada}
+                           </span>
+                         </h4>
+
+                         <span className={`text-[10px] px-2 py-0.5 rounded-full border shadow-sm flex items-center gap-1 font-bold ${corTempo}`}>
                             {iconeTempo} {textoTempo}
                          </span>
                        </div>
@@ -284,8 +293,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                          <div className="border-t border-dashed border-gray-300 pt-3 flex flex-col md:flex-row md:justify-between items-end gap-3">
                            <div><p className="text-xs text-gray-500 font-bold uppercase">Total a Cobrar</p><p className="text-xl font-black text-gray-800">{formatarMoeda(valorPendente)}</p></div>
                            <div className="flex gap-2 w-full md:w-auto">
-                             {valorPendente > 0 && <button onClick={() => atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado')} className="flex-1 md:flex-none bg-blue-100 text-blue-700 font-bold py-2 px-3 rounded-xl text-sm">Antecipar</button>}
-                             <button onClick={() => atualizarStatusComanda(itens, 'pago')} className="flex-1 md:flex-none bg-green-500 text-white font-bold py-2 px-4 rounded-xl shadow-md text-sm">{valorPendente === 0 ? "Encerrar Atendimento" : "Dar Baixa Final"}</button>
+                             {valorPendente > 0 && <button onClick={() => atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado')} className="flex-1 md:flex-none bg-blue-100 text-blue-700 font-bold py-2 px-3 rounded-xl text-sm hover:bg-blue-200">Antecipar</button>}
+                             <button onClick={() => atualizarStatusComanda(itens, 'pago')} className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl shadow-md text-sm transition-colors">{valorPendente === 0 ? "Encerrar Atendimento" : "Dar Baixa Final"}</button>
                            </div>
                          </div>
                        </div>
@@ -302,7 +311,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
             <h3 className="font-bold text-gray-800">{isProfissional ? 'Meus Serviços Realizados' : 'Histórico Geral'}</h3>
-            {isAdmin && <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm">📥 Baixar</button>}
+            {/* BOTÃO DE BAIXAR CORRIGIDO AQUI */}
+            {(isAdmin || podeVerCaixa) && <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm">📥 Baixar</button>}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -319,23 +329,22 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* ABA DE COMISSÕES COM A MATEMÁTICA DE VALES */}
       {abaAtiva === 2 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-col gap-2">
               <div><h3 className="font-bold text-orange-800">{isProfissional ? 'Minha Comissão Acumulada' : 'Repasses Acumulados da Equipe'}</h3></div>
               <div className="flex flex-wrap items-center gap-2">
-                <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" /> <span className="text-xs font-bold">até</span> <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white" />
-                <button onClick={filtrarComissoesPeriodo} className="bg-orange-500 text-white text-xs font-bold px-3 py-2 rounded-lg">Filtrar</button>
-                {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 text-xs font-bold px-3 py-2 rounded-lg">Limpar</button>}
+                <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white shadow-sm" /> <span className="text-xs font-bold text-gray-500">até</span> <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white shadow-sm" />
+                <button onClick={filtrarComissoesPeriodo} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors">Filtrar</button>
+                {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors">Limpar</button>}
               </div>
             </div>
             
             {podeVerCaixa && (
               <div className="flex gap-2 w-full md:w-auto">
                 <button onClick={() => setMostrarNovoVale(true)} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-sm whitespace-nowrap">+ Vale / Desconto</button>
-                <button onClick={exportarPlanilhaComissoes} className="bg-green-100 text-green-700 text-xs font-bold px-3 py-2 rounded-lg shadow-sm flex items-center justify-center gap-1">📥 Baixar</button>
+                <button onClick={exportarPlanilhaComissoes} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg shadow-sm flex items-center justify-center gap-1 transition-colors">📥 Baixar</button>
               </div>
             )}
           </div>
@@ -345,7 +354,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
               const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
               const estaPago = !!pagamentoInfo;
 
-              // LÓGICA DE VALES: Se já foi pago neste período, mostra os vales trancados com a chave. Se não, mostra os pendentes atuais.
               const valesDoProfissional = vales.filter(v => v.profissional === prof.profissional);
               const valesAtivos = estaPago ? valesDoProfissional.filter(v => v.chave_periodo === chaveUnica) : valesDoProfissional.filter(v => !v.pago);
               
@@ -397,19 +405,24 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {isAdmin && abaAtiva === 3 && (
+      {/* RENDERIZANDO A ABA 3: AGENDA VISUAL (AQUI ESTAVA O PROBLEMA DO BRANCO) */}
+      {abaAtiva === 3 && podeVerCaixa && (
+        <LinhaDoTempo comandas={comandas} />
+      )}
+
+      {isAdmin && abaAtiva === 4 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border p-4"><h3 className="font-bold text-purple-800 mb-3 border-b pb-2">Top 10 Serviços</h3>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"><h3 className="font-bold text-purple-800 mb-3 border-b pb-2">Top 10 Serviços</h3>
             <ul className="text-sm space-y-3">{topServicos.map((s, i) => <li key={i} className="flex justify-between"><span className="text-gray-600"><span className="font-bold mr-2">{i+1}º</span>{s.nome}</span><span className="font-bold">{formatarMoeda(s.gerado)}</span></li>)}</ul>
           </div>
-          <div className="bg-white rounded-2xl border p-4"><h3 className="font-bold text-blue-800 mb-3 border-b pb-2">Top 10 Clientes</h3>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"><h3 className="font-bold text-blue-800 mb-3 border-b pb-2">Top 10 Clientes</h3>
             <ul className="text-sm space-y-3">{topClientes.map((c, i) => <li key={i} className="flex justify-between"><span className="text-gray-600"><span className="font-bold mr-2">{i+1}º</span>{c.nome}</span><span className="font-bold">{formatarMoeda(c.gasto)}</span></li>)}</ul>
           </div>
         </div>
       )}
 
-      {isAdmin && abaAtiva === 4 && (
-        <div className="bg-gray-800 rounded-2xl p-5 text-white">
+      {isAdmin && abaAtiva === 5 && (
+        <div className="bg-gray-800 rounded-2xl p-5 text-white shadow-md">
           <h3 className="font-bold text-gray-200 mb-4 border-b border-gray-600 pb-2">Resumo Financeiro (DRE)</h3>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-gray-400">Faturamento Bruto</span><span className="font-bold text-green-400">+ {formatarMoeda(faturamentoBruto)}</span></div>
@@ -422,7 +435,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {isAdmin && abaAtiva === 5 && (
+      {isAdmin && abaAtiva === 6 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
             <div className="flex items-center gap-4">
@@ -452,15 +465,15 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       textoStatus = "Venceu"; 
                       classeStatus += "text-white";
                     } else { 
-                      classeLinha = "bg-gray-50 text-gray-800 hover:bg-gray-100"; 
+                      classeLinha = "bg-white text-gray-800 hover:bg-gray-50"; 
                       textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`; 
                       classeStatus += "text-gray-800"; 
                     }
                     
                     const dataVencFormatada = `${partes[2]}/${partes[1]}/${partes[0].substring(2)}`;
                     return (
-                      <tr key={d.id} className={`${classeLinha} transition-colors border-b border-gray-300/30`}>
-                        <td className="p-3 font-bold border-r border-gray-300/30">{dataVencFormatada}</td><td className="p-3 font-bold border-r border-gray-300/30">{formatarMoeda(d.valor)}</td><td className="p-3 border-r border-gray-300/30 truncate max-w-[200px]">{d.descricao}</td><td className="p-3 border-r border-gray-300/30 truncate max-w-[150px]">{d.fornecedor || '-'}</td><td className={`p-3 border-r border-gray-300/30 ${classeStatus}`}>{textoStatus}</td><td className="p-3 border-r border-gray-300/30 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td><td className="p-3 text-center flex items-center justify-center"><input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-current" /></td>
+                      <tr key={d.id} className={`${classeLinha} transition-colors border-b border-gray-200`}>
+                        <td className="p-3 font-bold border-r border-gray-200">{dataVencFormatada}</td><td className="p-3 font-bold border-r border-gray-200">{formatarMoeda(d.valor)}</td><td className="p-3 border-r border-gray-200 truncate max-w-[200px]">{d.descricao}</td><td className="p-3 border-r border-gray-200 truncate max-w-[150px]">{d.fornecedor || '-'}</td><td className={`p-3 border-r border-gray-200 ${classeStatus}`}>{textoStatus}</td><td className="p-3 border-r border-gray-200 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td><td className="p-3 text-center flex items-center justify-center"><input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-current" /></td>
                       </tr>
                     );
                 })}
@@ -471,8 +484,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       )}
 
       {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={recarregarTudo} />}
-      
-      {/* RENDERIZA O NOVO MODAL DE VALES */}
       {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} />}
 
     </div>
