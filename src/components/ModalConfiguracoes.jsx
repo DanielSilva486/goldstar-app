@@ -14,7 +14,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   ];
 
   useEffect(() => {
-    if ((aba === 'equipe' || aba === 'comissoes') && equipe.length === 0) {
+    if ((aba === 'equipe' || aba === 'comissoes' || aba === 'status') && equipe.length === 0) {
       fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos')
         .then(r => r.json())
         .then(d => { if(d.sucesso) setEquipe(d.dados); });
@@ -52,7 +52,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     setSalvando(null);
   };
 
-  // --- NOVA FUNÇÃO: ATIVAR / DESATIVAR COLABORADOR ---
   const alternarStatus = async (colab) => {
     const acao = colab.ativo ? 'DESATIVAR' : 'ATIVAR';
     if (!window.confirm(`Tem a certeza que deseja ${acao} a(o) profissional ${colab.nome}?`)) return;
@@ -65,15 +64,17 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ativo: novoStatus })
       });
-      // Atualiza a tela imediatamente após o sucesso
       setEquipe(equipe.map(c => c.id === colab.id ? { ...c, ativo: novoStatus } : c));
     } catch (e) { alert('Erro ao alterar o status.'); }
     setSalvando(null);
   };
 
+  // Filtra a equipe para mostrar apenas os ativos nas abas de Acesso e Comissões
+  const equipeAtiva = equipe.filter(c => c.ativo !== false); // Trata null/undefined como ativo por padrão
+
   return (
     <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4">
-      <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
+      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
         
         <div className="bg-gray-800 p-4 flex justify-between items-center shrink-0">
           <h2 className="text-white font-bold tracking-wide flex items-center gap-2">
@@ -85,7 +86,8 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
         <div className="flex flex-wrap md:flex-nowrap bg-gray-100 border-b border-gray-200 shrink-0">
           <button onClick={() => setAba('tema')} className={`flex-1 py-3 px-2 text-xs md:text-sm font-bold transition-colors ${aba === 'tema' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Aparência</button>
-          <button onClick={() => setAba('equipe')} className={`flex-1 py-3 px-2 text-xs md:text-sm font-bold transition-colors ${aba === 'equipe' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Acessos & Equipe</button>
+          <button onClick={() => setAba('status')} className={`flex-1 py-3 px-2 text-xs md:text-sm font-bold transition-colors ${aba === 'status' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Status da Equipe</button>
+          <button onClick={() => setAba('equipe')} className={`flex-1 py-3 px-2 text-xs md:text-sm font-bold transition-colors ${aba === 'equipe' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Acessos (Ativos)</button>
           <button onClick={() => setAba('comissoes')} className={`flex-1 py-3 px-2 text-xs md:text-sm font-bold transition-colors ${aba === 'comissoes' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Comissões (%)</button>
         </div>
 
@@ -102,40 +104,72 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
             </div>
           )}
 
+          {/* NOVA ABA: STATUS DA EQUIPE */}
+          {aba === 'status' && (
+             <div className="space-y-4">
+               <div className="bg-blue-50 text-blue-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-blue-200 shadow-sm flex items-center justify-between">
+                 <span>Gerencie quem está trabalhando atualmente no salão. Profissionais inativos não aparecerão nas outras abas.</span>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                 <table className="w-full text-left text-sm">
+                   <thead className="bg-gray-800 text-white">
+                     <tr>
+                       <th className="p-3 font-bold">Colaborador</th>
+                       <th className="p-3 font-bold text-center w-32">Status Atual</th>
+                       <th className="p-3 font-bold text-center w-40">Ação</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-gray-200">
+                     {equipe.map(c => (
+                       <tr key={c.id} className={c.ativo !== false ? 'bg-white hover:bg-gray-50' : 'bg-red-50 hover:bg-red-100 opacity-80'}>
+                         <td className="p-3 font-bold text-gray-800">{c.nome}</td>
+                         <td className="p-3 text-center font-bold">
+                           {c.ativo !== false 
+                             ? <span className="text-green-600 bg-green-100 px-2 py-1 rounded-full text-xs">Ativo</span>
+                             : <span className="text-red-600 bg-red-100 px-2 py-1 rounded-full text-xs">Inativo</span>
+                           }
+                         </td>
+                         <td className="p-3 text-center">
+                           <button 
+                             onClick={() => alternarStatus(c)} 
+                             disabled={salvando === c.id}
+                             className={`text-xs font-bold px-3 py-1.5 rounded shadow-sm w-full transition-colors ${c.ativo !== false ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                           >
+                             {salvando === c.id ? '...' : c.ativo !== false ? 'Desativar' : 'Reativar'}
+                           </button>
+                         </td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+          )}
+
           {aba === 'equipe' && (
             <div className="space-y-4">
-              <div className="bg-blue-50 text-blue-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-blue-200 shadow-sm flex items-center justify-between">
-                <span>Defina os e-mails e permissões. <b>Dica:</b> Clique no botão "Em Atividade / Inativo" para ativar ou esconder o profissional do sistema.</span>
+              <div className="bg-teal-50 text-teal-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-teal-200 shadow-sm flex items-center justify-between">
+                <span>Defina os e-mails e permissões apenas para a equipa <b>ativa</b>.</span>
               </div>
               
-              {equipe.map(c => (
-                <div key={c.id} className={`bg-white border p-4 rounded-2xl shadow-sm flex flex-col gap-4 transition-all ${c.ativo ? 'border-gray-200 opacity-100' : 'border-red-200 opacity-70 bg-gray-50'}`}>
+              {equipeAtiva.map(c => (
+                <div key={c.id} className="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                     <span className="font-black text-gray-800 text-lg">{c.nome}</span>
-                    
-                    {/* BOTÃO MÁGICO DE ATIVAR/DESATIVAR */}
-                    <button 
-                      onClick={() => alternarStatus(c)} 
-                      disabled={salvando === c.id}
-                      className={`text-[10px] uppercase font-black px-3 py-1.5 rounded-lg cursor-pointer transition-all hover:scale-105 shadow-sm ${c.ativo ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                      title="Clique para mudar o status deste colaborador"
-                    >
-                      {salvando === c.id ? 'Aguarde...' : c.ativo ? '✅ Em Atividade (Clique p/ Desativar)' : '❌ Inativo (Clique p/ Ativar)'}
-                    </button>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">E-mail de Login</label>
-                      <input type="email" value={c.email || ''} onChange={(e) => handleChange(c.id, 'email', e.target.value.toLowerCase())} disabled={!c.ativo} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none disabled:opacity-50" />
+                      <input type="email" value={c.email || ''} onChange={(e) => handleChange(c.id, 'email', e.target.value.toLowerCase())} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Trocar Senha</label>
-                      <input type="text" placeholder="Deixe em branco p/ manter" value={c.novaSenha || ''} onChange={(e) => handleChange(c.id, 'novaSenha', e.target.value)} disabled={!c.ativo} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none disabled:opacity-50" />
+                      <input type="text" placeholder="Deixe em branco p/ manter" value={c.novaSenha || ''} onChange={(e) => handleChange(c.id, 'novaSenha', e.target.value)} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nível de Permissão</label>
-                      <select value={c.perfil || 'profissional'} onChange={(e) => handleChange(c.id, 'perfil', e.target.value)} disabled={!c.ativo} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none disabled:opacity-50">
+                      <select value={c.perfil || 'profissional'} onChange={(e) => handleChange(c.id, 'perfil', e.target.value)} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none">
                         <option value="profissional">Profissional (Apenas Visão Própria)</option>
                         <option value="caixa">Caixa (Fila e Recebimentos)</option>
                         <option value="admin">Administrador (Acesso Total)</option>
@@ -143,7 +177,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                     </div>
                   </div>
                   
-                  <button onClick={() => salvarAcesso(c)} disabled={salvando === c.id || !c.ativo} className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-xl text-sm mt-1 transition-colors w-full md:w-auto self-end px-6 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button onClick={() => salvarAcesso(c)} disabled={salvando === c.id} className="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-xl text-sm mt-1 transition-colors w-full md:w-auto self-end px-6 shadow-md disabled:opacity-50">
                     Salvar Alterações
                   </button>
                 </div>
@@ -154,24 +188,21 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
           {aba === 'comissoes' && (
             <div className="space-y-4">
               <div className="bg-orange-50 text-orange-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-orange-200 shadow-sm">
-                Defina a comissão base de cada profissional (em porcentagem %).
+                Defina a comissão base de cada profissional ativo (em porcentagem %).
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {equipe.map(c => (
-                  <div key={c.id} className={`bg-white border p-4 rounded-2xl shadow-sm flex flex-col justify-between transition-all ${c.ativo ? 'border-gray-200' : 'border-red-200 opacity-60 bg-gray-50'}`}>
+                {equipeAtiva.map(c => (
+                  <div key={c.id} className="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm flex flex-col justify-between">
                     <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
                       <span className="font-black text-gray-800 text-base">{c.nome}</span>
-                      <button onClick={() => alternarStatus(c)} className={`text-[10px] uppercase font-black px-2 py-1 rounded cursor-pointer ${c.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {c.ativo ? 'ATIVA' : 'INATIVA'}
-                      </button>
                     </div>
                     
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Comissão Padrão (%)</label>
                       <div className="flex gap-2">
-                        <input type="number" value={c.percentual_comissao || 0} onChange={(e) => handleChange(c.id, 'percentual_comissao', e.target.value)} disabled={!c.ativo} className="w-full border-2 border-gray-100 rounded-lg p-2 text-base font-bold bg-gray-50 focus:border-teal-500 outline-none disabled:opacity-50" />
-                        <button onClick={() => salvarComissao(c)} disabled={salvando === c.id || !c.ativo} className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors whitespace-nowrap shadow-sm disabled:opacity-50">
+                        <input type="number" value={c.percentual_comissao || 0} onChange={(e) => handleChange(c.id, 'percentual_comissao', e.target.value)} className="w-full border-2 border-gray-100 rounded-lg p-2 text-base font-bold bg-gray-50 focus:border-teal-500 outline-none" />
+                        <button onClick={() => salvarComissao(c)} disabled={salvando === c.id} className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors whitespace-nowrap shadow-sm disabled:opacity-50">
                           Salvar %
                         </button>
                       </div>
