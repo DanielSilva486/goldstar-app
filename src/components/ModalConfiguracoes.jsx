@@ -116,16 +116,16 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   };
 
   const deletarServico = async (id) => {
-    if (!window.confirm("Deseja mesmo apagar este serviço?")) return;
+    if (!window.confirm("Deseja ocultar este serviço? (Ele vai sumir do Caixa, mas o histórico financeiro será mantido)")) return;
     try {
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos/${id}`, { method: 'DELETE' });
       const d = await res.json();
       if(d.sucesso) {
-         carregarServicos();
+         carregarServicos(); // Atualiza a lista na tela na hora
       } else {
-         alert('Este serviço não pode ser apagado pois já tem histórico de atendimentos.');
+         alert('Erro no servidor: Verifique se o comando SQL da coluna "ativo" foi rodado no banco de dados.');
       }
-    } catch (e) { alert('Erro ao apagar.'); }
+    } catch (e) { alert('Erro de conexão ao tentar ocultar o serviço.'); }
   };
 
   const adicionarRegraEspecifica = async (colab_id) => {
