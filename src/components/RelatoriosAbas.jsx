@@ -191,20 +191,31 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   );
 
   return (
-    <div className="mt-2 px-4 pb-24 animate-fade-in-up">
-      <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
-        {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
-        <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
-        <BotaoAba id={2} titulo={isProfissional ? "2. Minha Comissão" : "2. Comissões da Equipe"} />
-        
-        {isAdmin && (
-          <>
-            <BotaoAba id={3} titulo="3. Top 10" />
-            <BotaoAba id={4} titulo="4. DRE (Finanças)" />
-            <BotaoAba id={5} titulo="5. Despesas" />
-          </>
-        )}
-      </div>
+    // 1. Mude a div principal para um fundo mais suave
+<div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up">
+  
+  {/* 2. Banner Elegante no topo */}
+  <div className="bg-gradient-to-r from-teal-600 to-teal-800 rounded-b-3xl -mx-4 p-6 mb-6 shadow-lg">
+    <h2 className="text-white text-xl font-bold">Gestão Goldstar</h2>
+    <p className="text-teal-100 text-sm">Painel de Controle Profissional</p>
+  </div>
+
+  <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
+    {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
+    <BotaoAba id={1} titulo="1. Histórico" />
+    <BotaoAba id={2} titulo="2. Comissões" />
+    <BotaoAba id={3} titulo="3. Agenda Visual" /> {/* Agora aparece para todos */}
+    
+    {isAdmin && (
+      <>
+        <BotaoAba id={4} titulo="4. Top 10" />
+        <BotaoAba id={5} titulo="5. DRE" />
+        <BotaoAba id={6} titulo="6. Despesas" />
+      </>
+    )}
+  </div>
+
+  {/* ... restante do código ... */}
 
       {abaAtiva === 0 && podeVerCaixa && (
         <div className="space-y-4">
