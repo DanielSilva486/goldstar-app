@@ -116,16 +116,20 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   };
 
   const deletarServico = async (id) => {
-    if (!window.confirm("Deseja ocultar este serviço? (Ele vai sumir do Caixa, mas o histórico financeiro será mantido)")) return;
+    // Mensagem mais limpa, direta e profissional
+    if (!window.confirm("Deseja arquivar este serviço? Ele sairá das opções do Caixa, mas os seus relatórios antigos continuarão intactos.")) return;
+    
     try {
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos/${id}`, { method: 'DELETE' });
       const d = await res.json();
       if(d.sucesso) {
-         carregarServicos(); // Atualiza a lista na tela na hora
+         carregarServicos(); 
       } else {
-         alert('Erro no servidor: Verifique se o comando SQL da coluna "ativo" foi rodado no banco de dados.');
+         alert('Não foi possível arquivar o serviço no momento.');
       }
-    } catch (e) { alert('Erro de conexão ao tentar ocultar o serviço.'); }
+    } catch (e) { 
+      alert('Erro de conexão ao tentar arquivar o serviço.'); 
+    }
   };
 
   const adicionarRegraEspecifica = async (colab_id) => {
