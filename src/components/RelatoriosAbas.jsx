@@ -426,43 +426,73 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
       {isAdmin && abaAtiva === 6 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          
+          {/* TOPO: Mantém a cor escura elegante e o botão segue o Tema */}
           <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <h3 className="font-bold text-white">Despesas</h3>
-              <button onClick={() => setMostrarNovaDespesa(true)} className="bg-teal-500 hover:bg-teal-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors">+ Lançar Despesa</button>
+              <button onClick={() => setMostrarNovaDespesa(true)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors">+ Lançar Despesa</button>
             </div>
             <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
           </div>
+          
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
+              
+              {/* CABEÇALHO DA TABELA: Fica dinâmico com o Tema (usando o teal padrão que o seu tema altera) */}
               <thead className="bg-teal-500 text-white">
-                <tr><th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th><th className="p-3 font-bold border-r border-teal-600/30">Valor</th><th className="p-3 font-bold border-r border-teal-600/30">Serviços/Produto</th><th className="p-3 font-bold border-r border-teal-600/30">Fornecedor</th><th className="p-3 font-bold border-r border-teal-600/30">Status</th><th className="p-3 font-bold border-r border-teal-600/30">Data Pagamento</th><th className="p-3 font-bold text-center">Pago</th></tr>
+                <tr>
+                  <th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th>
+                  <th className="p-3 font-bold border-r border-teal-600/30">Valor</th>
+                  <th className="p-3 font-bold border-r border-teal-600/30">Serviços/Produto</th>
+                  <th className="p-3 font-bold border-r border-teal-600/30">Fornecedor</th>
+                  <th className="p-3 font-bold border-r border-teal-600/30">Status</th>
+                  <th className="p-3 font-bold border-r border-teal-600/30">Data Pagamento</th>
+                  <th className="p-3 font-bold text-center">Pago</th>
+                </tr>
               </thead>
+              
+              {/* LINHAS: Ficam 100% estáticas, clarinhas e não mudam com o tema */}
               <tbody className="divide-y divide-gray-200 border-b border-gray-200">
-                {despesas.length === 0 ? <tr><td colSpan="7" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr> : despesas.map(d => {
+                {despesas.length === 0 ? (
+                  <tr><td colSpan="7" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr>
+                ) : despesas.map(d => {
                     const hoje = new Date(); hoje.setHours(0,0,0,0);
                     const partes = d.data_vencimento.split('-'); const venc = new Date(partes[0], partes[1] - 1, partes[2]);
                     const diferencaDias = Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
-                    let classeLinha = ""; let textoStatus = ""; let classeStatus = "font-bold text-center ";
                     
+                    let classeLinha = ""; 
+                    let textoStatus = ""; 
+                    let classeStatus = "font-bold text-center ";
+                    let classeTexto = "text-gray-800"; // Texto sempre escuro para dar leitura
+                    
+                    // A MÁGICA DAS CORES ESTÁTICAS E CLARAS
                     if (d.pago) { 
-                      classeLinha = "bg-teal-500 text-white"; 
+                      classeLinha = "bg-green-50 hover:bg-green-100"; // Verdinho clarinho
                       textoStatus = "Pago"; 
-                      classeStatus += "text-white";
+                      classeStatus += "text-green-700";
                     } else if (diferencaDias < 0) { 
-                      classeLinha = "bg-red-400 text-white"; 
+                      classeLinha = "bg-red-50 hover:bg-red-100"; // Vermelhinho clarinho
                       textoStatus = "Venceu"; 
-                      classeStatus += "text-white";
+                      classeStatus += "text-red-700";
                     } else { 
-                      classeLinha = "bg-white text-gray-800 hover:bg-gray-50"; 
+                      classeLinha = "bg-white hover:bg-gray-50"; // Fundo branco normal
                       textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`; 
-                      classeStatus += "text-gray-800"; 
+                      classeStatus += diferencaDias === 0 ? "text-orange-600" : "text-gray-600"; 
                     }
                     
                     const dataVencFormatada = `${partes[2]}/${partes[1]}/${partes[0].substring(2)}`;
                     return (
-                      <tr key={d.id} className={`${classeLinha} transition-colors border-b border-gray-200`}>
-                        <td className="p-3 font-bold border-r border-gray-200">{dataVencFormatada}</td><td className="p-3 font-bold border-r border-gray-200">{formatarMoeda(d.valor)}</td><td className="p-3 border-r border-gray-200 truncate max-w-[200px]">{d.descricao}</td><td className="p-3 border-r border-gray-200 truncate max-w-[150px]">{d.fornecedor || '-'}</td><td className={`p-3 border-r border-gray-200 ${classeStatus}`}>{textoStatus}</td><td className="p-3 border-r border-gray-200 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td><td className="p-3 text-center flex items-center justify-center"><input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-current" /></td>
+                      <tr key={d.id} className={`${classeLinha} ${classeTexto} transition-colors border-b border-gray-200`}>
+                        <td className="p-3 font-bold border-r border-gray-200/50">{dataVencFormatada}</td>
+                        <td className="p-3 font-bold border-r border-gray-200/50">{formatarMoeda(d.valor)}</td>
+                        <td className="p-3 border-r border-gray-200/50 truncate max-w-[200px]">{d.descricao}</td>
+                        <td className="p-3 border-r border-gray-200/50 truncate max-w-[150px]">{d.fornecedor || '-'}</td>
+                        <td className={`p-3 border-r border-gray-200/50 ${classeStatus}`}>{textoStatus}</td>
+                        <td className="p-3 border-r border-gray-200/50 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td>
+                        <td className="p-3 text-center flex items-center justify-center">
+                          <input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-teal-600" />
+                        </td>
                       </tr>
                     );
                 })}
