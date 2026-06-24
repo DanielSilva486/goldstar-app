@@ -266,6 +266,29 @@ app.post('/api/vales', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
+// Apagar um colaborador (Só funciona se ele não tiver gerado histórico)
+app.delete('/api/colaboradores/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM colaboradores WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (erro) { 
+    // Se o colaborador já tiver histórico atrelado a ele, o banco bloqueia por segurança
+    res.status(400).json({ sucesso: false, mensagem: "Possui histórico" }); 
+  }
+});
+
+// Apagar um serviço/agendamento do histórico geral
+app.delete('/api/comandas/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM comandas WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (erro) { 
+    res.status(500).json({ sucesso: false }); 
+  }
+});
+
+
+
 app.delete('/api/vales/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM vales WHERE id = $1', [req.params.id]);

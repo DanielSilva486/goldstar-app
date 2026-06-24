@@ -7,12 +7,11 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   const [comissoesEsp, setComissoesEsp] = useState([]);
   const [salvando, setSalvando] = useState(null);
 
-  // Estados para novos cadastros
   const [novoServico, setNovoServico] = useState({ nome: '', preco: '', duracao: 30 });
   const [novaRegra, setNovaRegra] = useState({});
   const [novoProfissional, setNovoProfissional] = useState({ nome: '', percentual_comissao: '' });
 
-  // 🚀 SISTEMA DE AVISOS PREMIUM (Modais e Toasts)
+  // SISTEMA DE AVISOS PREMIUM (Modais e Toasts)
   const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
   const [toast, setToast] = useState({ visivel: false, mensagem: '', tipo: 'sucesso' });
 
@@ -122,7 +121,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const alternarStatus = (colab) => {
     const acao = colab.ativo ? 'DESATIVAR' : 'ATIVAR';
-    
     pedirConfirmacao(
       `${acao} PROFISSIONAL`,
       `Tem a certeza que deseja ${acao.toLowerCase()} a(o) profissional ${colab.nome}?`,
@@ -138,6 +136,28 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
           setEquipe(equipe.map(c => c.id === colab.id ? { ...c, ativo: novoStatus } : c));
           mostrarToast(`Profissional ${novoStatus ? 'ativado' : 'desativado'} com sucesso!`);
         } catch (e) { mostrarToast('Erro ao alterar o status.', 'erro'); }
+        setSalvando(null);
+      }
+    );
+  };
+
+  // 🚀 NOVA FUNÇÃO: DELETAR COLABORADOR
+  const deletarColaborador = (colab) => {
+    pedirConfirmacao(
+      "EXCLUIR DEFINITIVAMENTE",
+      `Deseja realmente apagar o registro de ${colab.nome}? Atenção: Só é possível apagar se o profissional não tiver nenhum serviço feito no Histórico Geral.`,
+      async () => {
+        setSalvando(colab.id);
+        try {
+          const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}`, { method: 'DELETE' });
+          const json = await res.json();
+          if (json.sucesso) {
+            mostrarToast(`${colab.nome} apagada(o) do sistema!`);
+            carregarEquipe();
+          } else {
+            mostrarToast('Erro: Este profissional já gerou histórico no salão e não pode ser apagado, apenas Desativado.', 'erro');
+          }
+        } catch (e) { mostrarToast('Erro de conexão.', 'erro'); }
         setSalvando(null);
       }
     );
@@ -172,9 +192,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
           } else {
              mostrarToast('Não foi possível arquivar o serviço.', 'erro');
           }
-        } catch (e) { 
-          mostrarToast('Erro de conexão.', 'erro'); 
-        }
+        } catch (e) { mostrarToast('Erro de conexão.', 'erro'); }
       }
     );
   };
@@ -216,7 +234,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4">
       <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
         
-        {/* TOAST NOTIFICATION (Mensagens que somem sozinhas) */}
         {toast.visivel && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up">
             <div className={`px-6 py-3 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ${toast.tipo === 'erro' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
@@ -265,7 +282,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                      <tr>
                        <th className="p-3 font-bold">Colaborador</th>
                        <th className="p-3 font-bold text-center w-32">Status Atual</th>
-                       <th className="p-3 font-bold text-center w-40">Ação</th>
+                       <th className="p-3 font-bold text-center w-56">Ação</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-gray-200">
@@ -278,9 +295,13 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                              : <span className="text-red-600 bg-red-100 px-2 py-1 rounded-full text-xs">Inativo</span>
                            }
                          </td>
-                         <td className="p-3 text-center">
-                           <button onClick={() => alternarStatus(c)} disabled={salvando === c.id} className={`text-xs font-bold px-3 py-1.5 rounded shadow-sm w-full transition-colors ${c.ativo !== false ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
+                         <td className="p-3 text-center flex justify-center gap-2">
+                           <button onClick={() => alternarStatus(c)} disabled={salvando === c.id} className={`text-xs font-bold px-3 py-1.5 rounded shadow-sm flex-1 transition-colors ${c.ativo !== false ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
                              {salvando === c.id ? '...' : c.ativo !== false ? 'Desativar' : 'Reativar'}
+                           </button>
+                           {/* NOVO BOTÃO DE EXCLUIR */}
+                           <button onClick={() => deletarColaborador(c)} disabled={salvando === c.id} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded shadow-sm transition-colors text-xs font-bold border border-red-100" title="Excluir Definitivamente">
+                             🗑️
                            </button>
                          </td>
                        </tr>
@@ -464,7 +485,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
         </div>
         
-        {/* MODAL DE CONFIRMAÇÃO GLOBAL (Aviso Vermelho) */}
         {confirmacao.aberto && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 rounded-3xl animate-fade-in">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up border border-gray-100">

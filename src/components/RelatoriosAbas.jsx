@@ -4,30 +4,12 @@ import ModalNovoVale from './ModalNovoVale';
 import LinhaDoTempo from './LinhaDoTempo';
 
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
-  
   const isAdmin = usuario?.perfil === 'admin';
   const isCaixa = usuario?.perfil === 'caixa' || usuario?.nome === 'Raquel Patroa'; 
   const isProfissional = usuario?.perfil === 'profissional';
   const podeVerCaixa = isAdmin || isCaixa;
 
   const [abaAtiva, setAbaAtiva] = useState(podeVerCaixa ? 0 : 1);
-
-  const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
-
-  const historicoGeral = dados?.historico || [];
-  const historico = isProfissional 
-    ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) 
-    : historicoGeral;
-
-  const comissoesGerais = dados?.comissoes || [];
-  const comissoesMensais = isProfissional 
-    ? comissoesGerais.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) 
-    : comissoesGerais;
-
-  const topServicos = dados?.topServicos || [];
-  const topClientes = dados?.topClientes || [];
-  const valores = dados?.valores || {};
-
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [comissoesFiltradas, setComissoesFiltradas] = useState(null);
@@ -39,23 +21,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [mostrarNovaDespesa, setMostrarNovaDespesa] = useState(false);
   const [mostrarNovoVale, setMostrarNovoVale] = useState(false);
   
-  // 🚀 NOVO: Cérebro do nosso aviso personalizado
-  const [confirmacao, setConfirmacao] = useState({
-    aberto: false,
-    titulo: '',
-    mensagem: '',
-    onConfirm: null
-  });
+  const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
+  const pedirConfirmacao = (titulo, mensagem, acao) => setConfirmacao({ aberto: true, titulo, mensagem, onConfirm: acao });
 
-  const pedirConfirmacao = (titulo, mensagem, acao) => {
-    setConfirmacao({ aberto: true, titulo, mensagem, onConfirm: acao });
-  };
+  const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
+  const historicoGeral = dados?.historico || [];
+  const historico = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
 
-  const [minutoAtual, setMinutoAtual] = useState(new Date().getMinutes());
-  useEffect(() => {
-    const intervalo = setInterval(() => setMinutoAtual(new Date().getMinutes()), 60000);
-    return () => clearInterval(intervalo);
-  }, []);
+  const comissoesGerais = dados?.comissoes || [];
+  const comissoesMensais = isProfissional ? comissoesGerais.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : comissoesGerais;
+
+  const topServicos = dados?.topServicos || [];
+  const topClientes = dados?.topClientes || [];
+  const valores = dados?.valores || {};
 
   const faturamentoBruto = Number(valores.faturamento_bruto || 0);
   const totalComissoes = Number(valores.total_comissoes || 0);
@@ -65,7 +43,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const lucroOperacional = lucroLiquido + comissaoDona;
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
   const formatarTempo = (minutosTotal) => {
     const horas = Math.floor(minutosTotal / 60);
     const min = minutosTotal % 60;
@@ -104,22 +81,17 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
       const json = await res.json();
       if (json.sucesso) {
-         const filtrado = isProfissional 
-           ? json.dados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) 
-           : json.dados;
+         const filtrado = isProfissional ? json.dados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : json.dados;
          setComissoesFiltradas(filtrado);
       }
     } catch (e) {}
   };
-
   const limparFiltroPeriodo = () => { setDataInicio(''); setDataFim(''); setComissoesFiltradas(null); };
 
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
     if (!isAdmin) return alert("Apenas a administração pode dar baixa em comissões.");
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica })
-      });
+      await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica }) });
       carregarDadosExtras(); 
     } catch (e) {}
   };
@@ -131,31 +103,23 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch (e) {}
   };
 
-const apagarDespesa = (id) => {
-    pedirConfirmacao(
-      "Apagar Despesa", 
-      "Tem a certeza que deseja apagar esta despesa? O valor será recalculado imediatamente.", 
-      async () => {
-        try {
-          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
-          carregarDadosExtras(); recarregarTudo();
-        } catch(e) { alert("Erro ao apagar."); }
-      }
-    );
-  };
+  const apagarDespesa = (id) => pedirConfirmacao("Apagar Despesa", "Tem a certeza que deseja apagar esta despesa? O valor será recalculado imediatamente.", async () => {
+    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
+    carregarDadosExtras(); recarregarTudo();
+  });
 
-  const apagarVale = (id) => {
-    pedirConfirmacao(
-      "Remover Desconto", 
-      "Deseja realmente apagar este vale/desconto da comissão?", 
-      async () => {
-        try {
-          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales/${id}`, { method: 'DELETE' });
-          carregarDadosExtras();
-        } catch(e) {}
-      }
-    );
-  };
+  const apagarVale = (id) => pedirConfirmacao("Remover Desconto", "Deseja realmente apagar este vale/desconto da comissão?", async () => {
+    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales/${id}`, { method: 'DELETE' });
+    carregarDadosExtras();
+  });
+
+  // 🚀 NOVA FUNÇÃO: APAGAR HISTÓRICO GERAL (Agendamentos)
+  const apagarHistorico = (id) => pedirConfirmacao("Apagar Atendimento", "Deseja realmente apagar este serviço do Histórico Geral? O financeiro será recalculado.", async () => {
+    try {
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
+      recarregarTudo(); // Recarrega os números da tela inteira
+    } catch(e) {}
+  });
 
   const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
     const ids = itensDaComanda.map(item => item.id);
@@ -182,26 +146,21 @@ const apagarDespesa = (id) => {
     const dados = comissoesFiltradas || comissoesMensais;
     if (dados.length === 0) return alert("Vazio.");
     let conteudoCSV = "Profissional,Qtd Servicos,Bruto (R$),Descontos (R$),Liquido (R$),Status,Data Baixa\n";
-    
     dados.forEach(prof => {
       const isFiltrado = dataInicio && dataFim && comissoesFiltradas !== null;
       const chaveUnica = isFiltrado ? `P_${prof.profissional}_${dataInicio}_${dataFim}` : `M_${prof.profissional}_${mes}_${ano}`;
       const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
       const estaPago = !!pagamentoInfo;
-      
       const valesProf = vales.filter(v => v.profissional === prof.profissional);
       const valesAtivos = estaPago ? valesProf.filter(v => v.chave_periodo === chaveUnica) : valesProf.filter(v => !v.pago);
       const totalVales = valesAtivos.reduce((a, v) => a + Number(v.valor), 0);
       const liquido = Number(prof.total_comissao) - totalVales;
-
       const p = prof.profissional.replace(/,/g, '');
       const brutoStr = Number(prof.total_comissao).toFixed(2).replace('.', ',');
       const descStr = totalVales.toFixed(2).replace('.', ',');
       const liqStr = liquido.toFixed(2).replace('.', ',');
-      
       conteudoCSV += `${p},${prof.qtd_servicos},"${brutoStr}","${descStr}","${liqStr}",${estaPago ? "PAGO" : "A RECEBER"},${estaPago ? pagamentoInfo.data_pagto : ""}\n`;
     });
-    
     const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
     link.download = `comissoes_com_descontos_${dataInicio ? 'semana' : 'mensal'}.csv`; link.click();
@@ -236,7 +195,6 @@ const apagarDespesa = (id) => {
         <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
         <BotaoAba id={2} titulo={isProfissional ? "2. Minha Comissão" : "2. Comissões da Equipe"} />
         {podeVerCaixa && <BotaoAba id={3} titulo="3. Visual da Agenda" />}
-        
         {isAdmin && (
           <>
             <BotaoAba id={4} titulo="4. Top 10" />
@@ -297,14 +255,12 @@ const apagarDespesa = (id) => {
                    return (
                      <div key={nomeCliente} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                        <div className="bg-blue-50/50 px-4 py-3 border-b border-blue-100 flex flex-wrap gap-2 justify-between items-center">
-                         
                          <h4 className="font-bold text-gray-800 flex items-center gap-2 flex-wrap">
                            <span>Cliente: <span className="text-blue-600">{nomeCliente}</span></span>
                            <span className="text-[10px] font-bold text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-md shadow-sm">
                              Chegou às {horaChegadaFormatada}
                            </span>
                          </h4>
-
                          <span className={`text-[10px] px-2 py-0.5 rounded-full border shadow-sm flex items-center gap-1 font-bold ${corTempo}`}>
                             {iconeTempo} {textoTempo}
                          </span>
@@ -343,11 +299,33 @@ const apagarDespesa = (id) => {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-500"><tr><th className="p-3">Data</th><th className="p-3">Cliente</th><th className="p-3">Serviço</th>{!isProfissional && <th className="p-3">Profissional</th>}<th className="p-3 text-right">Valor</th></tr></thead>
+              <thead className="bg-gray-50 text-gray-500">
+                <tr>
+                  <th className="p-3">Data</th>
+                  <th className="p-3">Cliente</th>
+                  <th className="p-3">Serviço</th>
+                  {!isProfissional && <th className="p-3">Profissional</th>}
+                  <th className="p-3 text-right">Valor</th>
+                  {/* 🚀 NOVA COLUNA: Só Admin vê a lixeira no histórico */}
+                  {isAdmin && <th className="p-3 text-center">Apagar</th>}
+                </tr>
+              </thead>
               <tbody className="divide-y divide-gray-100">
-                {historico.length === 0 ? <tr><td colSpan={isProfissional ? "4" : "5"} className="p-6 text-center text-gray-400">Nenhum serviço encontrado.</td></tr> : historico.map(item => (
+                {historico.length === 0 ? <tr><td colSpan={isAdmin ? "6" : "5"} className="p-6 text-center text-gray-400">Nenhum serviço encontrado.</td></tr> : historico.map(item => (
                   <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="p-3 text-gray-500">{item.data}</td><td className="p-3 font-medium text-gray-800">{item.cliente_nome}</td><td className="p-3 text-gray-600">{item.servico}</td>{!isProfissional && <td className="p-3 text-gray-600">{item.profissional}</td>}<td className="p-3 font-bold text-teal-600 text-right">{formatarMoeda(item.valor_total)}</td>
+                    <td className="p-3 text-gray-500">{item.data}</td>
+                    <td className="p-3 font-medium text-gray-800">{item.cliente_nome}</td>
+                    <td className="p-3 text-gray-600">{item.servico}</td>
+                    {!isProfissional && <td className="p-3 text-gray-600">{item.profissional}</td>}
+                    <td className="p-3 font-bold text-teal-600 text-right">{formatarMoeda(item.valor_total)}</td>
+                    {/* 🚀 NOVO BOTÃO DA LIXEIRA */}
+                    {isAdmin && (
+                      <td className="p-3 text-center">
+                        <button onClick={() => apagarHistorico(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 rounded-lg font-bold transition-colors" title="Apagar Atendimento">
+                          🗑️
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -396,12 +374,9 @@ const apagarDespesa = (id) => {
                     {valesAtivos.length > 0 && (
                       <div className="mt-2 bg-red-50/50 p-2 rounded-lg border border-red-100">
                         <p className="text-[10px] font-bold text-red-800 uppercase tracking-wide border-b border-red-200/50 mb-1.5 pb-1">Descontos a aplicar:</p>
-                        
                         {valesAtivos.map(v => (
                           <div key={v.id} className="flex justify-between text-xs text-red-600 items-center mt-1">
-                            <span className="truncate pr-2">
-                              {v.data_formatada && <span className="font-semibold opacity-75">[{v.data_formatada}] </span>} {v.descricao}
-                            </span>
+                            <span className="truncate pr-2">{v.data_formatada && <span className="font-semibold opacity-75">[{v.data_formatada}] </span>} {v.descricao}</span>
                             <div className="flex items-center gap-2">
                               <span className="font-bold whitespace-nowrap">{formatarMoeda(v.valor)}</span>
                               {!estaPago && isAdmin && <button onClick={() => apagarVale(v.id)} className="text-red-400 hover:text-red-700 bg-red-100 w-4 h-4 rounded-full flex items-center justify-center font-bold pb-0.5" title="Remover desconto">x</button>}
@@ -411,14 +386,12 @@ const apagarDespesa = (id) => {
                       </div>
                     )}
                   </div>
-
                   <div className="w-1/2 flex flex-col items-end gap-1">
                     <div className="text-right">
                       <p className="text-xs text-gray-500 font-medium">Bruto: <span className="font-bold text-gray-700">{formatarMoeda(prof.total_comissao)}</span></p>
                       {totalVales > 0 && <p className="text-xs text-red-500 font-bold border-b border-gray-200 pb-1 mb-1">- {formatarMoeda(totalVales)}</p>}
                       <p className="font-black text-teal-600 text-xl">{formatarMoeda(liquidoAPagar)}</p>
                     </div>
-
                     <div className="flex items-center gap-2 mt-2">
                       {estaPago ? (
                         <span className="text-[11px] font-bold text-[#2d6a4f] bg-[#d8f3dc] px-2 py-1.5 rounded-lg border border-[#b7e4c7]">Pago: {pagamentoInfo.data_pagto}</span>
@@ -462,7 +435,6 @@ const apagarDespesa = (id) => {
 
       {isAdmin && abaAtiva === 6 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          
           <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <h3 className="font-bold text-white">Despesas</h3>
@@ -470,10 +442,8 @@ const apagarDespesa = (id) => {
             </div>
             <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
           </div>
-          
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
-              
               <thead className="bg-teal-500 text-white">
                 <tr>
                   <th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th>
@@ -486,34 +456,15 @@ const apagarDespesa = (id) => {
                   <th className="p-3 font-bold text-center">Ações</th>
                 </tr>
               </thead>
-              
               <tbody className="divide-y divide-gray-200 border-b border-gray-200">
-                {despesas.length === 0 ? (
-                  <tr><td colSpan="7" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr>
-                ) : despesas.map(d => {
+                {despesas.length === 0 ? <tr><td colSpan="8" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr> : despesas.map(d => {
                     const hoje = new Date(); hoje.setHours(0,0,0,0);
                     const partes = d.data_vencimento.split('-'); const venc = new Date(partes[0], partes[1] - 1, partes[2]);
                     const diferencaDias = Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
-                    
-                    let classeLinha = ""; 
-                    let textoStatus = ""; 
-                    let classeStatus = "font-bold text-center ";
-                    let classeTexto = "text-gray-800"; 
-                    
-                    if (d.pago) { 
-                      classeLinha = "bg-green-50 hover:bg-green-100"; 
-                      textoStatus = "Pago"; 
-                      classeStatus += "text-green-700";
-                    } else if (diferencaDias < 0) { 
-                      classeLinha = "bg-red-50 hover:bg-red-100"; 
-                      textoStatus = "Venceu"; 
-                      classeStatus += "text-red-700";
-                    } else { 
-                      classeLinha = "bg-white hover:bg-gray-50"; 
-                      textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`; 
-                      classeStatus += diferencaDias === 0 ? "text-orange-600" : "text-gray-600"; 
-                    }
-                    
+                    let classeLinha = ""; let textoStatus = ""; let classeStatus = "font-bold text-center "; let classeTexto = "text-gray-800"; 
+                    if (d.pago) { classeLinha = "bg-green-50 hover:bg-green-100"; textoStatus = "Pago"; classeStatus += "text-green-700"; } 
+                    else if (diferencaDias < 0) { classeLinha = "bg-red-50 hover:bg-red-100"; textoStatus = "Venceu"; classeStatus += "text-red-700"; } 
+                    else { classeLinha = "bg-white hover:bg-gray-50"; textoStatus = diferencaDias === 0 ? "Vence Hoje!" : `${diferencaDias} dia(s)`; classeStatus += diferencaDias === 0 ? "text-orange-600" : "text-gray-600"; }
                     const dataVencFormatada = `${partes[2]}/${partes[1]}/${partes[0].substring(2)}`;
                     return (
                       <tr key={d.id} className={`${classeLinha} ${classeTexto} transition-colors border-b border-gray-200`}>
@@ -526,10 +477,8 @@ const apagarDespesa = (id) => {
                         <td className="p-3 text-center flex items-center justify-center">
                           <input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-teal-600" />
                         </td>
-                          <td className="p-3 text-center">
-                          <button onClick={() => apagarDespesa(d.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors shadow-sm" title="Apagar Despesa">
-                            🗑️
-                          </button>
+                        <td className="p-3 text-center">
+                          <button onClick={() => apagarDespesa(d.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors shadow-sm" title="Apagar Despesa">🗑️</button>
                         </td>
                       </tr>
                     );
@@ -540,15 +489,11 @@ const apagarDespesa = (id) => {
         </div>
       )}
 
-      {/* RENDERIZAÇÃO DA LINHA DO TEMPO */}
-      {abaAtiva === 3 && podeVerCaixa && (
-        <LinhaDoTempo comandas={comandas} />
-      )}
+      {abaAtiva === 3 && podeVerCaixa && <LinhaDoTempo comandas={comandas} />}
 
       {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={() => { carregarDadosExtras(); recarregarTudo(); }} />}
       {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} />}
 
-      {/* 🚀 NOVO: O MODAL BONITO DE CONFIRMAÇÃO */}
       {confirmacao.aberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up border border-gray-100">
@@ -562,14 +507,12 @@ const apagarDespesa = (id) => {
             </div>
             <div className="p-5 bg-gray-50 flex gap-3 border-t border-gray-100">
               <button onClick={() => setConfirmacao({ ...confirmacao, aberto: false })} className="flex-1 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors">Cancelar</button>
-              <button onClick={() => { confirmacao.onConfirm(); setConfirmacao({ ...confirmacao, aberto: false }); }} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-colors">Sim, Apagar</button>
+              <button onClick={() => { confirmacao.onConfirm(); setConfirmacao({ ...confirmacao, aberto: false }); }} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-colors">Confirmar</button>
             </div>
           </div>
         </div>
       )}
 
-    </div> // <- Esta é a última div do arquivo
+    </div>
   );
 }
-
-   
