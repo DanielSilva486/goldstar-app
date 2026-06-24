@@ -49,7 +49,7 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
               type="email" 
               value={email} 
               onChange={e => setEmail(e.target.value.toLowerCase())} 
-              placeholder="ex: raquel@goldstar.com" 
+              placeholder="ex: admim@goldstar.com" 
               className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" 
               required 
             />
@@ -74,8 +74,7 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
         </form>
 
         <div className="mt-6 text-center text-[10px] text-gray-400 bg-gray-50 p-3 rounded-xl">
-          <p className="font-bold mb-1">E-mails Provisórios:</p>
-          <p>Dona: <span className="font-bold text-gray-600">admin@goldstar.com</span> | Senha: <span className="font-bold text-gray-600">admin</span></p>
+          
           <p className="mt-1">Equipe: Seu nome junto + @goldstar.com<br/>(ex: <span className="font-bold text-gray-600">gaby@goldstar.com</span>) | Senha: <span className="font-bold text-gray-600">1234</span></p>
         </div>
       </div>
