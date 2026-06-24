@@ -16,28 +16,41 @@ export default function LinhaDoTempo({ comandas }) {
     );
   }
 
-  // 🚀 ATUALIZADO: Horário restrito das 08:00 às 19:00
   const HORA_INICIO = 8;
   const HORA_FIM = 19; 
   const TOTAL_MINUTOS = (HORA_FIM - HORA_INICIO) * 60;
 
   const agendaPorProfissional = {};
   
+  // 🚀 LÓGICA CORRIGIDA: Agrupa por cliente para somar as durações
+  const clientesAgrupados = {};
   comandas.forEach(c => {
-    if (!agendaPorProfissional[c.profissional]) {
-      agendaPorProfissional[c.profissional] = [];
-    }
-    
-    let dataHora = c.data_hora ? new Date(c.data_hora) : new Date(); 
-    const minutosInicio = (dataHora.getHours() - HORA_INICIO) * 60 + dataHora.getMinutes();
-    const duracao = Number(c.duracao) || 30; 
-    
-    agendaPorProfissional[c.profissional].push({
-      id: c.id,
-      cliente: c.cliente_nome || 'Cliente',
-      servico: c.servico,
-      minutosInicio,
-      duracao
+    if (!clientesAgrupados[c.cliente_nome]) clientesAgrupados[c.cliente_nome] = [];
+    clientesAgrupados[c.cliente_nome].push(c);
+  });
+
+  Object.values(clientesAgrupados).forEach(itensDoCliente => {
+    let acumuladorMinutos = null; // Vamos calcular o início de cada um
+
+    itensDoCliente.sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora)).forEach(c => {
+      if (!agendaPorProfissional[c.profissional]) agendaPorProfissional[c.profissional] = [];
+      
+      const dataHora = new Date(c.data_hora);
+      const minutosBase = (dataHora.getHours() - HORA_INICIO) * 60 + dataHora.getMinutes();
+      
+      // Se for o primeiro serviço, começa na hora de chegada. Se for o segundo, começa quando o anterior acaba.
+      const minutosInicio = acumuladorMinutos === null ? minutosBase : acumuladorMinutos;
+      const duracao = Number(c.duracao) || 30;
+      
+      agendaPorProfissional[c.profissional].push({
+        id: c.id,
+        cliente: c.cliente_nome,
+        servico: c.servico,
+        minutosInicio,
+        duracao
+      });
+
+      acumuladorMinutos = minutosInicio + duracao; // Prepara o início do próximo serviço
     });
   });
 
@@ -48,8 +61,7 @@ export default function LinhaDoTempo({ comandas }) {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-4 overflow-x-auto animate-fade-in-up">
       <div className="flex items-center gap-2 mb-8 border-b border-gray-100 pb-3">
-        <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <h3 className="text-lg font-black text-gray-800">Visual da Agenda (08h às 19h)</h3>
+        <h3 className="text-lg font-black text-gray-800">Visual da Agenda (Sequencial)</h3>
       </div>
       
       <div className="min-w-[900px] relative mt-4">
@@ -62,15 +74,9 @@ export default function LinhaDoTempo({ comandas }) {
           ))}
         </div>
 
+        {/* Linha vermelha de tempo atual */}
         {horaAtual.getHours() >= HORA_INICIO && horaAtual.getHours() < HORA_FIM && (
-          <div 
-            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 flex flex-col items-center transition-all duration-1000"
-            style={{ left: `calc(7rem + ${posicaoLinhaAtual}%)` }}
-          >
-            <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-md -mt-6 shadow-md border border-red-600">
-              {horaAtual.getHours().toString().padStart(2, '0')}:{horaAtual.getMinutes().toString().padStart(2, '0')}
-            </div>
-          </div>
+          <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20" style={{ left: `calc(7rem + ${posicaoLinhaAtual}%)` }} />
         )}
 
         {Object.entries(agendaPorProfissional).map(([profissional, atendimentos]) => (
@@ -84,17 +90,17 @@ export default function LinhaDoTempo({ comandas }) {
                 const leftPercent = Math.max(0, (atend.minutosInicio / TOTAL_MINUTOS) * 100);
                 const widthPercent = Math.min(100 - leftPercent, (atend.duracao / TOTAL_MINUTOS) * 100);
                 
-                if (leftPercent >= 100 || leftPercent + widthPercent <= 0) return null;
+                if (leftPercent >= 100) return null;
 
                 return (
                   <div 
                     key={atend.id}
                     className="absolute top-1.5 bottom-1.5 bg-teal-100 border border-teal-300 rounded-lg shadow-sm px-2 py-1 flex flex-col justify-center overflow-hidden hover:bg-teal-200 transition-colors"
                     style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
-                    title={`${atend.cliente} - ${atend.servico} (${atend.duracao}m)`}
+                    title={`${atend.cliente} - ${atend.servico}`}
                   >
-                    <span className="text-[11px] font-black text-teal-800 truncate leading-tight">{atend.cliente}</span>
-                    <span className="text-[9px] font-medium text-teal-600 truncate leading-tight">{atend.servico}</span>
+                    <span className="text-[11px] font-black text-teal-800 truncate">{atend.cliente}</span>
+                    <span className="text-[9px] font-medium text-teal-600 truncate">{atend.servico}</span>
                   </div>
                 );
               })}
