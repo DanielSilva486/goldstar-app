@@ -17,7 +17,7 @@ const pool = new Pool({
 
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
-  if (email.toLowerCase() === 'admin@goldstar.com' && senha === 'admin') {
+  if (email.toLowerCase() === 'admin@goldstar.com' && senha === 'g197355@') {
     return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin', perfil: 'admin', email: 'admin@goldstar.com' } });
   }
   try {
