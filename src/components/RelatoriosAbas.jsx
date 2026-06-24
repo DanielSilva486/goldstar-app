@@ -89,7 +89,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const limparFiltroPeriodo = () => { setDataInicio(''); setDataFim(''); setComissoesFiltradas(null); };
 
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
-    if (!isAdmin) return alert("Apenas a administração pode dar baixa em comissões.");
+    if (!isAdmin) return;
     try {
       await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica }) });
       carregarDadosExtras(); 
@@ -113,23 +113,23 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     carregarDadosExtras();
   });
 
-  // 🚀 NOVA FUNÇÃO: APAGAR HISTÓRICO GERAL (Com aviso de erros)
-  const apagarHistorico = (id) => pedirConfirmacao(
-    "Apagar Atendimento", 
-    "Deseja realmente apagar este serviço do Histórico Geral? O financeiro será recalculado.", 
-    async () => {
-      try {
-        const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
-        
-        if (res.ok) {
-          recarregarTudo(); // Recarrega os números da tela inteira
-          //alert("✅ Atendimento apagado com sucesso!"); // Pode tirar esse alert depois que confirmar que funcionou
-        } else {
-          alert("⚠️ O servidor recusou. Verifique se o server.js atualizou no Render.");
-        }
-      } catch(e) {
-        alert("⚠️ Erro de conexão com o servidor.");
+  const apagarHistorico = (id) => pedirConfirmacao("Apagar Atendimento", "Deseja realmente apagar este serviço do Histórico Geral? O financeiro será recalculado.", async () => {
+    try {
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        recarregarTudo(); 
       }
+    } catch(e) {}
+  });
+
+  // 🚀 NOVA FUNÇÃO: Sinalizar Erro (Maker-Checker)
+  const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador cancelar?", async () => {
+    try {
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/atendimentos/${id}/sinalizar-erro`, { method: 'PUT' });
+      if (res.ok) {
+        recarregarTudo(); 
+      }
+    } catch(e) {}
   });
 
   const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
@@ -317,28 +317,40 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                   <th className="p-3">Serviço</th>
                   {!isProfissional && <th className="p-3">Profissional</th>}
                   <th className="p-3 text-right">Valor</th>
-                  {/* 🚀 NOVA COLUNA: Só Admin vê a lixeira no histórico */}
-                  {isAdmin && <th className="p-3 text-center">Apagar</th>}
+                  {(isAdmin || isCaixa) && <th className="p-3 text-center">Ações</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {historico.length === 0 ? <tr><td colSpan={isAdmin ? "6" : "5"} className="p-6 text-center text-gray-400">Nenhum serviço encontrado.</td></tr> : historico.map(item => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="p-3 text-gray-500">{item.data}</td>
-                    <td className="p-3 font-medium text-gray-800">{item.cliente_nome}</td>
-                    <td className="p-3 text-gray-600">{item.servico}</td>
-                    {!isProfissional && <td className="p-3 text-gray-600">{item.profissional}</td>}
-                    <td className="p-3 font-bold text-teal-600 text-right">{formatarMoeda(item.valor_total)}</td>
-                    {/* 🚀 NOVO BOTÃO DA LIXEIRA */}
-                    {isAdmin && (
-                      <td className="p-3 text-center">
-                        <button onClick={() => apagarHistorico(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 w-8 h-8 rounded-lg font-bold transition-colors" title="Apagar Atendimento">
-                          🗑️
-                        </button>
+                {historico.length === 0 ? <tr><td colSpan={(isAdmin || isCaixa) ? "6" : (isProfissional ? "4" : "5")} className="p-6 text-center text-gray-400">Nenhum serviço encontrado.</td></tr> : historico.map(item => {
+                  
+                  const temErro = item.cliente_nome.includes('⚠️ ERRO');
+                  
+                  return (
+                    <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${temErro ? 'bg-red-50/40' : ''}`}>
+                      <td className="p-3 text-gray-500">{item.data}</td>
+                      <td className={`p-3 font-medium ${temErro ? 'text-red-600' : 'text-gray-800'}`}>{item.cliente_nome}</td>
+                      <td className="p-3 text-gray-600">{item.servico}</td>
+                      {!isProfissional && <td className="p-3 text-gray-600">{item.profissional}</td>}
+                      <td className="p-3 font-bold text-teal-600 text-right">
+                        {temErro ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}
                       </td>
-                    )}
-                  </tr>
-                ))}
+                      {(isAdmin || isCaixa) && (
+                        <td className="p-3 text-center flex items-center justify-center gap-2">
+                          {isCaixa && !temErro && (
+                            <button onClick={() => sinalizarErroAtendimento(item.id)} className="text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Sinalizar Erro (Pedir Cancelamento)">
+                              🚩
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button onClick={() => apagarHistorico(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Apagar Atendimento Definitivamente">
+                              🗑️
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

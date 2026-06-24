@@ -288,5 +288,19 @@ app.delete('/api/vales/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
+// 🚩 Rota para o Caixa sinalizar que lançou um atendimento errado
+app.put('/api/atendimentos/:id/sinalizar-erro', async (req, res) => {
+  try {
+    // Adiciona a etiqueta de erro ao nome do cliente (apenas se ainda não a tiver)
+    await pool.query(
+      "UPDATE atendimentos SET cliente_nome = CONCAT(cliente_nome, ' ⚠️ ERRO-CANCELAR') WHERE id = $1 AND cliente_nome NOT LIKE '%⚠️ ERRO-CANCELAR%'", 
+      [req.params.id]
+    );
+    res.json({ sucesso: true });
+  } catch (erro) {
+    res.status(500).json({ sucesso: false });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor na porta ${PORT}`));
