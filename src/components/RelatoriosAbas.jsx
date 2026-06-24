@@ -12,7 +12,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const [abaAtiva, setAbaAtiva] = useState(podeVerCaixa ? 0 : 1);
 
-  // Trava de segurança para minúsculas e espaços
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
 
   const historicoGeral = dados?.historico || [];
@@ -202,12 +201,11 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up pt-4">
       
-      {/* Abas */}
       <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
         {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
         <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
         <BotaoAba id={2} titulo={isProfissional ? "2. Minha Comissão" : "2. Comissões da Equipe"} />
-        {podeVerCaixa && <BotaoAba id={3} titulo="3. Agenda Visual" />}
+        {podeVerCaixa && <BotaoAba id={3} titulo="3. Visual da Agenda" />}
         
         {isAdmin && (
           <>
@@ -369,7 +367,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       <div className="mt-2 bg-red-50/50 p-2 rounded-lg border border-red-100">
                         <p className="text-[10px] font-bold text-red-800 uppercase tracking-wide border-b border-red-200/50 mb-1.5 pb-1">Descontos a aplicar:</p>
                         
-                        {/* A MÁGICA DA DATA APARECE AQUI */}
                         {valesAtivos.map(v => (
                           <div key={v.id} className="flex justify-between text-xs text-red-600 items-center mt-1">
                             <span className="truncate pr-2">
@@ -505,6 +502,11 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             </table>
           </div>
         </div>
+      )}
+
+      {/* RENDERIZAÇÃO DA LINHA DO TEMPO */}
+      {abaAtiva === 3 && podeVerCaixa && (
+        <LinhaDoTempo comandas={comandas} />
       )}
 
       {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={recarregarTudo} />}
