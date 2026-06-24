@@ -131,24 +131,30 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch (e) {}
   };
 
-const apagarDespesa = async (id) => {
-    if(!window.confirm("Tem a certeza que deseja apagar esta despesa? Esta ação não pode ser desfeita.")) return;
-    try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
-      carregarDadosExtras(); 
-      recarregarTudo();
-    } catch(e) {
-      alert("Erro ao tentar apagar a despesa.");
-    }
+const apagarDespesa = (id) => {
+    pedirConfirmacao(
+      "Apagar Despesa", 
+      "Tem a certeza que deseja apagar esta despesa? O valor será recalculado imediatamente.", 
+      async () => {
+        try {
+          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
+          carregarDadosExtras(); recarregarTudo();
+        } catch(e) { alert("Erro ao apagar."); }
+      }
+    );
   };
 
-
-  const apagarVale = async (id) => {
-    if(!window.confirm("Deseja apagar este lançamento?")) return;
-    try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales/${id}`, { method: 'DELETE' });
-      carregarDadosExtras();
-    } catch(e) {}
+  const apagarVale = (id) => {
+    pedirConfirmacao(
+      "Remover Desconto", 
+      "Deseja realmente apagar este vale/desconto da comissão?", 
+      async () => {
+        try {
+          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales/${id}`, { method: 'DELETE' });
+          carregarDadosExtras();
+        } catch(e) {}
+      }
+    );
   };
 
   const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
