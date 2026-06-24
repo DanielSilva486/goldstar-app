@@ -113,12 +113,23 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     carregarDadosExtras();
   });
 
-  // 🚀 NOVA FUNÇÃO: APAGAR HISTÓRICO GERAL (Agendamentos)
-  const apagarHistorico = (id) => pedirConfirmacao("Apagar Atendimento", "Deseja realmente apagar este serviço do Histórico Geral? O financeiro será recalculado.", async () => {
-    try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
-      recarregarTudo(); // Recarrega os números da tela inteira
-    } catch(e) {}
+  // 🚀 NOVA FUNÇÃO: APAGAR HISTÓRICO GERAL (Com aviso de erros)
+  const apagarHistorico = (id) => pedirConfirmacao(
+    "Apagar Atendimento", 
+    "Deseja realmente apagar este serviço do Histórico Geral? O financeiro será recalculado.", 
+    async () => {
+      try {
+        const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
+        
+        if (res.ok) {
+          recarregarTudo(); // Recarrega os números da tela inteira
+          alert("✅ Atendimento apagado com sucesso!"); // Pode tirar esse alert depois que confirmar que funcionou
+        } else {
+          alert("⚠️ O servidor recusou. Verifique se o server.js atualizou no Render.");
+        }
+      } catch(e) {
+        alert("⚠️ Erro de conexão com o servidor.");
+      }
   });
 
   const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
