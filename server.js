@@ -231,6 +231,15 @@ app.put('/api/despesas/:id/pagar', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
+app.delete('/api/despesas/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM despesas WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (erro) { 
+    res.status(500).json({ sucesso: false }); 
+  }
+});
+
 app.get('/api/vales', async (req, res) => {
   try {
     const r = await pool.query("SELECT id, profissional, descricao, valor, pago, chave_periodo, TO_CHAR(COALESCE(data_criacao, CURRENT_TIMESTAMP) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') as data_formatada FROM vales ORDER BY id DESC");

@@ -119,6 +119,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch (e) {}
   };
 
+const apagarDespesa = async (id) => {
+    if(!window.confirm("Tem a certeza que deseja apagar esta despesa? Esta ação não pode ser desfeita.")) return;
+    try {
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
+      carregarDadosExtras(); 
+      recarregarTudo();
+    } catch(e) {
+      alert("Erro ao tentar apagar a despesa.");
+    }
+  };
+
+
   const apagarVale = async (id) => {
     if(!window.confirm("Deseja apagar este lançamento?")) return;
     try {
@@ -453,6 +465,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                   <th className="p-3 font-bold border-r border-teal-600/30">Status</th>
                   <th className="p-3 font-bold border-r border-teal-600/30">Data Pagamento</th>
                   <th className="p-3 font-bold text-center">Pago</th>
+                  <th className="p-3 font-bold text-center">Ações</th>
                 </tr>
               </thead>
               
