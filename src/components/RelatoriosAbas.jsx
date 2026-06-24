@@ -548,6 +548,33 @@ const apagarDespesa = (id) => {
       {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={recarregarTudo} />}
       {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} />}
 
+{mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={recarregarTudo} />}
+      {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} />}
+
+      {/* 🚀 NOVO: O MODAL BONITO DE CONFIRMAÇÃO */}
+      {confirmacao.aberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up border border-gray-100">
+            <div className="bg-red-500 p-6 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-full bg-red-600 opacity-20 transform -skew-y-12 scale-150 origin-top-left"></div>
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 text-red-500 text-3xl shadow-lg relative z-10">⚠️</div>
+              <h3 className="text-xl font-black text-white relative z-10">{confirmacao.titulo}</h3>
+            </div>
+            <div className="p-6 text-center text-gray-600 font-medium text-sm">
+              <p>{confirmacao.mensagem}</p>
+            </div>
+            <div className="p-5 bg-gray-50 flex gap-3 border-t border-gray-100">
+              <button onClick={() => setConfirmacao({ ...confirmacao, aberto: false })} className="flex-1 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors">Cancelar</button>
+              <button onClick={() => { confirmacao.onConfirm(); setConfirmacao({ ...confirmacao, aberto: false }); }} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-colors">Sim, Apagar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div> // <- Esta é a última div do arquivo
+  );
+}
+
     </div>
   );
 }
