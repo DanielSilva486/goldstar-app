@@ -38,6 +38,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   
   const [mostrarNovaDespesa, setMostrarNovaDespesa] = useState(false);
   const [mostrarNovoVale, setMostrarNovoVale] = useState(false);
+  
+  // 🚀 NOVO: Cérebro do nosso aviso personalizado
+  const [confirmacao, setConfirmacao] = useState({
+    aberto: false,
+    titulo: '',
+    mensagem: '',
+    onConfirm: null
+  });
+
+  const pedirConfirmacao = (titulo, mensagem, acao) => {
+    setConfirmacao({ aberto: true, titulo, mensagem, onConfirm: acao });
+  };
 
   const [minutoAtual, setMinutoAtual] = useState(new Date().getMinutes());
   useEffect(() => {
