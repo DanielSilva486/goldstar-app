@@ -9,7 +9,8 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   // Estados para novos cadastros
   const [novoServico, setNovoServico] = useState({ nome: '', preco: '', duracao: 30 });
-  const [novaRegra, setNovaRegra] = useState({}); // Guarda a regra sendo digitada para cada funcionário
+  const [novaRegra, setNovaRegra] = useState({});
+  const [novoProfissional, setNovoProfissional] = useState({ nome: '', percentual_comissao: '' }); // 🚀 NOVO: Estado do profissional
 
   const temas = [
     { id: 'teal', nome: 'Verde (Padrão)' },
@@ -35,11 +36,17 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     } catch(e) {}
   };
 
+  const carregarEquipe = async () => {
+    try {
+      const r = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos');
+      const d = await r.json();
+      if (d.sucesso) setEquipe(d.dados);
+    } catch(e) {}
+  };
+
   useEffect(() => {
     if ((aba === 'equipe' || aba === 'comissoes' || aba === 'status') && equipe.length === 0) {
-      fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos')
-        .then(r => r.json())
-        .then(d => { if(d.sucesso) setEquipe(d.dados); });
+      carregarEquipe();
     }
     if (aba === 'servicos' || aba === 'comissoes') {
       carregarServicos();
@@ -55,6 +62,23 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const handleRegra = (colab_id, campo, valor) => {
     setNovaRegra({ ...novaRegra, [colab_id]: { ...novaRegra[colab_id], [campo]: valor } });
+  };
+
+  // 🚀 NOVO: Função para adicionar o profissional ao banco de dados
+  const adicionarProfissional = async (e) => {
+    e.preventDefault();
+    setSalvando('novo_profissional');
+    try {
+      await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoProfissional)
+      });
+      setNovoProfissional({ nome: '', percentual_comissao: '' });
+      alert('✅ Profissional cadastrado com sucesso! A senha inicial padrão é 1234.');
+      carregarEquipe(); // Atualiza a lista automaticamente
+    } catch (e) { alert('Erro ao adicionar o profissional.'); }
+    setSalvando(null);
   };
 
   const salvarAcesso = async (colab) => {
@@ -116,7 +140,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   };
 
   const deletarServico = async (id) => {
-    // Mensagem mais limpa, direta e profissional
     if (!window.confirm("Deseja arquivar este serviço? Ele sairá das opções do Caixa, mas os seus relatórios antigos continuarão intactos.")) return;
     
     try {
@@ -222,9 +245,24 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
           {aba === 'equipe' && (
             <div className="space-y-4">
-              <div className="bg-teal-50 text-teal-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-teal-200 shadow-sm flex items-center justify-between">
-                <span>Defina os e-mails e permissões apenas para a equipa <b>ativa</b>.</span>
+              <div className="bg-teal-50 text-teal-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-teal-200 shadow-sm flex items-center justify-between mb-4">
+                <span>Defina os e-mails e permissões apenas para a equipa <b>ativa</b>. Cadastre novos profissionais abaixo.</span>
               </div>
+
+              {/* 🚀 NOVO: FORMULÁRIO DE CADASTRO DE PROFISSIONAL */}
+              <form onSubmit={adicionarProfissional} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-4 items-end mb-6">
+                 <div className="flex-1 min-w-[200px]">
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome do(a) Profissional</label>
+                   <input type="text" required placeholder="Ex: Maria Santos" value={novoProfissional.nome} onChange={e => setNovoProfissional({...novoProfissional, nome: e.target.value})} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none"/>
+                 </div>
+                 <div className="w-32">
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Comissão (%)</label>
+                   <input type="number" required placeholder="Ex: 50" value={novoProfissional.percentual_comissao} onChange={e => setNovoProfissional({...novoProfissional, percentual_comissao: e.target.value})} className="w-full border-2 border-gray-100 rounded-lg p-2 text-sm bg-gray-50 focus:border-teal-500 outline-none"/>
+                 </div>
+                 <button type="submit" disabled={salvando === 'novo_profissional'} className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow-sm disabled:opacity-50 h-[38px] whitespace-nowrap">
+                   + Novo Profissional
+                 </button>
+              </form>
               
               {equipeAtiva.map(c => (
                 <div key={c.id} className="bg-white border border-gray-200 p-4 rounded-2xl shadow-sm flex flex-col gap-4">
@@ -317,7 +355,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {equipeAtiva.map(c => {
-                  // Filtra as regras deste profissional específico
                   const regrasDoColab = comissoesEsp.filter(regra => regra.prof === c.nome);
                   const formRegra = novaRegra[c.id] || { servico_id: '', percentual: '' };
 
