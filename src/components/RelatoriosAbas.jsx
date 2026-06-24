@@ -575,6 +575,4 @@ const apagarDespesa = (id) => {
   );
 }
 
-    </div>
-  );
-}
+   
