@@ -16,9 +16,9 @@ export default function LinhaDoTempo({ comandas }) {
     );
   }
 
-  // 🚀 GRANDE MELHORIA: Horário expandido até às 23:00 para apanhar clientes noturnos!
+  // 🚀 ATUALIZADO: Horário restrito das 08:00 às 19:00
   const HORA_INICIO = 8;
-  const HORA_FIM = 23; 
+  const HORA_FIM = 19; 
   const TOTAL_MINUTOS = (HORA_FIM - HORA_INICIO) * 60;
 
   const agendaPorProfissional = {};
@@ -49,7 +49,7 @@ export default function LinhaDoTempo({ comandas }) {
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-4 overflow-x-auto animate-fade-in-up">
       <div className="flex items-center gap-2 mb-8 border-b border-gray-100 pb-3">
         <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <h3 className="text-lg font-black text-gray-800">Visual da Agenda</h3>
+        <h3 className="text-lg font-black text-gray-800">Visual da Agenda (08h às 19h)</h3>
       </div>
       
       <div className="min-w-[900px] relative mt-4">
@@ -62,7 +62,7 @@ export default function LinhaDoTempo({ comandas }) {
           ))}
         </div>
 
-        {horaAtual.getHours() >= HORA_INICIO && horaAtual.getHours() <= HORA_FIM && (
+        {horaAtual.getHours() >= HORA_INICIO && horaAtual.getHours() < HORA_FIM && (
           <div 
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 flex flex-col items-center transition-all duration-1000"
             style={{ left: `calc(7rem + ${posicaoLinhaAtual}%)` }}
