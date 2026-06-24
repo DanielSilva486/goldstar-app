@@ -133,6 +133,15 @@ app.get('/api/comissoes-especificas', async (req, res) => {
   res.json({ sucesso: true, dados: r.rows });
 });
 
+app.delete('/api/comissoes-especificas/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM comissoes_especificas WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (erro) { 
+    res.status(500).json({ sucesso: false }); 
+  }
+});
+
 app.post('/api/comissoes-especificas', async (req, res) => {
   await pool.query('INSERT INTO comissoes_especificas (colaborador_id, servico_id, percentual_comissao) VALUES ($1, $2, $3) ON CONFLICT (colaborador_id, servico_id) DO UPDATE SET percentual_comissao = $3', [req.body.colaborador_id, req.body.servico_id, req.body.percentual]);
   res.json({ sucesso: true });

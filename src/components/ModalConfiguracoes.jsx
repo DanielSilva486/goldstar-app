@@ -171,6 +171,15 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     setSalvando(null);
   };
 
+const deletarRegraEspecifica = async (id) => {
+    if (!window.confirm("Deseja remover esta regra de comissão? O profissional voltará a receber a comissão padrão neste serviço.")) return;
+    
+    try {
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas/${id}`, { method: 'DELETE' });
+      carregarComissoesEsp(); // Atualiza a lista na hora
+    } catch (e) { alert('Erro ao remover regra.'); }
+  };
+
   const equipeAtiva = equipe.filter(c => c.ativo !== false);
 
   return (
@@ -382,13 +391,16 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                            Regras Específicas
                          </h4>
                          
-                         {/* Lista as exceções salvas no banco */}
+                        {/* Lista as exceções salvas no banco */}
                          {regrasDoColab.length > 0 && (
                            <ul className="mb-3 space-y-1.5">
                              {regrasDoColab.map(r => (
                                <li key={r.id} className="flex justify-between items-center text-xs bg-white px-2.5 py-1.5 rounded-lg border border-orange-200 shadow-sm">
                                  <span className="font-bold text-gray-700 truncate mr-2">{r.serv}</span>
-                                 <span className="font-black text-orange-600 bg-orange-100 px-2 rounded-md">{r.percentual}%</span>
+                                 <div className="flex items-center gap-2">
+                                   <span className="font-black text-orange-600 bg-orange-100 px-2 rounded-md">{r.percentual}%</span>
+                                   <button onClick={() => deletarRegraEspecifica(r.id)} className="text-red-400 hover:text-red-600 font-bold px-1.5 text-sm" title="Remover Regra">X</button>
+                                 </div>
                                </li>
                              ))}
                            </ul>
