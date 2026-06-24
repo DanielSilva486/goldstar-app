@@ -40,8 +40,6 @@ app.get('/api/resumo', async (req, res) => {
     
     const totais = await pool.query(`SELECT COALESCE(SUM(valor_total), 0) as faturamento_bruto, COALESCE(SUM(valor_comissao), 0) as total_comissoes, COUNT(id) as total_atendimentos FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2`, [mes, ano]);
     
-    // A MÁGICA ACONTECE AQUI: Adicionamos o "AND pago = TRUE"
-    // Agora o sistema só vai somar as despesas e descontar do lucro se a caixinha estiver marcada
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE pago = TRUE AND EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2`, [mes, ano]);
     
     const historico = await pool.query(`SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, a.valor_total, c.nome as profissional, a.valor_comissao FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 ORDER BY a.data_hora DESC LIMIT 100`, [mes, ano]);
@@ -105,7 +103,6 @@ app.put('/api/colaboradores/:id/status', async (req, res) => {
   res.json({ sucesso: true });
 });
 
-// --- NOVAS ROTAS DE SERVIÇOS (COM EXCLUSÃO LÓGICA) ---
 app.get('/api/servicos', async (req, res) => {
   try {
     const r = await pool.query('SELECT id, nome, preco, duracao FROM servicos WHERE ativo = TRUE ORDER BY nome ASC');
@@ -126,7 +123,6 @@ app.delete('/api/servicos/:id', async (req, res) => {
     res.json({ sucesso: true });
   } catch (e) { res.status(500).json({ sucesso: false, erro: "Erro ao ocultar o serviço." }); }
 });
-// -----------------------------------------------------
 
 app.get('/api/comissoes-especificas', async (req, res) => {
   const r = await pool.query(`SELECT ce.id, c.nome as prof, s.nome as serv, ce.percentual_comissao as percentual FROM comissoes_especificas ce JOIN colaboradores c ON ce.colaborador_id = c.id JOIN servicos s ON ce.servico_id = s.id`);
@@ -163,7 +159,6 @@ app.post('/api/atendimentos', async (req, res) => {
 
 app.get('/api/comandas', async (req, res) => {
   try {
-    // Verifique se o "s.duracao" está presente no SELECT:
     const r = await pool.query(`
       SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, c.nome as profissional, 
              a.valor_total, a.valor_comissao, a.data_hora, a.status 
@@ -266,28 +261,25 @@ app.post('/api/vales', async (req, res) => {
   } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
-// Apagar um colaborador (Só funciona se ele não tiver gerado histórico)
-app.delete('/api/colaboradores/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM colaboradores WHERE id = $1', [req.params.id]);
-    res.json({ sucesso: true });
-  } catch (erro) { 
-    // Se o colaborador já tiver histórico atrelado a ele, o banco bloqueia por segurança
-    res.status(400).json({ sucesso: false, mensagem: "Possui histórico" }); 
-  }
-});
-
-// Apagar um serviço/agendamento do histórico geral
+// 🚀 O ERRO ESTAVA AQUI: Mudamos "comandas" para "atendimentos"
 app.delete('/api/comandas/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM comandas WHERE id = $1', [req.params.id]);
+    await pool.query('DELETE FROM atendimentos WHERE id = $1', [req.params.id]);
     res.json({ sucesso: true });
   } catch (erro) { 
     res.status(500).json({ sucesso: false }); 
   }
 });
 
-
+// Apagar um colaborador (Só funciona se ele não tiver gerado histórico)
+app.delete('/api/colaboradores/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM colaboradores WHERE id = $1', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (erro) { 
+    res.status(400).json({ sucesso: false, mensagem: "Possui histórico" }); 
+  }
+});
 
 app.delete('/api/vales/:id', async (req, res) => {
   try {
