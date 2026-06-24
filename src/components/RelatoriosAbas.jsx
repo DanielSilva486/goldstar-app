@@ -215,14 +215,16 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         )}
       </div>
 
-      {abaAtiva === 0 && podeVerCaixa && (
-        <div className="space-y-4">
-          <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-3 overflow-x-auto scrollbar-hide items-center">
-             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-2">Disponibilidade:</span>
-             {colaboradores.map(c => {
-                const tempo = filaPorProfissional[c.nome] || 0;
-                const livre = tempo === 0;
-                return (
+     {abaAtiva === 0 && podeVerCaixa && (
+  <div className="space-y-4">
+    {/* 🚀 AQUI A MÁGICA ACONTECE: 'sticky top-0 z-10' fixa no topo */}
+    <div className="sticky top-0 z-10 bg-gray-50 pt-2 pb-2">
+      <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-3 overflow-x-auto scrollbar-hide items-center">
+         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-2">Disponibilidade:</span>
+         {colaboradores.map(c => {
+            const tempo = filaPorProfissional[c.nome] || 0;
+            const livre = tempo === 0;
+            return (
                   <div key={c.id} className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border ${livre ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
                      <div className={`w-2 h-2 rounded-full ${livre ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></div>
                      <div>
