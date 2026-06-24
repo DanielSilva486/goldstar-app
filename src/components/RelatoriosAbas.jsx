@@ -123,7 +123,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         
         if (res.ok) {
           recarregarTudo(); // Recarrega os números da tela inteira
-          alert("✅ Atendimento apagado com sucesso!"); // Pode tirar esse alert depois que confirmar que funcionou
+          //alert("✅ Atendimento apagado com sucesso!"); // Pode tirar esse alert depois que confirmar que funcionou
         } else {
           alert("⚠️ O servidor recusou. Verifique se o server.js atualizou no Render.");
         }
