@@ -508,6 +508,11 @@ const apagarDespesa = async (id) => {
                         <td className="p-3 text-center flex items-center justify-center">
                           <input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-teal-600" />
                         </td>
+                          <td className="p-3 text-center">
+                          <button onClick={() => apagarDespesa(d.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors shadow-sm" title="Apagar Despesa">
+                            🗑️
+                          </button>
+                        </td>
                       </tr>
                     );
                 })}
