@@ -10,7 +10,20 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   // Estados para novos cadastros
   const [novoServico, setNovoServico] = useState({ nome: '', preco: '', duracao: 30 });
   const [novaRegra, setNovaRegra] = useState({});
-  const [novoProfissional, setNovoProfissional] = useState({ nome: '', percentual_comissao: '' }); // 🚀 NOVO: Estado do profissional
+  const [novoProfissional, setNovoProfissional] = useState({ nome: '', percentual_comissao: '' });
+
+  // 🚀 SISTEMA DE AVISOS PREMIUM (Modais e Toasts)
+  const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
+  const [toast, setToast] = useState({ visivel: false, mensagem: '', tipo: 'sucesso' });
+
+  const pedirConfirmacao = (titulo, mensagem, acao) => {
+    setConfirmacao({ aberto: true, titulo, mensagem, onConfirm: acao });
+  };
+
+  const mostrarToast = (mensagem, tipo = 'sucesso') => {
+    setToast({ visivel: true, mensagem, tipo });
+    setTimeout(() => setToast({ visivel: false, mensagem: '', tipo: 'sucesso' }), 3500);
+  };
 
   const temas = [
     { id: 'teal', nome: 'Verde (Padrão)' },
@@ -64,7 +77,6 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     setNovaRegra({ ...novaRegra, [colab_id]: { ...novaRegra[colab_id], [campo]: valor } });
   };
 
-  // 🚀 NOVO: Função para adicionar o profissional ao banco de dados
   const adicionarProfissional = async (e) => {
     e.preventDefault();
     setSalvando('novo_profissional');
@@ -75,9 +87,9 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         body: JSON.stringify(novoProfissional)
       });
       setNovoProfissional({ nome: '', percentual_comissao: '' });
-      alert('✅ Profissional cadastrado com sucesso! A senha inicial padrão é 1234.');
-      carregarEquipe(); // Atualiza a lista automaticamente
-    } catch (e) { alert('Erro ao adicionar o profissional.'); }
+      mostrarToast('Profissional cadastrado! A senha inicial é 1234.');
+      carregarEquipe(); 
+    } catch (e) { mostrarToast('Erro ao adicionar o profissional.', 'erro'); }
     setSalvando(null);
   };
 
@@ -89,9 +101,9 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: colab.email, perfil: colab.perfil, senha: colab.novaSenha })
       });
-      alert('✅ Acesso atualizado com sucesso!');
+      mostrarToast('Acesso atualizado com sucesso!');
       setEquipe(equipe.map(c => c.id === colab.id ? { ...c, novaSenha: '' } : c));
-    } catch (e) { alert('Erro ao salvar acessos.'); }
+    } catch (e) { mostrarToast('Erro ao salvar acessos.', 'erro'); }
     setSalvando(null);
   };
 
@@ -103,26 +115,32 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ percentual_comissao: colab.percentual_comissao })
       });
-      alert('✅ Comissão padrão atualizada com sucesso!');
-    } catch (e) { alert('Erro ao salvar comissão.'); }
+      mostrarToast('Comissão padrão atualizada!');
+    } catch (e) { mostrarToast('Erro ao salvar comissão.', 'erro'); }
     setSalvando(null);
   };
 
-  const alternarStatus = async (colab) => {
+  const alternarStatus = (colab) => {
     const acao = colab.ativo ? 'DESATIVAR' : 'ATIVAR';
-    if (!window.confirm(`Tem a certeza que deseja ${acao} a(o) profissional ${colab.nome}?`)) return;
     
-    setSalvando(colab.id);
-    try {
-      const novoStatus = !colab.ativo;
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ativo: novoStatus })
-      });
-      setEquipe(equipe.map(c => c.id === colab.id ? { ...c, ativo: novoStatus } : c));
-    } catch (e) { alert('Erro ao alterar o status.'); }
-    setSalvando(null);
+    pedirConfirmacao(
+      `${acao} PROFISSIONAL`,
+      `Tem a certeza que deseja ${acao.toLowerCase()} a(o) profissional ${colab.nome}?`,
+      async () => {
+        setSalvando(colab.id);
+        try {
+          const novoStatus = !colab.ativo;
+          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ativo: novoStatus })
+          });
+          setEquipe(equipe.map(c => c.id === colab.id ? { ...c, ativo: novoStatus } : c));
+          mostrarToast(`Profissional ${novoStatus ? 'ativado' : 'desativado'} com sucesso!`);
+        } catch (e) { mostrarToast('Erro ao alterar o status.', 'erro'); }
+        setSalvando(null);
+      }
+    );
   };
 
   const adicionarServico = async (e) => {
@@ -134,30 +152,36 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         body: JSON.stringify(novoServico)
       });
       setNovoServico({ nome: '', preco: '', duracao: 30 });
+      mostrarToast('Serviço adicionado ao sistema!');
       carregarServicos();
-    } catch (e) { alert('Erro ao adicionar serviço.'); }
+    } catch (e) { mostrarToast('Erro ao adicionar serviço.', 'erro'); }
     setSalvando(null);
   };
 
-  const deletarServico = async (id) => {
-    if (!window.confirm("Deseja arquivar este serviço? Ele sairá das opções do Caixa, mas os seus relatórios antigos continuarão intactos.")) return;
-    
-    try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos/${id}`, { method: 'DELETE' });
-      const d = await res.json();
-      if(d.sucesso) {
-         carregarServicos(); 
-      } else {
-         alert('Não foi possível arquivar o serviço no momento.');
+  const deletarServico = (id) => {
+    pedirConfirmacao(
+      "Arquivar Serviço",
+      "Deseja arquivar este serviço? Ele sairá do Caixa, mas os relatórios antigos continuarão intactos.",
+      async () => {
+        try {
+          const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos/${id}`, { method: 'DELETE' });
+          const d = await res.json();
+          if(d.sucesso) {
+             carregarServicos(); 
+             mostrarToast('Serviço arquivado com sucesso.');
+          } else {
+             mostrarToast('Não foi possível arquivar o serviço.', 'erro');
+          }
+        } catch (e) { 
+          mostrarToast('Erro de conexão.', 'erro'); 
+        }
       }
-    } catch (e) { 
-      alert('Erro de conexão ao tentar arquivar o serviço.'); 
-    }
+    );
   };
 
   const adicionarRegraEspecifica = async (colab_id) => {
     const regra = novaRegra[colab_id];
-    if (!regra || !regra.servico_id || !regra.percentual) return alert("Selecione o serviço e digite a porcentagem!");
+    if (!regra || !regra.servico_id || !regra.percentual) return mostrarToast("Selecione o serviço e digite a porcentagem!", 'erro');
     
     setSalvando('regra_' + colab_id);
     try {
@@ -167,17 +191,23 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
       });
       setNovaRegra({ ...novaRegra, [colab_id]: { servico_id: '', percentual: '' } });
       carregarComissoesEsp();
-    } catch (e) { alert('Erro ao salvar regra específica.'); }
+      mostrarToast('Regra específica adicionada!');
+    } catch (e) { mostrarToast('Erro ao salvar regra.', 'erro'); }
     setSalvando(null);
   };
 
-const deletarRegraEspecifica = async (id) => {
-    if (!window.confirm("Deseja remover esta regra de comissão? O profissional voltará a receber a comissão padrão neste serviço.")) return;
-    
-    try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas/${id}`, { method: 'DELETE' });
-      carregarComissoesEsp(); // Atualiza a lista na hora
-    } catch (e) { alert('Erro ao remover regra.'); }
+  const deletarRegraEspecifica = (id) => {
+    pedirConfirmacao(
+      "Remover Regra",
+      "Deseja remover esta regra? O profissional voltará a receber a comissão padrão neste serviço.",
+      async () => {
+        try {
+          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas/${id}`, { method: 'DELETE' });
+          carregarComissoesEsp(); 
+          mostrarToast('Regra removida com sucesso!');
+        } catch (e) { mostrarToast('Erro ao remover regra.', 'erro'); }
+      }
+    );
   };
 
   const equipeAtiva = equipe.filter(c => c.ativo !== false);
@@ -186,6 +216,15 @@ const deletarRegraEspecifica = async (id) => {
     <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4">
       <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
         
+        {/* TOAST NOTIFICATION (Mensagens que somem sozinhas) */}
+        {toast.visivel && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up">
+            <div className={`px-6 py-3 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ${toast.tipo === 'erro' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+              {toast.tipo === 'erro' ? '⚠️' : '✅'} {toast.mensagem}
+            </div>
+          </div>
+        )}
+
         <div className="bg-gray-800 p-4 flex justify-between items-center shrink-0">
           <h2 className="text-white font-bold tracking-wide flex items-center gap-2">
             <svg className="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -202,7 +241,7 @@ const deletarRegraEspecifica = async (id) => {
           <button onClick={() => setAba('comissoes')} className={`flex-1 py-3 px-2 text-xs md:text-sm font-bold transition-colors ${aba === 'comissoes' ? 'bg-white text-teal-600 border-b-2 border-teal-500' : 'text-gray-500 hover:text-gray-700'}`}>Comissões (%)</button>
         </div>
 
-        <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
+        <div className="p-6 overflow-y-auto bg-gray-50 flex-1 relative">
           
           {aba === 'tema' && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -258,7 +297,6 @@ const deletarRegraEspecifica = async (id) => {
                 <span>Defina os e-mails e permissões apenas para a equipa <b>ativa</b>. Cadastre novos profissionais abaixo.</span>
               </div>
 
-              {/* 🚀 NOVO: FORMULÁRIO DE CADASTRO DE PROFISSIONAL */}
               <form onSubmit={adicionarProfissional} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-4 items-end mb-6">
                  <div className="flex-1 min-w-[200px]">
                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome do(a) Profissional</label>
@@ -306,7 +344,6 @@ const deletarRegraEspecifica = async (id) => {
             </div>
           )}
 
-          {/* NOVA ABA: SERVIÇOS (CARDÁPIO) */}
           {aba === 'servicos' && (
             <div className="space-y-4">
               <div className="bg-purple-50 text-purple-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-purple-200 shadow-sm">
@@ -355,7 +392,6 @@ const deletarRegraEspecifica = async (id) => {
             </div>
           )}
 
-          {/* ABA DE COMISSÕES: AGORA COM EXCEÇÕES POR SERVIÇO */}
           {aba === 'comissoes' && (
             <div className="space-y-4">
               <div className="bg-orange-50 text-orange-800 p-3 rounded-xl text-xs md:text-sm font-medium border border-orange-200 shadow-sm">
@@ -373,7 +409,6 @@ const deletarRegraEspecifica = async (id) => {
                         <span className="font-black text-gray-800 text-lg">{c.nome}</span>
                       </div>
                       
-                      {/* Comissão Padrão */}
                       <div className="mb-6">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Comissão Padrão (Geral) %</label>
                         <div className="flex gap-2">
@@ -384,14 +419,12 @@ const deletarRegraEspecifica = async (id) => {
                         </div>
                       </div>
 
-                      {/* Regras de Exceção */}
                       <div className="bg-orange-50 rounded-xl p-3 border border-orange-100">
                          <h4 className="text-[10px] font-bold text-orange-800 uppercase mb-3 border-b border-orange-200 pb-1 flex items-center gap-1">
                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
                            Regras Específicas
                          </h4>
                          
-                        {/* Lista as exceções salvas no banco */}
                          {regrasDoColab.length > 0 && (
                            <ul className="mb-3 space-y-1.5">
                              {regrasDoColab.map(r => (
@@ -406,7 +439,6 @@ const deletarRegraEspecifica = async (id) => {
                            </ul>
                          )}
 
-                         {/* Mini-Formulário para adicionar Exceção */}
                          <div className="flex gap-2 items-end">
                             <div className="flex-1">
                               <select value={formRegra.servico_id} onChange={e => handleRegra(c.id, 'servico_id', e.target.value)} className="w-full border border-gray-200 rounded-lg p-2 text-xs bg-white focus:border-orange-400 outline-none shadow-sm">
@@ -431,6 +463,27 @@ const deletarRegraEspecifica = async (id) => {
           )}
 
         </div>
+        
+        {/* MODAL DE CONFIRMAÇÃO GLOBAL (Aviso Vermelho) */}
+        {confirmacao.aberto && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 rounded-3xl animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-slide-up border border-gray-100">
+              <div className="bg-red-500 p-6 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full bg-red-600 opacity-20 transform -skew-y-12 scale-150 origin-top-left"></div>
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 text-red-500 text-3xl shadow-lg relative z-10">⚠️</div>
+                <h3 className="text-xl font-black text-white relative z-10">{confirmacao.titulo}</h3>
+              </div>
+              <div className="p-6 text-center text-gray-600 font-medium text-sm">
+                <p>{confirmacao.mensagem}</p>
+              </div>
+              <div className="p-5 bg-gray-50 flex gap-3 border-t border-gray-100">
+                <button onClick={() => setConfirmacao({ ...confirmacao, aberto: false })} className="flex-1 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors">Cancelar</button>
+                <button onClick={() => { confirmacao.onConfirm(); setConfirmacao({ ...confirmacao, aberto: false }); }} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-colors">Confirmar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
