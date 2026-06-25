@@ -20,17 +20,15 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   
   const [mostrarNovaDespesa, setMostrarNovaDespesa] = useState(false);
   const [mostrarNovoVale, setMostrarNovoVale] = useState(false);
-  
   const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
+
   const pedirConfirmacao = (titulo, mensagem, acao) => setConfirmacao({ aberto: true, titulo, mensagem, onConfirm: acao });
 
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
   const historicoGeral = dados?.historico || [];
   const historico = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
-
   const comissoesGerais = dados?.comissoes || [];
   const comissoesMensais = isProfissional ? comissoesGerais.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : comissoesGerais;
-
   const topServicos = dados?.topServicos || [];
   const topClientes = dados?.topClientes || [];
   const valores = dados?.valores || {};
@@ -54,17 +52,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       const resPagamentos = await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes');
       const jsonPagamentos = await resPagamentos.json();
       if(jsonPagamentos.sucesso) setPagamentosDb(jsonPagamentos.dados);
-
       const resVales = await fetch('https://goldstar-backend-9m2p.onrender.com/api/vales');
       const jsonVales = await resVales.json();
       if(jsonVales.sucesso) setVales(jsonVales.dados);
-
       if (isAdmin) {
         const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}`);
         const jsonDespesas = await resDespesas.json();
         if(jsonDespesas.sucesso) setDespesas(jsonDespesas.dados);
       }
-
       if (podeVerCaixa) {
         const resColab = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores');
         const jsonColab = await resColab.json();
@@ -86,6 +81,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       }
     } catch (e) {}
   };
+  
   const limparFiltroPeriodo = () => { setDataInicio(''); setDataFim(''); setComissoesFiltradas(null); };
 
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
@@ -116,19 +112,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const apagarHistorico = (id) => pedirConfirmacao("Apagar Atendimento", "Deseja realmente apagar este serviço do Histórico Geral? O financeiro será recalculado.", async () => {
     try {
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        recarregarTudo(); 
-      }
+      if (res.ok) recarregarTudo();
     } catch(e) {}
   });
 
-  // 🚀 NOVA FUNÇÃO: Sinalizar Erro (Maker-Checker)
   const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador cancelar?", async () => {
     try {
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/atendimentos/${id}/sinalizar-erro`, { method: 'PUT' });
-      if (res.ok) {
-        recarregarTudo(); 
-      }
+      if (res.ok) recarregarTudo();
     } catch(e) {}
   });
 
@@ -191,6 +182,40 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     link.download = "historico_atendimentos.csv"; link.click();
   };
 
+  // 🚀 NOVA FUNÇÃO: EXPORTAR DESPESAS
+  const exportarPlanilhaDespesas = () => {
+    if (despesas.length === 0) return alert("Nenhuma despesa encontrada para exportar.");
+    
+    let conteudoCSV = "Vencimento,Valor (R$),Serviços/Produto,Fornecedor,Status,Data Pagamento\n";
+
+    despesas.forEach(d => {
+      const partes = d.data_vencimento.split('-'); 
+      const venc = new Date(partes[0], partes[1] - 1, partes[2]);
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const diferencaDias = Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
+      
+      let textoStatus = ""; 
+      if (d.pago) { textoStatus = "Pago"; } 
+      else if (diferencaDias < 0) { textoStatus = "Venceu"; } 
+      else { textoStatus = diferencaDias === 0 ? "Vence Hoje" : `${diferencaDias} dia(s)`; }
+
+      const dataVencFormatada = `${partes[2]}/${partes[1]}/${partes[0].substring(2)}`;
+      
+      const valorStr = Number(d.valor).toFixed(2).replace('.', ',');
+      const descStr = (d.descricao || '').replace(/"/g, '""'); // Escapa aspas
+      const fornStr = (d.fornecedor || '').replace(/"/g, '""'); // Escapa aspas
+      const pagtoStr = d.data_pagamento || '-';
+
+      conteudoCSV += `"${dataVencFormatada}","${valorStr}","${descStr}","${fornStr}","${textoStatus}","${pagtoStr}"\n`;
+    });
+
+    const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a"); 
+    link.href = URL.createObjectURL(blob);
+    link.download = `despesas_goldstar_${mes}_${ano}.csv`; 
+    link.click();
+  };
+
   const BotaoAba = ({ id, titulo, destaque }) => (
     <button onClick={() => setAbaAtiva(id)} className={`relative whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-full transition-colors ${abaAtiva === id ? 'bg-teal-500 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
       {titulo}
@@ -200,7 +225,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up pt-4">
-      
       <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
         {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
         <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
@@ -217,23 +241,24 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
       {abaAtiva === 0 && podeVerCaixa && (
         <div className="space-y-4">
-          <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-3 overflow-x-auto scrollbar-hide items-center">
-             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-2">Disponibilidade:</span>
-             {colaboradores.map(c => {
-                const tempo = filaPorProfissional[c.nome] || 0;
-                const livre = tempo === 0;
-                return (
-                  <div key={c.id} className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border ${livre ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
-                     <div className={`w-2 h-2 rounded-full ${livre ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></div>
-                     <div>
-                       <p className="text-xs font-bold text-gray-700">{c.nome}</p>
-                       <p className={`text-[10px] font-bold ${livre ? 'text-green-600' : 'text-orange-600'}`}>{livre ? 'Livre agora' : `Fila: ${formatarTempo(tempo)}`}</p>
-                     </div>
-                  </div>
-                )
-             })}
+          <div className="sticky top-0 z-10 bg-gray-50 pt-2 pb-2">
+            <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-3 overflow-x-auto scrollbar-hide items-center">
+               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-2">Disponibilidade:</span>
+               {colaboradores.map(c => {
+                  const tempo = filaPorProfissional[c.nome] || 0;
+                  const livre = tempo === 0;
+                  return (
+                    <div key={c.id} className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border ${livre ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
+                       <div className={`w-2 h-2 rounded-full ${livre ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></div>
+                       <div>
+                         <p className="text-xs font-bold text-gray-700">{c.nome}</p>
+                         <p className={`text-[10px] font-bold ${livre ? 'text-green-600' : 'text-orange-600'}`}>{livre ? 'Livre agora' : `Fila: ${formatarTempo(tempo)}`}</p>
+                       </div>
+                    </div>
+                  )
+               })}
+            </div>
           </div>
-
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden min-h-[400px] shadow-sm">
             <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center"><h3 className="font-bold text-gray-800">Clientes Aguardando</h3></div>
             <div className="p-4 space-y-4 bg-gray-50/50">
@@ -322,9 +347,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {historico.length === 0 ? <tr><td colSpan={(isAdmin || isCaixa) ? "6" : (isProfissional ? "4" : "5")} className="p-6 text-center text-gray-400">Nenhum serviço encontrado.</td></tr> : historico.map(item => {
-                  
                   const temErro = item.cliente_nome.includes('⚠️ ERRO');
-                  
                   return (
                     <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${temErro ? 'bg-red-50/40' : ''}`}>
                       <td className="p-3 text-gray-500">{item.data}</td>
@@ -337,14 +360,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       {(isAdmin || isCaixa) && (
                         <td className="p-3 text-center flex items-center justify-center gap-2">
                           {isCaixa && !temErro && (
-                            <button onClick={() => sinalizarErroAtendimento(item.id)} className="text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Sinalizar Erro (Pedir Cancelamento)">
-                              🚩
-                            </button>
+                            <button onClick={() => sinalizarErroAtendimento(item.id)} className="text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Sinalizar Erro">🚩</button>
                           )}
                           {isAdmin && (
-                            <button onClick={() => apagarHistorico(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Apagar Atendimento Definitivamente">
-                              🗑️
-                            </button>
+                            <button onClick={() => apagarHistorico(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Apagar Atendimento">🗑️</button>
                           )}
                         </td>
                       )}
@@ -363,7 +382,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <div className="flex flex-col gap-2">
               <div><h3 className="font-bold text-orange-800">{isProfissional ? 'Minha Comissão Acumulada' : 'Repasses Acumulados da Equipe'}</h3></div>
               <div className="flex flex-wrap items-center gap-2">
-                <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white shadow-sm" /> <span className="text-xs font-bold text-gray-500">até</span> <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white shadow-sm" />
+                <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white shadow-sm" /> 
+                <span className="text-xs font-bold text-gray-500">até</span> 
+                <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="border rounded-lg p-1.5 text-xs bg-white shadow-sm" />
                 <button onClick={filtrarComissoesPeriodo} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors">Filtrar</button>
                 {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors">Limpar</button>}
               </div>
@@ -459,12 +480,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       {isAdmin && abaAtiva === 6 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <h3 className="font-bold text-white">Despesas</h3>
+            <div className="flex items-center gap-3">
+              <h3 className="font-bold text-white pr-2">Despesas</h3>
               <button onClick={() => setMostrarNovaDespesa(true)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors">+ Lançar Despesa</button>
+              
+              {/* 🚀 AQUI ESTÁ O NOVO BOTÃO DE BAIXAR (Aba 6) */}
+              <button onClick={exportarPlanilhaDespesas} className="bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors flex items-center gap-1">
+                📥 Baixar
+              </button>
             </div>
+            
             <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
           </div>
+          
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="bg-teal-500 text-white">
