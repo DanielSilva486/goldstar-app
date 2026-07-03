@@ -11,9 +11,15 @@ export default function App() {
   const [mostrarLogin, setMostrarLogin] = useState(false);
   const [mostrarNovoAtendimento, setMostrarNovoAtendimento] = useState(false);
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false); 
-  const [mostrarConfirmacaoSair, setMostrarConfirmacaoSair] = useState(false); // NOVO: Controle da tela de sair
+  const [mostrarConfirmacaoSair, setMostrarConfirmacaoSair] = useState(false);
   const [dadosSalao, setDadosSalao] = useState(null); 
   const [comandas, setComandas] = useState([]);
+
+  const [dadosEmpresa, setDadosEmpresa] = useState({
+    nome_fantasia: 'Goldstar',
+    cor_primaria: '#14b8a6', 
+    logo_url: ''
+  });
 
   const [usuarioLogado, setUsuarioLogado] = useState(() => {
     try {
@@ -37,7 +43,36 @@ export default function App() {
     }
   }, [usuarioLogado]);
 
-  const isAdmin = usuarioLogado?.perfil === 'admin';
+ useEffect(() => {
+    fetch('https://goldstar-backend-teste.onrender.com/api/configuracoes')
+      .then(res => res.json())
+      .then(d => {
+        if (d.sucesso && d.dados) {
+          setDadosEmpresa({
+            nome_fantasia: d.dados.nome_fantasia || 'Goldstar',
+            cor_primaria: d.dados.cor_primaria || '#14b8a6',
+            logo_url: d.dados.logo_url || ''
+          });
+          document.title = d.dados.nome_fantasia || 'Sistema de Gestão';
+
+          // 🚀 O TRUQUE: Usa a própria logo da empresa como ícone da aba!
+          const iconeParaNavegador = d.dados.logo_url;
+
+          if (iconeParaNavegador) {
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) {
+              link = document.createElement('link');
+              link.rel = 'icon';
+              document.head.appendChild(link);
+            }
+            link.href = iconeParaNavegador;
+          }
+        }
+      })
+      .catch(e => console.log('Erro ao carregar configurações SaaS', e));
+  }, []);
+
+  const isAdmin = usuarioLogado?.perfil === 'admin' || usuarioLogado?.perfil === 'dono';
   const podeOperarCaixa = isAdmin || usuarioLogado?.perfil === 'caixa';
 
   const dataAtual = new Date();
@@ -51,23 +86,24 @@ export default function App() {
   }, [temaAtivo]);
 
   const paleta = {
-    teal: { main: '#14b8a6', hover: '#0d9488', light: '#f0fdfa', text: '#115e59' },
+    teal: { main: dadosEmpresa.cor_primaria, hover: dadosEmpresa.cor_primaria + 'E6', light: dadosEmpresa.cor_primaria + '1A', text: '#115e59' },
     pink: { main: '#ec4899', hover: '#db2777', light: '#fdf2f8', text: '#831843' },
     purple: { main: '#a855f7', hover: '#9333ea', light: '#faf5ff', text: '#581c87' },
     gold: { main: '#eab308', hover: '#ca8a04', light: '#fefce8', text: '#713f12' },
     black: { main: '#1f2937', hover: '#111827', light: '#f3f4f6', text: '#030712' },
   };
+  
   const cor = paleta[temaAtivo] || paleta.teal;
 
   const carregarDados = () => {
     if (!usuarioLogado) return; 
-    fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
+    fetch(`https://goldstar-backend-teste.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
       .then(r => r.json()).then(d => { if(d.sucesso) setDadosSalao(d); });
   };
   
   const buscarComandas = () => {
     if (!usuarioLogado) return; 
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas')
+    fetch('https://goldstar-backend-teste.onrender.com/api/comandas')
       .then(r => r.json()).then(d => { if (d.sucesso) setComandas(d.dados); });
   };
 
@@ -83,7 +119,6 @@ export default function App() {
 
   useEffect(() => { recarregarTudo(); }, [mesSelecionado, anoSelecionado, usuarioLogado]); 
 
-  // Função atualizada para abrir o nosso Modal bonito em vez do alerta do navegador
   const confirmarLogout = () => {
     setUsuarioLogado(null);
     setMostrarConfirmacaoSair(false);
@@ -111,7 +146,7 @@ export default function App() {
       )}
 
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col">
-        <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} />
+        <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} dadosEmpresa={dadosEmpresa} />
         
         {!usuarioLogado ? (
           <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 text-center">
@@ -120,13 +155,17 @@ export default function App() {
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
               </div>
               <h2 className="text-xl font-black text-gray-800 mb-2">Acesso Bloqueado</h2>
-              <p className="text-sm text-gray-500 mb-6">Por motivos de segurança, você precisa fazer o login para aceder aos dados do salão.</p>
+              <p className="text-sm text-gray-500 mb-6">Por motivos de segurança, você precisa fazer o login para aceder aos dados do sistema.</p>
               <button onClick={() => setMostrarLogin(true)} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md">
                 Entrar no Sistema
               </button>
             </div>
+
+         
+
           </main>
-        ) : (
+
+ ) : (
           <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4 md:px-8">
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
               <div className="flex items-center gap-3">
@@ -159,23 +198,35 @@ export default function App() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            {/* 🚀 O NOVO LAYOUT DA TELA DO ADMIN FICA AQUI */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
               {isAdmin && (
-                <div className="md:col-span-4"><PainelValores valores={dadosSalao?.valores} comissoes={dadosSalao?.comissoes} /></div>
+                // O painel fica com tamanho travado (ex: 280px) e gruda no topo (sticky)
+                <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 sticky top-4">
+                  <PainelValores valores={dadosSalao?.valores} comissoes={dadosSalao?.comissoes} />
+                </div>
               )}
-              <div className={isAdmin ? "md:col-span-8" : "md:col-span-12"}>
+              
+              {/* A área principal ganha flex-1 para esticar e aproveitar todo o resto da tela! */}
+              <div className="flex-1 w-full min-w-0">
                 <RelatoriosAbas dados={dadosSalao} mes={mesSelecionado} ano={anoSelecionado} comandas={comandas} recarregarTudo={recarregarTudo} usuario={usuarioLogado} />
               </div>
             </div>
+            
           </main>
         )}
+
+      <footer className="w-full text-center py-6 text-gray-400 text-[11px] font-medium border-t border-gray-100">
+        Powered by <span className="font-black text-teal-600">GestãoGold</span> | © 2026 — Gestão Inteligente para Salões
+      </footer>
+
+
       </div>
 
       {mostrarNovoAtendimento && usuarioLogado && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} recarregarTudo={recarregarTudo} comandas={comandas} />}
       {mostrarConfiguracoes && usuarioLogado && <ModalConfiguracoes fechar={() => setMostrarConfiguracoes(false)} temaAtivo={temaAtivo} setTemaAtivo={setTemaAtivo} />}
       {mostrarLogin && <ModalLogin aoFechar={() => { if(usuarioLogado) setMostrarLogin(false); }} setUsuarioLogado={setUsuarioLogado} />}
 
-      {/* NOVA TELA DE CONFIRMAÇÃO DE SAÍDA */}
       {mostrarConfirmacaoSair && (
         <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4 animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 text-center transform transition-all scale-100">
@@ -183,7 +234,7 @@ export default function App() {
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             </div>
             <h2 className="text-xl font-black text-gray-800 mb-2">Sair do Sistema</h2>
-            <p className="text-sm text-gray-500 mb-6">Tem a certeza que deseja encerrar a sua sessão no Goldstar?</p>
+            <p className="text-sm text-gray-500 mb-6">Tem a certeza que deseja encerrar a sua sessão?</p>
             <div className="flex gap-3">
               <button onClick={() => setMostrarConfirmacaoSair(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition-colors">Cancelar</button>
               <button onClick={confirmarLogout} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-md transition-colors">Sim, Sair</button>

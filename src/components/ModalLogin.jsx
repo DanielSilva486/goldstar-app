@@ -11,7 +11,7 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
     setCarregando(true); setErro('');
     
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/login', {
+      const res = await fetch('https://goldstar-backend-teste.onrender.com/api/login', {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify({ email, senha })

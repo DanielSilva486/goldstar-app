@@ -12,7 +12,7 @@ export default function ModalNovaDespesa({ fechar, atualizarDados }) {
     e.preventDefault();
     setSalvando(true);
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/despesas', {
+      await fetch('https://goldstar-backend-teste.onrender.com/api/despesas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

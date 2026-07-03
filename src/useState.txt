@@ -13,7 +13,7 @@ export default function App() {
 
   useEffect(() => {
     // Buscando os dados reais da nossa nova rota
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/resumo')
+    fetch('https://goldstar-backend-teste.onrender.com/api/resumo')
       .then(resposta => resposta.json())
       .then(dados => {
         if(dados.sucesso) {
