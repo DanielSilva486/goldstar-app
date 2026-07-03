@@ -29,11 +29,11 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     
     const carregarListas = async () => {
       try {
-        const resC = await fetch('https://goldstar-backend-teste.onrender.com/api/colaboradores/todos');
+        const resC = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos');
         const dataC = await resC.json();
         if (dataC.sucesso) setListaColaboradores(dataC.dados.filter(c => c.ativo !== false));
 
-        const resS = await fetch('https://goldstar-backend-teste.onrender.com/api/servicos');
+        const resS = await fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos');
         const dataS = await resS.json();
         if (dataS.sucesso) setListaServicos(dataS.dados);
       } catch (e) { console.error(e); }
@@ -87,7 +87,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
       const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : null;
 
       for (let i = 0; i < qtdLoop; i++) {
-        await fetch('https://goldstar-backend-teste.onrender.com/api/atendimentos', {
+        await fetch('https://goldstar-backend-9m2p.onrender.com/api/atendimentos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

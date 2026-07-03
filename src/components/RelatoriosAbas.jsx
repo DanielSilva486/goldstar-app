@@ -56,19 +56,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const carregarDadosExtras = async () => {
     try {
-      const resPagamentos = await fetch('https://goldstar-backend-teste.onrender.com/api/pagamentos-comissoes');
+      const resPagamentos = await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes');
       const jsonPagamentos = await resPagamentos.json();
       if(jsonPagamentos.sucesso) setPagamentosDb(jsonPagamentos.dados);
-      const resVales = await fetch('https://goldstar-backend-teste.onrender.com/api/vales');
+      const resVales = await fetch('https://goldstar-backend-9m2p.onrender.com/api/vales');
       const jsonVales = await resVales.json();
       if(jsonVales.sucesso) setVales(jsonVales.dados);
       if (isAdmin) {
-        const resDespesas = await fetch(`https://goldstar-backend-teste.onrender.com/api/despesas?mes=${mes}&ano=${ano}`);
+        const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}`);
         const jsonDespesas = await resDespesas.json();
         if(jsonDespesas.sucesso) setDespesas(jsonDespesas.dados);
       }
       if (podeVerCaixa) {
-        const resColab = await fetch('https://goldstar-backend-teste.onrender.com/api/colaboradores');
+        const resColab = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores');
         const jsonColab = await resColab.json();
         if(jsonColab.sucesso) setColaboradores(jsonColab.dados);
       }
@@ -80,7 +80,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const filtrarComissoesPeriodo = async () => {
     if (!dataInicio || !dataFim) return;
     try {
-      const res = await fetch(`https://goldstar-backend-teste.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
       const json = await res.json();
       if (json.sucesso) {
          const filtrado = isProfissional ? json.dados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : json.dados;
@@ -94,31 +94,31 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
     if (!isAdmin) return;
     try {
-      await fetch('https://goldstar-backend-teste.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica }) });
+      await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica }) });
       carregarDadosExtras(); 
     } catch (e) {}
   };
 
   const marcarDespesaPaga = async (id, statusAtual) => {
     try {
-      await fetch(`https://goldstar-backend-teste.onrender.com/api/despesas/${id}/pagar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pago: !statusAtual }) });
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}/pagar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pago: !statusAtual }) });
       carregarDadosExtras(); recarregarTudo(); 
     } catch (e) {}
   };
 
   const apagarDespesa = (id) => pedirConfirmacao("Apagar Despesa", "Tem a certeza que deseja apagar esta despesa? O valor será recalculado imediatamente.", async () => {
-    await fetch(`https://goldstar-backend-teste.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
+    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
     carregarDadosExtras(); recarregarTudo();
   });
 
   const apagarVale = (id) => pedirConfirmacao("Remover Desconto", "Deseja realmente apagar este vale/desconto da comissão?", async () => {
-    await fetch(`https://goldstar-backend-teste.onrender.com/api/vales/${id}`, { method: 'DELETE' });
+    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales/${id}`, { method: 'DELETE' });
     carregarDadosExtras();
   });
 
   const apagarHistorico = (id) => pedirConfirmacao("Excluir Definitivamente", "ATENÇÃO: Deseja destruir este registro do banco de dados? O financeiro será recalculado e não há como recuperar.", async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-teste.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
       if (res.ok) recarregarTudo();
     } catch(e) {}
   });
@@ -128,7 +128,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     `Deseja cancelar o item "${nomeServico}"? O profissional ficará livre e o registro aparecerá como CANCELADO no Histórico.`,
     async () => {
       try {
-        await fetch(`https://goldstar-backend-teste.onrender.com/api/comandas/${id}/cancelar`, { method: 'PUT' });
+        await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}/cancelar`, { method: 'PUT' });
         recarregarTudo();
       } catch(e) {}
     }
@@ -140,7 +140,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     async () => {
       try {
         for (const item of itens) {
-           await fetch(`https://goldstar-backend-teste.onrender.com/api/comandas/${item.id}/cancelar`, { method: 'PUT' });
+           await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${item.id}/cancelar`, { method: 'PUT' });
         }
         recarregarTudo();
       } catch(e) {}
@@ -149,7 +149,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador cancelar?", async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-teste.onrender.com/api/atendimentos/${id}/sinalizar-erro`, { method: 'PUT' });
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/atendimentos/${id}/sinalizar-erro`, { method: 'PUT' });
       if (res.ok) recarregarTudo();
     } catch(e) {}
   });
@@ -157,14 +157,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
     const ids = itensDaComanda.map(item => item.id);
     try {
-      await fetch('https://goldstar-backend-teste.onrender.com/api/comandas/pagar', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, statusNovo }) });
+      await fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas/pagar', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, statusNovo }) });
       recarregarTudo(); 
     } catch (erro) {}
   };
 
   const iniciarServico = async (id) => {
     try {
-      await fetch(`https://goldstar-backend-teste.onrender.com/api/comandas/${id}/iniciar`, { method: 'PUT' });
+      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}/iniciar`, { method: 'PUT' });
       recarregarTudo();
     } catch(e) {}
   };
@@ -175,7 +175,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     
     // Tenta buscar o nome do salão
     try {
-      const resConf = await fetch('https://goldstar-backend-teste.onrender.com/api/configuracoes');
+      const resConf = await fetch('https://goldstar-backend-9m2p.onrender.com/api/configuracoes');
       const jsonConf = await resConf.json();
       if (jsonConf.sucesso && jsonConf.dados?.nome_fantasia) {
         nomeDaEmpresa = jsonConf.dados.nome_fantasia;

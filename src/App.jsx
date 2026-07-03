@@ -44,7 +44,7 @@ export default function App() {
   }, [usuarioLogado]);
 
  useEffect(() => {
-    fetch('https://goldstar-backend-teste.onrender.com/api/configuracoes')
+    fetch('https://goldstar-backend-9m2p.onrender.com/api/configuracoes')
       .then(res => res.json())
       .then(d => {
         if (d.sucesso && d.dados) {
@@ -97,13 +97,13 @@ export default function App() {
 
   const carregarDados = () => {
     if (!usuarioLogado) return; 
-    fetch(`https://goldstar-backend-teste.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
+    fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
       .then(r => r.json()).then(d => { if(d.sucesso) setDadosSalao(d); });
   };
   
   const buscarComandas = () => {
     if (!usuarioLogado) return; 
-    fetch('https://goldstar-backend-teste.onrender.com/api/comandas')
+    fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas')
       .then(r => r.json()).then(d => { if (d.sucesso) setComandas(d.dados); });
   };
 

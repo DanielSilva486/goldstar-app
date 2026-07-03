@@ -8,7 +8,7 @@ export default function ModalNovoVale({ fechar, atualizarDados }) {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    fetch('https://goldstar-backend-teste.onrender.com/api/colaboradores')
+    fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores')
       .then(r => r.json())
       .then(d => { if(d.sucesso) setEquipe(d.dados); });
   }, []);
@@ -19,7 +19,7 @@ export default function ModalNovoVale({ fechar, atualizarDados }) {
     
     setSalvando(true);
     try {
-      await fetch('https://goldstar-backend-teste.onrender.com/api/vales', {
+      await fetch('https://goldstar-backend-9m2p.onrender.com/api/vales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
