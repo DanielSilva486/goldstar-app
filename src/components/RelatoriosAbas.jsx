@@ -24,6 +24,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   
   const [clienteParaExtra, setClienteParaExtra] = useState(null); 
   const [filtroProfAba1, setFiltroProfAba1] = useState('');
+  const [filtroDataAba1, setFiltroDataAba1] = useState(''); // 🚀 NOVO: Filtro de Data
   
   const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
 
@@ -32,9 +33,27 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
   const historicoGeral = dados?.historico || [];
 
-  // 🚀 NOVA LÓGICA DE FILTRO E SOMA (ABA 1)
+  // 🚀 NOVA LÓGICA DE FILTROS COMBINADOS (ABA 1)
   const historicoBase = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
-  const historico = filtroProfAba1 ? historicoBase.filter(h => h.profissional === filtroProfAba1) : historicoBase;
+  
+  let historico = historicoBase;
+
+  // 1. Filtra pelo Nome
+  if (filtroProfAba1) {
+    historico = historico.filter(h => h.profissional === filtroProfAba1);
+  }
+
+  // 2. Filtra pela Data
+  if (filtroDataAba1) {
+    // O calendário do HTML devolve 'YYYY-MM-DD' (ex: 2026-07-02). 
+    // Nós cortamos para '02/07' para bater com o formato da sua tabela
+    const partesData = filtroDataAba1.split('-');
+    if (partesData.length === 3) {
+      const dataFormatada = `${partesData[2]}/${partesData[1]}`;
+      historico = historico.filter(h => h.data && h.data.includes(dataFormatada));
+    }
+  }
+
   const profissionaisUnicos = [...new Set(historicoBase.map(item => item.profissional).filter(Boolean))];
   
   const totalFaturadoAba1 = historico.reduce((acc, item) => acc + (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO') ? 0 : Number(item.valor_total)), 0);
@@ -619,19 +638,40 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row justify-between md:items-center gap-3">
             <h3 className="font-bold text-gray-800">{isProfissional ? 'Meus Serviços Realizados' : 'Histórico Geral e Auditoria'}</h3>
             
-            <div className="flex gap-2 items-center w-full md:w-auto">
+            <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
+              
+              {/* 🚀 AQUI ENTRA O SEU NOVO FILTRO DE DATA */}
+              <input
+                type="date"
+                value={filtroDataAba1}
+                onChange={e => setFiltroDataAba1(e.target.value)}
+                className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-36 cursor-pointer"
+                title="Escolha um dia"
+              />
+
               {!isProfissional && (
                 <select 
                   value={filtroProfAba1} 
                   onChange={e => setFiltroProfAba1(e.target.value)}
-                  className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-48"
+                  className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-40"
                 >
-                  <option value="">👥 Todos os Profissionais</option>
+                  <option value="">👥 Todos</option>
                   {profissionaisUnicos.map(p => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
               )}
+
+              {/* Botão para limpar a pesquisa rápido */}
+              {(filtroProfAba1 || filtroDataAba1) && (
+                 <button 
+                   onClick={() => { setFiltroProfAba1(''); setFiltroDataAba1(''); }} 
+                   className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm"
+                 >
+                   Limpar
+                 </button>
+              )}
+
               {(isAdmin || podeVerCaixa) && <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm">📥 Baixar</button>}
             </div>
           </div>
