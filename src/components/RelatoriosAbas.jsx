@@ -23,6 +23,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [mostrarNovoVale, setMostrarNovoVale] = useState(false);
   
   const [clienteParaExtra, setClienteParaExtra] = useState(null); 
+  const [filtroProfAba1, setFiltroProfAba1] = useState('');
   
   const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
 
@@ -30,7 +31,16 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
   const historicoGeral = dados?.historico || [];
-  const historico = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
+
+  // 🚀 NOVA LÓGICA DE FILTRO E SOMA (ABA 1)
+  const historicoBase = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
+  const historico = filtroProfAba1 ? historicoBase.filter(h => h.profissional === filtroProfAba1) : historicoBase;
+  const profissionaisUnicos = [...new Set(historicoBase.map(item => item.profissional).filter(Boolean))];
+  
+  const totalFaturadoAba1 = historico.reduce((acc, item) => acc + (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO') ? 0 : Number(item.valor_total)), 0);
+  const totalComissaoAba1 = historico.reduce((acc, item) => acc + (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO') ? 0 : Number(item.valor_comissao)), 0);
+  // ======================================
+  
   const comissoesGerais = dados?.comissoes || [];
   const comissoesMensais = isProfissional ? comissoesGerais.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : comissoesGerais;
   const topServicos = dados?.topServicos || [];
@@ -606,10 +616,34 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
 
       {abaAtiva === 1 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="font-bold text-gray-800">{isProfissional ? 'Meus Serviços Realizados' : 'Histórico Geral'}</h3>
-            {(isAdmin || podeVerCaixa) && <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm">📥 Baixar</button>}
+          <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row justify-between md:items-center gap-3">
+            <h3 className="font-bold text-gray-800">{isProfissional ? 'Meus Serviços Realizados' : 'Histórico Geral e Auditoria'}</h3>
+            
+            <div className="flex gap-2 items-center w-full md:w-auto">
+              {!isProfissional && (
+                <select 
+                  value={filtroProfAba1} 
+                  onChange={e => setFiltroProfAba1(e.target.value)}
+                  className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-48"
+                >
+                  <option value="">👥 Todos os Profissionais</option>
+                  {profissionaisUnicos.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              )}
+              {(isAdmin || podeVerCaixa) && <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm">📥 Baixar</button>}
+            </div>
           </div>
+
+          {/* 🚀 BARRA DE RESUMO DO FILTRO */}
+          {(!isProfissional && filtroProfAba1) && (
+            <div className="bg-purple-50/50 p-3 border-b border-purple-100 flex flex-wrap justify-end gap-4 md:gap-8 text-xs">
+              <span className="text-gray-600">Total Faturado ({filtroProfAba1}): <span className="font-black text-purple-700 text-sm ml-1">{formatarMoeda(totalFaturadoAba1)}</span></span>
+              <span className="text-gray-600">Total Comissão ({filtroProfAba1}): <span className="font-black text-green-600 text-sm ml-1">{formatarMoeda(totalComissaoAba1)}</span></span>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-gray-500">
@@ -618,28 +652,32 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                   <th className="p-3">Cliente</th>
                   <th className="p-3">Serviço/Produto</th>
                   {!isProfissional && <th className="p-3">Profissional</th>}
-                  <th className="p-3 text-right">Valor</th>
+                  <th className="p-3 text-right">Valor Final</th>
+                  <th className="p-3 text-right text-green-600 font-bold">Comissão</th>
                   {(isAdmin || isCaixa) && <th className="p-3 text-center">Ações</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {historico.length === 0 ? <tr><td colSpan={(isAdmin || isCaixa) ? "6" : (isProfissional ? "4" : "5")} className="p-6 text-center text-gray-400">Nenhum registro encontrado.</td></tr> : historico.map(item => {
+                {historico.length === 0 ? <tr><td colSpan={(isAdmin || isCaixa) ? "7" : (isProfissional ? "5" : "6")} className="p-6 text-center text-gray-400">Nenhum registro encontrado.</td></tr> : historico.map(item => {
                   const temErro = item.cliente_nome.includes('⚠️ ERRO');
                   const isCancelado = item.status === 'cancelado';
 
                   return (
                     <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${temErro || isCancelado ? 'bg-red-50/40' : ''}`}>
-                      <td className="p-3 text-gray-500">{item.data}</td>
+                      <td className="p-3 text-gray-500 text-xs">{item.data}</td>
                       <td className={`p-3 font-medium ${temErro || isCancelado ? 'text-red-600' : 'text-gray-800'}`}>
                         {item.cliente_nome}
                         {isCancelado && <span className="ml-2 text-[9px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider border border-red-200">Cancelado</span>}
                       </td>
-                      <td className="p-3 text-gray-600 font-medium">
+                      <td className="p-3 text-gray-600 font-medium text-xs">
                         {item.servico_tipo === 'produto' ? <span title="Produto Vendido">🛍️ {item.servico}</span> : <span title="Serviço Realizado">💆‍♀️ {item.servico}</span>}
                       </td>
-                      {!isProfissional && <td className="p-3 text-gray-600">{item.profissional}</td>}
+                      {!isProfissional && <td className="p-3 text-gray-600 font-bold text-xs">{item.profissional}</td>}
                       <td className="p-3 font-bold text-teal-600 text-right">
                         {temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}
+                      </td>
+                      <td className="p-3 font-black text-green-600 text-right bg-green-50/30">
+                        {temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_comissao)}</s> : formatarMoeda(item.valor_comissao)}
                       </td>
                       {(isAdmin || isCaixa) && (
                         <td className="p-3 text-center flex items-center justify-center gap-2">
