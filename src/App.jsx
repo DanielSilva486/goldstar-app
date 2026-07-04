@@ -76,8 +76,16 @@ export default function App() {
   const podeOperarCaixa = isAdmin || usuarioLogado?.perfil === 'caixa';
 
   const dataAtual = new Date();
-  const [mesSelecionado, setMesSelecionado] = useState(dataAtual.getMonth() + 1);
-  const [anoSelecionado, setAnoSelecionado] = useState(dataAtual.getFullYear());
+  
+  // 🚀 LÓGICA DO MÊS ATUAL:
+  const mesRealHoje = String(dataAtual.getMonth() + 1);
+  const anoRealHoje = String(dataAtual.getFullYear());
+  
+  const [mesSelecionado, setMesSelecionado] = useState(mesRealHoje);
+  const [anoSelecionado, setAnoSelecionado] = useState(anoRealHoje);
+  
+  // Verifica se o que o usuário escolheu é o mesmo de hoje
+  const ehMesAtual = String(mesSelecionado) === mesRealHoje && String(anoSelecionado) === anoRealHoje;
   
   const [temaAtivo, setTemaAtivo] = useState(localStorage.getItem('temaGoldstar') || 'teal');
 
@@ -188,15 +196,32 @@ export default function App() {
                 )}
               </div>
 
-              <div className="flex gap-2">
-                <select value={mesSelecionado} onChange={(e) => setMesSelecionado(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-teal-500 outline-none p-2.5 cursor-pointer">
+                <div className="flex gap-2">
+                <select 
+                  value={mesSelecionado} 
+                  onChange={(e) => setMesSelecionado(e.target.value)} 
+                  className={`border text-sm rounded-lg outline-none p-2.5 cursor-pointer shadow-sm transition-all
+                    ${ehMesAtual 
+                      ? 'bg-teal-50 border-teal-400 text-teal-800 font-black' 
+                      : 'bg-white border-gray-200 text-gray-700 font-medium hover:bg-gray-50'
+                    }`}
+                >
                   <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
                 </select>
-                <select value={anoSelecionado} onChange={(e) => setAnoSelecionado(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-teal-500 outline-none p-2.5 cursor-pointer">
+                
+                <select 
+                  value={anoSelecionado} 
+                  onChange={(e) => setAnoSelecionado(e.target.value)} 
+                  className={`border text-sm rounded-lg outline-none p-2.5 cursor-pointer shadow-sm transition-all
+                    ${ehMesAtual 
+                      ? 'bg-teal-50 border-teal-400 text-teal-800 font-black' 
+                      : 'bg-white border-gray-200 text-gray-700 font-medium hover:bg-gray-50'
+                    }`}
+                >
                   <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
                 </select>
               </div>
-            </div>
+          </div>
             
             {/* 🚀 O NOVO LAYOUT DA TELA DO ADMIN FICA AQUI */}
             <div className="flex flex-col lg:flex-row gap-6 items-start">
