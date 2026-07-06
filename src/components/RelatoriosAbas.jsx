@@ -810,6 +810,39 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                 </div>
               );
             })}
+{/* 🚀 NOVO: HISTÓRICO GERAL DE CONSUMO PARA O COLABORADOR */}
+            {isProfissional && (
+              <div className="mt-8 border-t border-gray-200 pt-6">
+                <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                  <span>🛒</span> Meu Histórico de Consumos e Descontos
+                </h4>
+                
+                {vales.filter(v => String(v.profissional).trim().toLowerCase() === nomeLimpoUsuario).length === 0 ? (
+                  <p className="text-xs text-gray-400 italic bg-gray-50 p-4 rounded-xl text-center border border-gray-100">Nenhum consumo registado no seu nome.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {vales.filter(v => String(v.profissional).trim().toLowerCase() === nomeLimpoUsuario).map(v => (
+                      <div key={v.id} className="bg-white border border-gray-200 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                        <div>
+                          <p className="text-xs font-bold text-gray-800">{v.descricao}</p>
+                          <p className="text-[10px] text-gray-500 font-medium">Lançado em: {v.data_formatada}</p>
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-1">
+                          <span className="text-sm font-black text-red-500">- {formatarMoeda(v.valor)}</span>
+                          {v.pago ? (
+                            <span className="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Descontado</span>
+                          ) : (
+                            <span className="text-[9px] bg-orange-100 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Pendente (Próx. Pgto)</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+
           </div>
         </div>
       )}
