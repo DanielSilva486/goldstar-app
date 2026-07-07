@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) {
   const [aba, setAba] = useState('tema');
+  const usuarioLocal = JSON.parse(localStorage.getItem('usuarioGoldstar') || '{}');
+  const idSaaS = usuarioLocal.empresa_id || 1;
   const [equipe, setEquipe] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [comissoesEsp, setComissoesEsp] = useState([]);
@@ -37,9 +39,10 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     { id: 'black', nome: 'Escuro (Dark)' }
   ];
 
+  // 🚀 SAAS: Buscas blindadas por empresa
   const carregarServicos = async () => {
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos');
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos?empresa_id=${idSaaS}`);
       const d = await res.json();
       if (d.sucesso) setServicos(d.dados);
     } catch(e) {}
@@ -47,7 +50,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const carregarComissoesEsp = async () => {
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas');
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas?empresa_id=${idSaaS}`);
       const d = await res.json();
       if (d.sucesso) setComissoesEsp(d.dados);
     } catch(e) {}
@@ -55,7 +58,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const carregarEquipe = async () => {
     try {
-      const r = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos');
+      const r = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos?empresa_id=${idSaaS}`);
       const d = await r.json();
       if (d.sucesso) setEquipe(d.dados);
     } catch(e) {}
@@ -63,7 +66,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const carregarEmpresa = async () => {
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/configuracoes');
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/configuracoes?empresa_id=${idSaaS}`);
       const d = await res.json();
       if (d.sucesso && d.dados) setDadosEmpresa({
         nome_fantasia: d.dados.nome_fantasia || '',
@@ -135,7 +138,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
       const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/configuracoes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosEmpresa)
+        body: JSON.stringify({ ...dadosEmpresa, empresa_id: idSaaS })
       });
       const d = await res.json();
       if(d.sucesso) {
@@ -160,7 +163,8 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
             apelido: novoProfissional.nome, 
             nome_completo: novoProfissional.nome_completo,
             pix: novoProfissional.chave_pix,
-            percentual_comissao: novoProfissional.percentual_comissao
+            percentual_comissao: novoProfissional.percentual_comissao,
+            empresa_id: idSaaS
         })
       });
       setNovoProfissional({ nome: '', percentual_comissao: '', chave_pix: '', nome_completo: '' });
@@ -172,7 +176,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const exportarPlanilhaEquipe = async () => {
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/exportar-equipe');
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/exportar-equipe?empresa_id=${idSaaS}`);
       const json = await res.json();
       if (!json.sucesso) return alert("Erro ao buscar dados.");
       
@@ -272,7 +276,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
       } else {
         await fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...novoServico, tipo: abaProduto, duracao: abaProduto === 'produto' ? 0 : novoServico.duracao })
+          body: JSON.stringify({ ...novoServico, tipo: abaProduto, duracao: abaProduto === 'produto' ? 0 : novoServico.duracao, empresa_id: idSaaS })
         });
         mostrarToast(`${abaProduto === 'produto' ? 'Produto' : 'Serviço'} adicionado ao sistema!`);
       }
@@ -317,7 +321,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     try {
       await fetch('https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ colaborador_id: colab_id, servico_id: regra.servico_id, percentual: regra.percentual })
+        body: JSON.stringify({ colaborador_id: colab_id, servico_id: regra.servico_id, percentual: regra.percentual, empresa_id: idSaaS })
       });
       setNovaRegra({ ...novaRegra, [colab_id]: { servico_id: '', percentual: '' } });
       carregarComissoesEsp();

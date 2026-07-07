@@ -97,7 +97,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         if(jsonDespesas.sucesso) setDespesas(jsonDespesas.dados);
       }
       if (podeVerCaixa) {
-        const resColab = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores');
+        const resColab = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores?empresa_id=${usuario?.empresa_id || 1}`)
         const jsonColab = await resColab.json();
         if(jsonColab.sucesso) setColaboradores(jsonColab.dados);
       }

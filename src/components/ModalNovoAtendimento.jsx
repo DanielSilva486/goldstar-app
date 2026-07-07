@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
 export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas = [], clientePreDefinido }) {
+  // 🚀 SAAS: Identificando a empresa do usuário logado
+  const usuarioLocal = JSON.parse(localStorage.getItem('usuarioGoldstar') || '{}');
+  const idSaaS = usuarioLocal.empresa_id || 1;
+
   const [listaColaboradores, setListaColaboradores] = useState([]);
   const [listaServicos, setListaServicos] = useState([]);
 
@@ -11,7 +15,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
   const [servicoId, setServicoId] = useState('');
   const [valorCobrado, setValorCobrado] = useState('');
   
-  // 🚀 NOVO: Estados para controlar a Quantidade e o Preço Base do item
+  // Estados para controlar a Quantidade e o Preço Base do item
   const [quantidade, setQuantidade] = useState(1);
   const [precoBase, setPrecoBase] = useState(0);
   
@@ -27,19 +31,20 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
   useEffect(() => {
     setDataManual(formatarDataAtualParaInput());
     
+    // 🚀 SAAS: Buscando listas blindadas por empresa
     const carregarListas = async () => {
       try {
-        const resC = await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos');
+        const resC = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos?empresa_id=${idSaaS}`);
         const dataC = await resC.json();
         if (dataC.sucesso) setListaColaboradores(dataC.dados.filter(c => c.ativo !== false));
 
-        const resS = await fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos');
+        const resS = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos?empresa_id=${idSaaS}`);
         const dataS = await resS.json();
         if (dataS.sucesso) setListaServicos(dataS.dados);
       } catch (e) { console.error(e); }
     };
     carregarListas();
-  }, []);
+  }, [idSaaS]);
 
   // Quando muda de aba (Serviço <-> Produto), limpa tudo e volta a quantidade para 1
   useEffect(() => {
@@ -50,7 +55,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     setPrecoBase(0);
   }, [tipoAdicao]);
 
-  // 🚀 ATUALIZADO: Guarda o preço base e já calcula a quantidade se for escolhida
+  // Guarda o preço base e já calcula a quantidade se for escolhida
   const aoMudarServico = (e) => {
     const id = e.target.value;
     setServicoId(id);
@@ -65,7 +70,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     }
   };
 
-  // 🚀 NOVO: Quando a rececionista muda o número (ex: de 1 para 2 tintas), atualiza o valor total
+  // Quando a rececionista muda o número (ex: de 1 para 2 tintas), atualiza o valor total
   const mudarQuantidade = (e) => {
     const novaQtd = Math.max(1, Number(e.target.value));
     setQuantidade(novaQtd);
@@ -82,7 +87,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     try {
       const dataParaEnviar = dataManual ? new Date(dataManual).toISOString() : new Date().toISOString();
       
-      // 🚀 A MÁGICA: Se ela selecionou 2 produtos, o sistema divide o valor e envia 2 vezes para o banco!
+      // Se ela selecionou 2 produtos, o sistema divide o valor e envia 2 vezes para o banco!
       const qtdLoop = tipoAdicao === 'produto' ? quantidade : 1;
       const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : null;
 
@@ -96,7 +101,8 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
             cliente_nome: clienteNome, 
             valor_cobrado: valorUnitario, 
             status: 'pendente',
-            data_manual: dataParaEnviar 
+            data_manual: dataParaEnviar,
+            empresa_id: idSaaS // 🚀 SAAS: Enviando o atendimento para a empresa correta
           })
         });
       }
@@ -115,7 +121,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
   };
 
  const filaPorProfissional = comandas.reduce((acc, item) => {
-    // 🚀 FILTRO: Ignora produtos (onde tipo é 'produto' ou duração é 0/null)
+    // FILTRO: Ignora produtos (onde tipo é 'produto' ou duração é 0/null)
     const ehProduto = item.servico_tipo === 'produto' || item.duracao === 0 || item.duracao === null;
     
     if (ehProduto) return acc; // Pula este item na soma
@@ -145,7 +151,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
   );
 
   const colaboradoresFiltrados = listaColaboradores.filter(c => {
-    // 🚀 NOVO: Verifica se hoje é o dia de folga da pessoa (lê múltiplos dias, ex: "0,1")
+    // Verifica se hoje é o dia de folga da pessoa (lê múltiplos dias, ex: "0,1")
     const deFolgaHoje = String(c.dia_folga || '').split(',').includes(String(new Date().getDay()));
     
     // Se estiver de folga, NÃO aparece na lista.
@@ -210,7 +216,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
               />
             </div>
 
-            {/* 🚀 ATUALIZADO: Agrupamos Produto e Quantidade na mesma linha visualmente */}
             <div className="flex gap-3 items-end">
               <div className="flex-1">
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
@@ -226,7 +231,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
                 </select>
               </div>
 
-              {/* 🚀 APARECE APENAS NA ABA DE PRODUTOS */}
               {tipoAdicao === 'produto' && (
                 <div className="w-20">
                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 text-center">Qtd.</label>
