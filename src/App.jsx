@@ -43,8 +43,11 @@ export default function App() {
     }
   }, [usuarioLogado]);
 
- useEffect(() => {
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/configuracoes')
+ // 🚀 SAAS: A configuração (cores e logo) agora muda dependendo de qual salão faz login!
+  useEffect(() => {
+    const idDaEmpresa = usuarioLogado ? usuarioLogado.empresa_id : 1;
+    
+    fetch(`https://goldstar-backend-9m2p.onrender.com/api/configuracoes?empresa_id=${idDaEmpresa}`)
       .then(res => res.json())
       .then(d => {
         if (d.sucesso && d.dados) {
@@ -55,9 +58,7 @@ export default function App() {
           });
           document.title = d.dados.nome_fantasia || 'Sistema de Gestão';
 
-          // 🚀 O TRUQUE: Usa a própria logo da empresa como ícone da aba!
           const iconeParaNavegador = d.dados.logo_url;
-
           if (iconeParaNavegador) {
             let link = document.querySelector("link[rel~='icon']");
             if (!link) {
@@ -70,7 +71,7 @@ export default function App() {
         }
       })
       .catch(e => console.log('Erro ao carregar configurações SaaS', e));
-  }, []);
+  }, [usuarioLogado]);
 
   const isAdmin = usuarioLogado?.perfil === 'admin' || usuarioLogado?.perfil === 'dono';
   const podeOperarCaixa = isAdmin || usuarioLogado?.perfil === 'caixa';
@@ -103,15 +104,16 @@ export default function App() {
   
   const cor = paleta[temaAtivo] || paleta.teal;
 
+  // 🚀 SAAS: Agora o sistema avisa ao servidor qual é a empresa exata que quer os dados!
   const carregarDados = () => {
     if (!usuarioLogado) return; 
-    fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}`)
+    fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa_id=${usuarioLogado.empresa_id}`)
       .then(r => r.json()).then(d => { if(d.sucesso) setDadosSalao(d); });
   };
   
   const buscarComandas = () => {
     if (!usuarioLogado) return; 
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas')
+    fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas?empresa_id=${usuarioLogado.empresa_id}`)
       .then(r => r.json()).then(d => { if (d.sucesso) setComandas(d.dados); });
   };
 
