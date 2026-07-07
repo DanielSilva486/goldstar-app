@@ -447,5 +447,38 @@ app.get('/api/configuracoes', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
+// 🚀 ROTA SAAS: CADASTRO AUTOMÁTICO DE NOVOS SALÕES
+app.post('/api/nova-empresa', async (req, res) => {
+  try {
+    const { nome_salao, nome_dono, email, senha } = req.body;
+    
+    // 1. Verifica se o e-mail já está a ser usado noutro salão
+    const existe = await pool.query('SELECT id FROM colaboradores WHERE LOWER(email) = LOWER($1)', [email]);
+    if (existe.rows.length > 0) {
+      return res.status(400).json({ sucesso: false, erro: 'Este e-mail já está cadastrado no sistema.' });
+    }
+
+    // 2. Cria a nova empresa no banco e pega o ID dela
+    const resEmpresa = await pool.query('INSERT INTO empresas (nome) VALUES ($1) RETURNING id', [nome_salao]);
+    const novaEmpresaId = resEmpresa.rows[0].id;
+
+    // 3. Cria a conta do Dono vinculada a essa nova empresa
+    await pool.query(
+      "INSERT INTO colaboradores (nome, email, senha, perfil, ativo, empresa_id) VALUES ($1, $2, $3, 'dono', true, $4)",
+      [nome_dono, email, senha, novaEmpresaId]
+    );
+
+    // 4. Cria as configurações padrão para esse salão já nascer com cor e nome
+    await pool.query(
+      "INSERT INTO configuracoes_empresa (empresa_id, nome_fantasia, cor_primaria, logo_url, hora_abertura, hora_fecho, ip_autorizado) VALUES ($1, $2, '#14b8a6', '', '', '', '')",
+      [novaEmpresaId, nome_salao]
+    );
+
+    res.json({ sucesso: true, mensagem: 'Salão cadastrado com sucesso!' });
+  } catch (err) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao criar conta. Tente novamente.' });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor SaaS na porta ${PORT}`));
