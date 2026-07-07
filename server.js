@@ -507,8 +507,10 @@ app.post('/api/esqueci-senha', async (req, res) => {
     await pool.query('UPDATE colaboradores SET codigo_recuperacao = $1, expiracao_codigo = $2 WHERE email = $3', [codigo, expiracao, email]);
 
     // Configuração do disparador de e-mails
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
+   const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
