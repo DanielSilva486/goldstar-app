@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
 
 process.env.TZ = 'America/Sao_Paulo';
 dotenv.config();
@@ -486,6 +487,79 @@ app.post('/api/nova-empresa', async (req, res) => {
     res.json({ sucesso: true, mensagem: 'Salão cadastrado com sucesso!' });
   } catch (err) {
     res.status(500).json({ sucesso: false, erro: 'Erro ao criar conta. Tente novamente.' });
+  }
+});
+
+// 🚀 ROTA SAAS: SOLICITAR RECUPERAÇÃO DE SENHA
+app.post('/api/esqueci-senha', async (req, res) => {
+  const { email } = req.body;
+  try {
+    const userRes = await pool.query('SELECT id, nome FROM colaboradores WHERE LOWER(email) = LOWER($1) AND ativo = TRUE', [email]);
+    
+    if (userRes.rows.length === 0) {
+      return res.status(400).json({ sucesso: false, erro: 'E-mail não encontrado no sistema.' });
+    }
+
+    // Gera um código de 6 dígitos e define validade de 15 minutos
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString(); 
+    const expiracao = new Date(Date.now() + 15 * 60000); 
+
+    await pool.query('UPDATE colaboradores SET codigo_recuperacao = $1, expiracao_codigo = $2 WHERE email = $3', [codigo, expiracao, email]);
+
+    // Configuração do disparador de e-mails
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: `"Suporte GestãoGold" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Recuperação de Senha - GestãoGold',
+      html: `
+        <div style="font-family: sans-serif; text-align: center; padding: 20px;">
+          <h2 style="color: #14b8a6;">Recuperação de Acesso</h2>
+          <p>Olá, <b>${userRes.rows[0].nome}</b>!</p>
+          <p>Você solicitou a redefinição de senha da sua conta no sistema GestãoGold.</p>
+          <p>Seu código de segurança é:</p>
+          <h1 style="background: #f3f4f6; padding: 15px; letter-spacing: 5px; color: #374151; border-radius: 10px; width: max-content; margin: 0 auto;">${codigo}</h1>
+          <p style="color: #ef4444; font-size: 12px; margin-top: 20px;">Este código expira em 15 minutos.</p>
+          <p style="font-size: 12px; color: #6b7280;">Se não foi você que solicitou, ignore este e-mail.</p>
+        </div>
+      `
+    });
+
+    res.json({ sucesso: true });
+  } catch (e) {
+    console.error("Erro no envio de email:", e);
+    res.status(500).json({ sucesso: false, erro: 'Erro ao enviar e-mail. Verifique as configurações.' });
+  }
+});
+
+// 🚀 ROTA SAAS: VALIDAR CÓDIGO E SALVAR NOVA SENHA
+app.post('/api/redefinir-senha', async (req, res) => {
+  const { email, codigo, novaSenha } = req.body;
+  try {
+    const userRes = await pool.query('SELECT id, expiracao_codigo FROM colaboradores WHERE LOWER(email) = LOWER($1) AND codigo_recuperacao = $2', [email, codigo]);
+    
+    if (userRes.rows.length === 0) {
+      return res.status(400).json({ sucesso: false, erro: 'Código inválido ou e-mail incorreto.' });
+    }
+
+    // Verifica se o código expirou
+    if (new Date() > new Date(userRes.rows[0].expiracao_codigo)) {
+      return res.status(400).json({ sucesso: false, erro: 'Este código expirou. Solicite um novo.' });
+    }
+
+    // Atualiza a senha e limpa o código do banco
+    await pool.query('UPDATE colaboradores SET senha = $1, codigo_recuperacao = NULL, expiracao_codigo = NULL WHERE id = $2', [novaSenha, userRes.rows[0].id]);
+
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao redefinir a senha.' });
   }
 });
 
