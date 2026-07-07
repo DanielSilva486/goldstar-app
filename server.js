@@ -148,7 +148,16 @@ app.post('/api/colaboradores', async (req, res) => {
     const { apelido, nome_completo, pix, percentual_comissao } = req.body;
     const empresa_id = req.body.empresa_id || 1;
     const nomeLimpo = apelido.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const emailProvisorio = nomeLimpo + Math.floor(Math.random() * 1000) + '@goldstar.com';
+    
+    // 🚀 SAAS: Busca o nome da empresa para criar um e-mail personalizado!
+    const empRes = await pool.query('SELECT nome FROM empresas WHERE id = $1', [empresa_id]);
+    let dominio = 'salao.com';
+    if (empRes.rows.length > 0) {
+        // Pega o nome da empresa, tira os espaços e caracteres especiais para virar um domínio
+        dominio = empRes.rows[0].nome.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+    }
+    
+    const emailProvisorio = nomeLimpo + Math.floor(Math.random() * 1000) + '@' + dominio;
     const comissao = percentual_comissao ? Number(percentual_comissao) : 0;
 
     await pool.query(
