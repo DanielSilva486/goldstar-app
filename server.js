@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import dotenv from 'dotenv';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend'; // 🚀 SAAS: Novo carteiro profissional adicionado!
 
 process.env.TZ = 'America/Sao_Paulo';
 dotenv.config();
@@ -42,7 +42,6 @@ app.post('/api/login', async (req, res) => {
   }
   
   try {
-    // 🚀 SAAS: Agora busca a qual empresa este utilizador pertence!
     const r = await pool.query('SELECT id, nome, perfil, email, senha, dia_folga, empresa_id FROM colaboradores WHERE LOWER(email) = LOWER($1) AND ativo = TRUE', [email]);
     
     if (r.rows.length > 0) {
@@ -59,7 +58,6 @@ app.post('/api/login', async (req, res) => {
             return res.status(403).json({ sucesso: false, erro: "Acesso bloqueado: Hoje é o seu dia de folga programada." });
           }
 
-          // 🚀 SAAS: Busca as regras APENAS da empresa do utilizador
           const configRes = await pool.query("SELECT hora_abertura, hora_fecho, ip_autorizado FROM configuracoes_empresa WHERE empresa_id = $1 LIMIT 1", [user.empresa_id]);
           const regras = configRes.rows[0];
 
@@ -89,7 +87,7 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
-    const empresa_id = req.query.empresa_id || 1; // 🚀 SAAS: Fallback de segurança para Empresa 1
+    const empresa_id = req.query.empresa_id || 1;
 
     const totais = await pool.query(`
       SELECT 
@@ -104,7 +102,6 @@ app.get('/api/resumo', async (req, res) => {
     
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE pago = TRUE AND EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2 AND empresa_id = $3`, [mes, ano, empresa_id]);
     
-    // 🚀 Lembrete: O LIMIT 100 foi removido conforme a nossa correção anterior!
     const historico = await pool.query(`SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, s.tipo as servico_tipo, a.valor_total, c.nome as profissional, a.valor_comissao, a.status FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pago', 'pago_antecipado', 'cancelado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 ORDER BY a.data_hora DESC`, [mes, ano, empresa_id]);
     
     const comissoesQuery = await pool.query(`SELECT c.nome as profissional, c.perfil, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 GROUP BY c.nome, c.perfil ORDER BY total_comissao DESC`, [mes, ano, empresa_id]);
@@ -150,11 +147,9 @@ app.post('/api/colaboradores', async (req, res) => {
     const empresa_id = req.body.empresa_id || 1;
     const nomeLimpo = apelido.toLowerCase().replace(/[^a-z0-9]/g, '');
     
-    // 🚀 SAAS: Busca o nome da empresa para criar um e-mail personalizado!
     const empRes = await pool.query('SELECT nome FROM empresas WHERE id = $1', [empresa_id]);
     let dominio = 'salao.com';
     if (empRes.rows.length > 0) {
-        // Pega o nome da empresa, tira os espaços e caracteres especiais para virar um domínio
         dominio = empRes.rows[0].nome.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
     }
     
@@ -451,34 +446,28 @@ app.get('/api/configuracoes', async (req, res) => {
     if (r.rows.length > 0) { 
       res.json({ sucesso: true, dados: r.rows[0] }); 
     } else { 
-      // Se não existir configuração para a empresa, envia o padrão
       res.json({ sucesso: true, dados: { nome_fantasia: 'Sistema Goldstar', cor_primaria: '#00C49A', logo_url: '', hora_abertura: '', hora_fecho: '', ip_autorizado: '' } }); 
     }
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-// 🚀 ROTA SAAS: CADASTRO AUTOMÁTICO DE NOVOS SALÕES
 app.post('/api/nova-empresa', async (req, res) => {
   try {
     const { nome_salao, nome_dono, email, senha } = req.body;
     
-    // 1. Verifica se o e-mail já está a ser usado noutro salão
     const existe = await pool.query('SELECT id FROM colaboradores WHERE LOWER(email) = LOWER($1)', [email]);
     if (existe.rows.length > 0) {
       return res.status(400).json({ sucesso: false, erro: 'Este e-mail já está cadastrado no sistema.' });
     }
 
-    // 2. Cria a nova empresa no banco e pega o ID dela
     const resEmpresa = await pool.query('INSERT INTO empresas (nome) VALUES ($1) RETURNING id', [nome_salao]);
     const novaEmpresaId = resEmpresa.rows[0].id;
 
-    // 3. Cria a conta do Dono vinculada a essa nova empresa
     await pool.query(
       "INSERT INTO colaboradores (nome, email, senha, perfil, ativo, empresa_id) VALUES ($1, $2, $3, 'dono', true, $4)",
       [nome_dono, email, senha, novaEmpresaId]
     );
 
-    // 4. Cria as configurações padrão para esse salão já nascer com cor e nome
     await pool.query(
       "INSERT INTO configuracoes_empresa (empresa_id, nome_fantasia, cor_primaria, logo_url, hora_abertura, hora_fecho, ip_autorizado) VALUES ($1, $2, '#14b8a6', '', '', '', '')",
       [novaEmpresaId, nome_salao]
@@ -490,7 +479,7 @@ app.post('/api/nova-empresa', async (req, res) => {
   }
 });
 
-// 🚀 ROTA SAAS: SOLICITAR RECUPERAÇÃO DE SENHA
+// 🚀 ROTA SAAS: SOLICITAR RECUPERAÇÃO DE SENHA COM RESEND
 app.post('/api/esqueci-senha', async (req, res) => {
   const { email } = req.body;
   try {
@@ -500,31 +489,31 @@ app.post('/api/esqueci-senha', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'E-mail não encontrado no sistema.' });
     }
 
-    // Gera um código de 6 dígitos e define validade de 15 minutos
     const codigo = Math.floor(100000 + Math.random() * 900000).toString(); 
     const expiracao = new Date(Date.now() + 15 * 60000); 
 
     await pool.query('UPDATE colaboradores SET codigo_recuperacao = $1, expiracao_codigo = $2 WHERE email = $3', [codigo, expiracao, email]);
 
-    // Configuração do disparador de e-mails
-   const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
+    // 🚀 SAAS: Inicializa o Resend com a chave que você colocou no Render
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    // 🚀 SAAS: Envia o e-mail via API
+    await resend.emails.send({
+      from: 'GestãoGold SaaS <onboarding@resend.dev>', 
+      to: email,
+      subject: 'Recuperação de Senha - GestãoGold',
+      html: `
+        <div style="font-family: sans-serif; text-align: center; padding: 20px;">
+          <h2 style="color: #14b8a6;">Recuperação de Acesso</h2>
+          <p>Olá, <b>${userRes.rows[0].nome}</b>!</p>
+          <p>Você solicitou a redefinição de senha da sua conta no sistema GestãoGold.</p>
+          <p>Seu código de segurança é:</p>
+          <h1 style="background: #f3f4f6; padding: 15px; letter-spacing: 5px; color: #374151; border-radius: 10px; width: max-content; margin: 0 auto;">${codigo}</h1>
+          <p style="color: #ef4444; font-size: 12px; margin-top: 20px;">Este código expira em 15 minutos.</p>
+          <p style="font-size: 12px; color: #6b7280;">Se não foi você que solicitou, ignore este e-mail.</p>
+        </div>
+      `
     });
-
-    // SIMULAÇÃO DO ENVIO (Para não ser bloqueado pelo Render Gratuito)
-    console.log("\n=============================================");
-    console.log(`📩 E-MAIL SIMULADO PARA: ${email}`);
-    console.log(`🔑 CÓDIGO DE RECUPERAÇÃO: ${codigo}`);
-    console.log("=============================================\n");
-
-    // Ocultámos o nodemailer temporariamente
-    // await transporter.sendMail({ ... });
 
     res.json({ sucesso: true });
   } catch (e) {
@@ -533,7 +522,6 @@ app.post('/api/esqueci-senha', async (req, res) => {
   }
 });
 
-// 🚀 ROTA SAAS: VALIDAR CÓDIGO E SALVAR NOVA SENHA
 app.post('/api/redefinir-senha', async (req, res) => {
   const { email, codigo, novaSenha } = req.body;
   try {
@@ -543,12 +531,10 @@ app.post('/api/redefinir-senha', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'Código inválido ou e-mail incorreto.' });
     }
 
-    // Verifica se o código expirou
     if (new Date() > new Date(userRes.rows[0].expiracao_codigo)) {
       return res.status(400).json({ sucesso: false, erro: 'Este código expirou. Solicite um novo.' });
     }
 
-    // Atualiza a senha e limpa o código do banco
     await pool.query('UPDATE colaboradores SET senha = $1, codigo_recuperacao = NULL, expiracao_codigo = NULL WHERE id = $2', [novaSenha, userRes.rows[0].id]);
 
     res.json({ sucesso: true });
