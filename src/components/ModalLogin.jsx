@@ -8,75 +8,102 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
 
   const fazerLogin = async (e) => {
     e.preventDefault();
-    setCarregando(true); setErro('');
-    
+    setErro('');
+    setCarregando(true);
+
     try {
+      // 🚀 Chama o seu Backend SaaS
       const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/login', {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha })
       });
-      const data = await res.json();
       
-      if (data.sucesso) {
-        setUsuarioLogado(data.usuario);
+      const json = await res.json();
+
+      if (json.sucesso) {
+        setUsuarioLogado(json.usuario); // O usuário já vem com o empresa_id do backend!
         aoFechar();
       } else {
-        setErro(data.erro || 'Erro ao entrar. Verifique as credenciais.');
+        setErro(json.erro || 'E-mail ou senha incorretos.');
       }
-    } catch (err) { setErro('Erro de conexão com o servidor.'); }
-    
-    setCarregando(false);
+    } catch (err) {
+      setErro('Erro de conexão com o servidor. Tente novamente.');
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900/80 flex justify-center items-center z-50 p-4">
-      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 relative">
-        <button onClick={aoFechar} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex justify-center items-center text-gray-600 font-bold hover:bg-gray-200">X</button>
+    <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
         
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" /></svg>
+        {/* Cabeçalho do Login */}
+        <div className="bg-teal-500 p-8 text-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-teal-600 opacity-20 transform -skew-y-12 scale-150 origin-top-left"></div>
+          <div className="relative z-10">
+            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg rotate-3">
+              <span className="text-4xl">🌟</span>
+            </div>
+            <h2 className="text-2xl font-black text-white tracking-tight">GestãoGold SaaS</h2>
+            <p className="text-teal-50 text-sm font-medium mt-1">O motor do seu salão de beleza</p>
           </div>
         </div>
 
-        <h2 className="text-xl font-black text-gray-800 mb-6 text-center">Acesso da Equipe</h2>
-        
-        <form onSubmit={fazerLogin} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Seu E-mail</label>
-            <input 
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value.toLowerCase())} 
-              placeholder="ex: admim@goldstar.com" 
-              className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" 
-              required 
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Senha</label>
-            <input 
-              type="password" 
-              value={senha} 
-              onChange={e => setSenha(e.target.value)} 
-              placeholder="••••" 
-              className="w-full border-2 border-gray-100 rounded-xl p-3 text-sm focus:border-teal-500 outline-none bg-gray-50" 
-              required 
-            />
-          </div>
-          
-          {erro && <p className="text-red-500 text-xs font-bold text-center bg-red-50 p-2 rounded-lg">{erro}</p>}
-          
-          <button type="submit" disabled={carregando} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 rounded-xl shadow-md transition-colors mt-2">
-            {carregando ? 'Entrando...' : 'Entrar no Sistema'}
-          </button>
-        </form>
+        {/* Formulário */}
+        <div className="p-8">
+          <form onSubmit={fazerLogin} className="space-y-5">
+            
+            {erro && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold text-center border border-red-100 animate-shake">
+                {erro}
+              </div>
+            )}
 
-        <div className="mt-6 text-center text-[10px] text-gray-400 bg-gray-50 p-3 rounded-xl">
-          
-          <p className="mt-1">Equipe: Seu nome junto + @goldstar.com<br/>(ex: <span className="font-bold text-gray-600">gaby@goldstar.com</span>) | Senha: <span className="font-bold text-gray-600">1234</span></p>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">E-mail de Acesso</label>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium text-gray-700 bg-gray-50 focus:bg-white"
+                placeholder="ex: ana@salao.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">Senha</label>
+              <input 
+                type="password" 
+                required
+                value={senha}
+                onChange={e => setSenha(e.target.value)}
+                className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all font-medium text-gray-700 bg-gray-50 focus:bg-white"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={carregando}
+              className="w-full bg-teal-500 hover:bg-teal-600 text-white font-black py-4 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95 flex justify-center items-center gap-2 mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {carregando ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  Acessar Sistema...
+                </>
+              ) : 'Entrar na minha conta'}
+            </button>
+          </form>
         </div>
+        
+        {/* Rodapé do Modal */}
+        <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
+          <p className="text-xs text-gray-400 font-medium">Ambiente seguro e criptografado 🔒</p>
+        </div>
+
       </div>
     </div>
   );
