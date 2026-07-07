@@ -517,22 +517,14 @@ app.post('/api/esqueci-senha', async (req, res) => {
       }
     });
 
-    await transporter.sendMail({
-      from: `"Suporte GestãoGold" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Recuperação de Senha - GestãoGold',
-      html: `
-        <div style="font-family: sans-serif; text-align: center; padding: 20px;">
-          <h2 style="color: #14b8a6;">Recuperação de Acesso</h2>
-          <p>Olá, <b>${userRes.rows[0].nome}</b>!</p>
-          <p>Você solicitou a redefinição de senha da sua conta no sistema GestãoGold.</p>
-          <p>Seu código de segurança é:</p>
-          <h1 style="background: #f3f4f6; padding: 15px; letter-spacing: 5px; color: #374151; border-radius: 10px; width: max-content; margin: 0 auto;">${codigo}</h1>
-          <p style="color: #ef4444; font-size: 12px; margin-top: 20px;">Este código expira em 15 minutos.</p>
-          <p style="font-size: 12px; color: #6b7280;">Se não foi você que solicitou, ignore este e-mail.</p>
-        </div>
-      `
-    });
+    // SIMULAÇÃO DO ENVIO (Para não ser bloqueado pelo Render Gratuito)
+    console.log("\n=============================================");
+    console.log(`📩 E-MAIL SIMULADO PARA: ${email}`);
+    console.log(`🔑 CÓDIGO DE RECUPERAÇÃO: ${codigo}`);
+    console.log("=============================================\n");
+
+    // Ocultámos o nodemailer temporariamente
+    // await transporter.sendMail({ ... });
 
     res.json({ sucesso: true });
   } catch (e) {
