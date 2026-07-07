@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 
 export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
-  // Controle de qual tela mostrar
-  const [modoCadastro, setModoCadastro] = useState(false);
+  // Controle de qual ecrã mostrar
+  const [telaAtiva, setTelaAtiva] = useState('login'); // 'login', 'cadastro' ou 'recuperacao'
+  const [etapaRecuperacao, setEtapaRecuperacao] = useState(1);
 
-  // Estados do Login
+  // Estados do Login e Recuperação
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [codigoRecuperacao, setCodigoRecuperacao] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
 
   // Estados do Cadastro
   const [nomeSalao, setNomeSalao] = useState('');
@@ -14,24 +17,20 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
   const [emailCadastro, setEmailCadastro] = useState('');
   const [senhaCadastro, setSenhaCadastro] = useState('');
 
-  // Estados de controle
+  // Estados de controlo
   const [erro, setErro] = useState('');
   const [mensagemSucesso, setMensagemSucesso] = useState('');
   const [carregando, setCarregando] = useState(false);
 
   const fazerLogin = async (e) => {
     e.preventDefault();
-    setErro('');
-    setMensagemSucesso('');
-    setCarregando(true);
+    setErro(''); setMensagemSucesso(''); setCarregando(true);
 
     try {
       const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha })
       });
-      
       const json = await res.json();
 
       if (json.sucesso) {
@@ -40,46 +39,86 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
       } else {
         setErro(json.erro || 'E-mail ou senha incorretos.');
       }
-    } catch (err) {
-      setErro('Erro de conexão. Verifique sua internet.');
-    } finally {
-      setCarregando(false);
-    }
+    } catch (err) { setErro('Erro de conexão. Verifique a sua internet.'); } 
+    finally { setCarregando(false); }
   };
 
   const fazerCadastro = async (e) => {
     e.preventDefault();
-    setErro('');
-    setCarregando(true);
+    setErro(''); setCarregando(true);
 
     try {
       const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/nova-empresa', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nome_salao: nomeSalao, 
-          nome_dono: nomeDono, 
-          email: emailCadastro, 
-          senha: senhaCadastro 
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome_salao: nomeSalao, nome_dono: nomeDono, email: emailCadastro, senha: senhaCadastro })
       });
-      
       const json = await res.json();
 
       if (json.sucesso) {
-        // Limpa o formulário e volta para o login com mensagem de sucesso
-        setModoCadastro(false);
-        setEmail(emailCadastro); // Já preenche o email para facilitar o login
+        setTelaAtiva('login');
+        setEmail(emailCadastro); 
         setSenha('');
         setMensagemSucesso('🎉 Salão criado com sucesso! Faça login abaixo para começar.');
       } else {
         setErro(json.erro || 'Erro ao criar conta.');
       }
-    } catch (err) {
-      setErro('Erro de conexão. Verifique sua internet.');
-    } finally {
-      setCarregando(false);
-    }
+    } catch (err) { setErro('Erro de conexão. Verifique a sua internet.'); } 
+    finally { setCarregando(false); }
+  };
+
+  // 🚀 ROTA 1: PEDIR O CÓDIGO POR E-MAIL
+  const pedirCodigoRecuperacao = async (e) => {
+    e.preventDefault();
+    if (!email) return setErro("Digite o seu e-mail para receber o código.");
+    
+    setErro(''); setMensagemSucesso(''); setCarregando(true);
+    try {
+      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/esqueci-senha', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const json = await res.json();
+
+      if (json.sucesso) {
+        setEtapaRecuperacao(2);
+        setMensagemSucesso('Código enviado! Verifique a sua caixa de entrada (e o Spam).');
+      } else {
+        setErro(json.erro || 'Erro ao enviar código.');
+      }
+    } catch (err) { setErro('Erro de conexão.'); } 
+    finally { setCarregando(false); }
+  };
+
+  // 🚀 ROTA 2: VALIDAR O CÓDIGO E SALVAR NOVA SENHA
+  const salvarNovaSenha = async (e) => {
+    e.preventDefault();
+    setErro(''); setCarregando(true);
+
+    try {
+      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/redefinir-senha', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, codigo: codigoRecuperacao, novaSenha })
+      });
+      const json = await res.json();
+
+      if (json.sucesso) {
+        setTelaAtiva('login');
+        setSenha('');
+        setCodigoRecuperacao('');
+        setEtapaRecuperacao(1);
+        setMensagemSucesso('✅ Senha alterada com sucesso! Pode fazer login agora.');
+      } else {
+        setErro(json.erro || 'Código inválido ou expirado.');
+      }
+    } catch (err) { setErro('Erro de conexão.'); } 
+    finally { setCarregando(false); }
+  };
+
+  const mudarTela = (novaTela) => {
+    setTelaAtiva(novaTela);
+    setErro('');
+    setMensagemSucesso('');
+    if (novaTela === 'recuperacao') setEtapaRecuperacao(1);
   };
 
   return (
@@ -87,15 +126,17 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col my-8">
         
         {/* CABEÇALHO ANIMADO */}
-        <div className="bg-teal-500 p-8 text-center relative overflow-hidden transition-all duration-500">
-          <div className="absolute top-0 left-0 w-full h-full bg-teal-600 opacity-20 transform -skew-y-12 scale-150 origin-top-left"></div>
+        <div className={`p-8 text-center relative overflow-hidden transition-all duration-500 ${telaAtiva === 'recuperacao' ? 'bg-indigo-600' : 'bg-teal-500'}`}>
+          <div className={`absolute top-0 left-0 w-full h-full opacity-20 transform -skew-y-12 scale-150 origin-top-left ${telaAtiva === 'recuperacao' ? 'bg-indigo-700' : 'bg-teal-600'}`}></div>
           <div className="relative z-10">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg rotate-3 transition-transform">
-              <span className="text-3xl">{modoCadastro ? '🚀' : '🌟'}</span>
+              <span className="text-3xl">
+                {telaAtiva === 'cadastro' ? '🚀' : telaAtiva === 'recuperacao' ? '🔐' : '🌟'}
+              </span>
             </div>
             <h2 className="text-2xl font-black text-white tracking-tight">GestãoGold SaaS</h2>
-            <p className="text-teal-50 text-sm font-medium mt-1">
-              {modoCadastro ? 'Crie a sua conta gratuita agora' : 'O motor do seu salão de beleza'}
+            <p className="text-white/80 text-sm font-medium mt-1">
+              {telaAtiva === 'cadastro' ? 'Crie a sua conta gratuita' : telaAtiva === 'recuperacao' ? 'Recuperação de Acesso' : 'O motor do seu salão de beleza'}
             </p>
           </div>
         </div>
@@ -108,117 +149,105 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
             </div>
           )}
 
-          {mensagemSucesso && !modoCadastro && (
+          {mensagemSucesso && (
             <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm font-bold text-center border border-green-100 mb-4 animate-fade-in-up">
               {mensagemSucesso}
             </div>
           )}
 
           {/* === TELA DE LOGIN === */}
-          {!modoCadastro ? (
+          {telaAtiva === 'login' && (
             <form onSubmit={fazerLogin} className="space-y-4 animate-fade-in">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">E-mail de Acesso</label>
-                <input 
-                  type="email" 
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white transition-all"
-                  placeholder="ex: ana@salao.com"
-                />
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white transition-all" placeholder="ex: ana@salao.com" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Senha</label>
-                <input 
-                  type="password" 
-                  required
-                  value={senha}
-                  onChange={e => setSenha(e.target.value)}
-                  className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white transition-all"
-                  placeholder="••••••••"
-                />
+                <div className="flex justify-between items-center mb-1 ml-1">
+                  <label className="block text-sm font-bold text-gray-700">Senha</label>
+                  <button type="button" onClick={() => mudarTela('recuperacao')} className="text-[11px] text-teal-600 font-bold hover:underline">Esqueceu a senha?</button>
+                </div>
+                <input type="password" required value={senha} onChange={e => setSenha(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white transition-all" placeholder="••••••••" />
               </div>
-              <button 
-                type="submit" 
-                disabled={carregando}
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white font-black py-3.5 rounded-xl shadow-md transition-all active:scale-95 flex justify-center items-center gap-2 mt-2"
-              >
+              <button type="submit" disabled={carregando} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-black py-3.5 rounded-xl shadow-md transition-all active:scale-95 flex justify-center items-center gap-2 mt-2 disabled:opacity-70">
                 {carregando ? 'Acessando...' : 'Entrar na minha conta'}
               </button>
             </form>
-          ) : (
-          
-          /* === TELA DE CADASTRO === */
+          )}
+
+          {/* === TELA DE RECUPERAÇÃO === */}
+          {telaAtiva === 'recuperacao' && (
+            <form onSubmit={etapaRecuperacao === 1 ? pedirCodigoRecuperacao : salvarNovaSenha} className="space-y-4 animate-fade-in">
+              {etapaRecuperacao === 1 ? (
+                <>
+                  <p className="text-sm text-gray-600 font-medium text-center mb-2">Digite o e-mail associado à sua conta para receber o código de 6 dígitos.</p>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">O seu E-mail</label>
+                    <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-indigo-500 bg-gray-50 focus:bg-white" placeholder="ex: ana@salao.com" />
+                  </div>
+                  <button type="submit" disabled={carregando} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-70">
+                    {carregando ? 'A enviar...' : 'Enviar Código por E-mail'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Código de 6 dígitos</label>
+                    <input type="text" required maxLength="6" value={codigoRecuperacao} onChange={e => setCodigoRecuperacao(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-indigo-500 bg-gray-50 focus:bg-white text-center font-mono text-xl tracking-[0.5em]" placeholder="000000" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Criar Nova Senha</label>
+                    <input type="password" required value={novaSenha} onChange={e => setNovaSenha(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-indigo-500 bg-gray-50 focus:bg-white" placeholder="Mínimo 6 caracteres" />
+                  </div>
+                  <button type="submit" disabled={carregando} className="w-full bg-green-600 hover:bg-green-700 text-white font-black py-3.5 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-70 mt-2">
+                    {carregando ? 'A Salvar...' : 'Salvar Nova Senha'}
+                  </button>
+                </>
+              )}
+            </form>
+          )}
+
+          {/* === TELA DE CADASTRO === */}
+          {telaAtiva === 'cadastro' && (
             <form onSubmit={fazerCadastro} className="space-y-4 animate-fade-in">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Nome do Salão</label>
-                <input 
-                  type="text" 
-                  required
-                  value={nomeSalao}
-                  onChange={e => setNomeSalao(e.target.value)}
-                  className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white"
-                  placeholder="Ex: Studio Bella"
-                />
+                <input type="text" required value={nomeSalao} onChange={e => setNomeSalao(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50" placeholder="Ex: Studio Bella" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Seu Nome (Dono/a)</label>
-                <input 
-                  type="text" 
-                  required
-                  value={nomeDono}
-                  onChange={e => setNomeDono(e.target.value)}
-                  className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white"
-                  placeholder="Ex: Ana Silva"
-                />
+                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">O Seu Nome (Dono/a)</label>
+                <input type="text" required value={nomeDono} onChange={e => setNomeDono(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50" placeholder="Ex: Ana Silva" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">E-mail Profissional</label>
-                <input 
-                  type="email" 
-                  required
-                  value={emailCadastro}
-                  onChange={e => setEmailCadastro(e.target.value)}
-                  className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white"
-                  placeholder="ana@salao.com"
-                />
+                <input type="email" required value={emailCadastro} onChange={e => setEmailCadastro(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50" placeholder="ana@salao.com" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Crie uma Senha</label>
-                <input 
-                  type="password" 
-                  required
-                  value={senhaCadastro}
-                  onChange={e => setSenhaCadastro(e.target.value)}
-                  className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white"
-                  placeholder="Mínimo 6 caracteres"
-                />
+                <input type="password" required value={senhaCadastro} onChange={e => setSenhaCadastro(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-2.5 outline-none focus:border-teal-500 bg-gray-50" placeholder="Mínimo 6 caracteres" />
               </div>
-              <button 
-                type="submit" 
-                disabled={carregando}
-                className="w-full bg-gray-800 hover:bg-gray-900 text-white font-black py-3.5 rounded-xl shadow-md transition-all active:scale-95 flex justify-center items-center gap-2 mt-2"
-              >
-                {carregando ? 'Criando Salão...' : 'Criar Conta e Acessar'}
+              <button type="submit" disabled={carregando} className="w-full bg-gray-800 hover:bg-gray-900 text-white font-black py-3.5 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-70 mt-2">
+                {carregando ? 'A Criar...' : 'Criar Conta e Acessar'}
               </button>
             </form>
           )}
         </div>
         
-        {/* RODAPÉ DO MODAL (ALTERNAR ENTRE TELAS) */}
-        <div className="bg-gray-50 p-5 text-center border-t border-gray-100">
-          {!modoCadastro ? (
+        {/* RODAPÉ DO MODAL (ALTERNAR ENTRE ECRÃS) */}
+        <div className="bg-gray-50 p-5 text-center border-t border-gray-100 flex flex-col gap-2">
+          {telaAtiva !== 'cadastro' && (
             <p className="text-sm text-gray-600 font-medium">
               Ainda não tem conta?{' '}
-              <button onClick={() => { setModoCadastro(true); setErro(''); setMensagemSucesso(''); }} className="text-teal-600 font-black hover:underline">
-                Cadastre seu Salão
+              <button type="button" onClick={() => mudarTela('cadastro')} className="text-teal-600 font-black hover:underline">
+                Cadastre o seu Salão
               </button>
             </p>
-          ) : (
+          )}
+          
+          {telaAtiva !== 'login' && (
             <p className="text-sm text-gray-600 font-medium">
               Já possui uma conta?{' '}
-              <button onClick={() => { setModoCadastro(false); setErro(''); }} className="text-teal-600 font-black hover:underline">
+              <button type="button" onClick={() => mudarTela('login')} className="text-teal-600 font-black hover:underline">
                 Faça o Login
               </button>
             </p>
