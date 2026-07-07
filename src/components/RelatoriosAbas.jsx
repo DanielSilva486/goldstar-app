@@ -23,30 +23,23 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [mostrarNovoVale, setMostrarNovoVale] = useState(false);
   
   const [clienteParaExtra, setClienteParaExtra] = useState(null); 
-  const [filtroProfAba1, setFiltroProfAba1] = useState('');
-  const [filtroDataAba1, setFiltroDataAba1] = useState(''); // 🚀 NOVO: Filtro de Data
-  
   const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
+
+  // 🚀 FILTROS DA ABA 1 RESTAURADOS
+  const [filtroProfAba1, setFiltroProfAba1] = useState('');
+  const [filtroDataAba1, setFiltroDataAba1] = useState('');
 
   const pedirConfirmacao = (titulo, mensagem, acao) => setConfirmacao({ aberto: true, titulo, mensagem, onConfirm: acao });
 
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
+  
+  // 🚀 LÓGICA DE FILTROS DA ABA 1
   const historicoGeral = dados?.historico || [];
-
-  // 🚀 NOVA LÓGICA DE FILTROS COMBINADOS (ABA 1)
   const historicoBase = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
   
   let historico = historicoBase;
-
-  // 1. Filtra pelo Nome
-  if (filtroProfAba1) {
-    historico = historico.filter(h => h.profissional === filtroProfAba1);
-  }
-
-  // 2. Filtra pela Data
+  if (filtroProfAba1) historico = historico.filter(h => h.profissional === filtroProfAba1);
   if (filtroDataAba1) {
-    // O calendário do HTML devolve 'YYYY-MM-DD' (ex: 2026-07-02). 
-    // Nós cortamos para '02/07' para bater com o formato da sua tabela
     const partesData = filtroDataAba1.split('-');
     if (partesData.length === 3) {
       const dataFormatada = `${partesData[2]}/${partesData[1]}`;
@@ -55,11 +48,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   }
 
   const profissionaisUnicos = [...new Set(historicoBase.map(item => item.profissional).filter(Boolean))];
-  
   const totalFaturadoAba1 = historico.reduce((acc, item) => acc + (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO') ? 0 : Number(item.valor_total)), 0);
   const totalComissaoAba1 = historico.reduce((acc, item) => acc + (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO') ? 0 : Number(item.valor_comissao)), 0);
-  // ======================================
-  
+
   const comissoesGerais = dados?.comissoes || [];
   const comissoesMensais = isProfissional ? comissoesGerais.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : comissoesGerais;
   const topServicos = dados?.topServicos || [];
@@ -70,10 +61,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const totalComissoes = Number(valores.total_comissoes || 0);
   const despesasFixas = Number(valores.total_despesas || 0); 
   const lucroLiquido = faturamentoBruto - totalComissoes - despesasFixas;
-  
   const comissoesDoDono = comissoesGerais.filter(c => c.perfil === 'dono');
   const comissaoDona = comissoesDoDono.reduce((acc, curr) => acc + Number(curr.total_comissao), 0);
-  
   const lucroOperacional = lucroLiquido + comissaoDona;
 
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -83,33 +72,38 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     return horas > 0 ? `${horas}h ${min > 0 ? min + 'm' : ''}` : `${min}m`;
   };
 
+  // 🚀 SAAS: Agora puxa os dados extras blindados por empresa!
+  const idSaaS = usuario?.empresa_id || 1;
+
   const carregarDadosExtras = async () => {
     try {
-      const resPagamentos = await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes');
+      const resPagamentos = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes?empresa_id=${idSaaS}`);
       const jsonPagamentos = await resPagamentos.json();
       if(jsonPagamentos.sucesso) setPagamentosDb(jsonPagamentos.dados);
-      const resVales = await fetch('https://goldstar-backend-9m2p.onrender.com/api/vales');
+      
+      const resVales = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales?empresa_id=${idSaaS}`);
       const jsonVales = await resVales.json();
       if(jsonVales.sucesso) setVales(jsonVales.dados);
+      
       if (isAdmin) {
-        const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}`);
+        const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}&empresa_id=${idSaaS}`);
         const jsonDespesas = await resDespesas.json();
         if(jsonDespesas.sucesso) setDespesas(jsonDespesas.dados);
       }
       if (podeVerCaixa) {
-        const resColab = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores?empresa_id=${usuario?.empresa_id || 1}`)
+        const resColab = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores?empresa_id=${idSaaS}`);
         const jsonColab = await resColab.json();
         if(jsonColab.sucesso) setColaboradores(jsonColab.dados);
       }
     } catch (e) {}
   };
 
-  useEffect(() => { carregarDadosExtras(); }, [mes, ano, isAdmin]);
+  useEffect(() => { carregarDadosExtras(); }, [mes, ano, isAdmin, idSaaS]);
 
   const filtrarComissoesPeriodo = async () => {
     if (!dataInicio || !dataFim) return;
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}`);
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}&empresa_id=${idSaaS}`);
       const json = await res.json();
       if (json.sucesso) {
          const filtrado = isProfissional ? json.dados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : json.dados;
@@ -123,7 +117,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
     if (!isAdmin) return;
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica }) });
+      await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica, empresa_id: idSaaS }) });
       carregarDadosExtras(); 
     } catch (e) {}
   };
@@ -198,13 +192,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   };
 
-  // 🚀 ATUALIZADO: Agora busca o Nome da Empresa no banco de dados
   const imprimirComprovante = async (nomeCliente, itens) => {
     let nomeDaEmpresa = "SISTEMA DE GESTÃO";
-    
-    // Tenta buscar o nome do salão
     try {
-      const resConf = await fetch('https://goldstar-backend-9m2p.onrender.com/api/configuracoes');
+      const resConf = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/configuracoes?empresa_id=${idSaaS}`);
       const jsonConf = await resConf.json();
       if (jsonConf.sucesso && jsonConf.dados?.nome_fantasia) {
         nomeDaEmpresa = jsonConf.dados.nome_fantasia;
@@ -310,10 +301,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   });
 
 const filaPorProfissional = comandas.reduce((acc, item) => {
-    // 🚀 FILTRO: Verifica se é serviço. Produtos (tipo 'produto' ou duracao 0) são ignorados.
     const ehProduto = item.servico_tipo === 'produto' || item.duracao === 0 || item.duracao === null;
-    
-    if (ehProduto) return acc; // Pula este item na soma
+    if (ehProduto) return acc;
 
     if (!acc[item.profissional]) acc[item.profissional] = 0;
     
@@ -427,10 +416,7 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
 
       {abaAtiva === 0 && podeVerCaixa && (
         <div className="space-y-4">
-
-{/* 🚀 NOVA ÁREA: Botão de Vales + Lista de Folgas */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-3 pt-1">
-             {/* Lista de quem está de folga */}
              <div className="flex-1 flex flex-wrap gap-2 items-center">
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Folga hoje:</span>
                 {colaboradores
@@ -446,7 +432,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                 )}
              </div>
 
-             {/* Botão de Lançar Consumo */}
              <button 
                onClick={() => setMostrarNovoVale(true)} 
                className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transition-transform active:scale-95"
@@ -455,7 +440,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
              </button>
           </div>
 
-         
           <div className="sticky top-0 z-10 bg-gray-50 pt-2 pb-2 space-y-3">
             <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-3 overflow-x-auto scrollbar-hide items-center">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-2">Disponibilidade:</span>
@@ -507,7 +491,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
                         <button onClick={() => atualizarStatusComanda(itens, 'pago')} className="bg-green-500 text-white px-2 py-1.5 rounded-lg hover:bg-green-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Dar Baixa Imediata">💲 Pagar</button>
                         
-                        {/* 🚀 CORREÇÃO: Procura se existe ALGUM serviço na lista (ignorando produtos) para poder Iniciar */}
                         {(() => {
                           const servicoParaIniciar = itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa');
                           if (servicoParaIniciar) {
@@ -639,44 +622,20 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
             <h3 className="font-bold text-gray-800">{isProfissional ? 'Meus Serviços Realizados' : 'Histórico Geral e Auditoria'}</h3>
             
             <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
-              
-              {/* 🚀 AQUI ENTRA O SEU NOVO FILTRO DE DATA */}
-              <input
-                type="date"
-                value={filtroDataAba1}
-                onChange={e => setFiltroDataAba1(e.target.value)}
-                className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-36 cursor-pointer"
-                title="Escolha um dia"
-              />
-
+              <input type="date" value={filtroDataAba1} onChange={e => setFiltroDataAba1(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-36 cursor-pointer" title="Escolha um dia"/>
               {!isProfissional && (
-                <select 
-                  value={filtroProfAba1} 
-                  onChange={e => setFiltroProfAba1(e.target.value)}
-                  className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-40"
-                >
+                <select value={filtroProfAba1} onChange={e => setFiltroProfAba1(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-40">
                   <option value="">👥 Todos</option>
-                  {profissionaisUnicos.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
+                  {profissionaisUnicos.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               )}
-
-              {/* Botão para limpar a pesquisa rápido */}
               {(filtroProfAba1 || filtroDataAba1) && (
-                 <button 
-                   onClick={() => { setFiltroProfAba1(''); setFiltroDataAba1(''); }} 
-                   className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm"
-                 >
-                   Limpar
-                 </button>
+                 <button onClick={() => { setFiltroProfAba1(''); setFiltroDataAba1(''); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-sm">Limpar</button>
               )}
-
               {(isAdmin || podeVerCaixa) && <button onClick={exportarPlanilhaGeral} className="bg-green-100 hover:bg-green-200 text-green-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm">📥 Baixar</button>}
             </div>
           </div>
 
-          {/* 🚀 BARRA DE RESUMO DO FILTRO */}
           {(!isProfissional && filtroProfAba1) && (
             <div className="bg-purple-50/50 p-3 border-b border-purple-100 flex flex-wrap justify-end gap-4 md:gap-8 text-xs">
               <span className="text-gray-600">Total Faturado ({filtroProfAba1}): <span className="font-black text-purple-700 text-sm ml-1">{formatarMoeda(totalFaturadoAba1)}</span></span>
@@ -810,7 +769,8 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                 </div>
               );
             })}
-{/* 🚀 NOVO: HISTÓRICO GERAL DE CONSUMO PARA O COLABORADOR */}
+
+            {/* 🚀 O EXTRATO DE CONSUMOS INDIVIDUAL DE VOLTA AQUI */}
             {isProfissional && (
               <div className="mt-8 border-t border-gray-200 pt-6">
                 <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
@@ -841,8 +801,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                 )}
               </div>
             )}
-
-
           </div>
         </div>
       )}
@@ -942,8 +900,9 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
         />
       )}
 
-      {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={() => { carregarDadosExtras(); recarregarTudo(); }} />}
-      {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} />}
+      {/* 🚀 SAAS: Aqui enviamos a variável 'usuario' para dentro das telinhas de Nova Despesa e Novo Vale */}
+      {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={() => { carregarDadosExtras(); recarregarTudo(); }} usuario={usuario} />}
+      {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} usuario={usuario} />}
 
       {confirmacao.aberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">

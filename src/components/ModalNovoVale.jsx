@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
-export default function ModalNovoVale({ fechar, atualizarDados }) {
+export default function ModalNovoVale({ fechar, atualizarDados, usuario }) {
+  // 🚀 SAAS: Identificando a empresa
+  const idSaaS = usuario?.empresa_id || 1;
+
   const [equipe, setEquipe] = useState([]);
   const [profissional, setProfissional] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -8,10 +11,11 @@ export default function ModalNovoVale({ fechar, atualizarDados }) {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores')
+    // 🚀 SAAS: Busca apenas a equipa do salão atual
+    fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores?empresa_id=${idSaaS}`)
       .then(r => r.json())
       .then(d => { if(d.sucesso) setEquipe(d.dados); });
-  }, []);
+  }, [idSaaS]);
 
   const salvar = async (e) => {
     e.preventDefault();
@@ -25,7 +29,8 @@ export default function ModalNovoVale({ fechar, atualizarDados }) {
         body: JSON.stringify({ 
           profissional, 
           descricao, 
-          valor: Number(valor.replace(',', '.')) 
+          valor: Number(valor.replace(',', '.')),
+          empresa_id: idSaaS // 🚀 SAAS: Salva na empresa correta!
         })
       });
       atualizarDados();

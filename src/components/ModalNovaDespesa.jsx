@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 
-export default function ModalNovaDespesa({ fechar, atualizarDados }) {
+export default function ModalNovaDespesa({ fechar, atualizarDados, usuario }) {
+  // 🚀 SAAS: Identificando a empresa
+  const idSaaS = usuario?.empresa_id || 1;
+
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [fornecedor, setFornecedor] = useState('');
@@ -20,7 +23,8 @@ export default function ModalNovaDespesa({ fechar, atualizarDados }) {
           valor: Number(valor.replace(',', '.')), 
           fornecedor, 
           data_vencimento: dataVencimento, 
-          pago 
+          pago,
+          empresa_id: idSaaS // 🚀 SAAS: Salva na empresa correta!
         })
       });
       atualizarDados();
