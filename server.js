@@ -39,7 +39,7 @@ atualizarBanco();
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
   
-  if (email.toLowerCase() === 'admin@goldstar.com' && senha === 'g197355@') {
+ if (email.toLowerCase() === 'admin@goldstar.com' && senha === process.env.ADMIN_PASS) {
     return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin Mestre', perfil: 'admin', email: 'admin@goldstar.com', empresa_id: 1 } });
   }
   
