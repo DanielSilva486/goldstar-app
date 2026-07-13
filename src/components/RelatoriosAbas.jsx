@@ -25,7 +25,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [clienteParaExtra, setClienteParaExtra] = useState(null); 
   const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
 
-  // 🚀 FILTROS DA ABA 1 RESTAURADOS
   const [filtroProfAba1, setFiltroProfAba1] = useState('');
   const [filtroDataAba1, setFiltroDataAba1] = useState('');
 
@@ -33,7 +32,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
   
-  // 🚀 LÓGICA DE FILTROS DA ABA 1
   const historicoGeral = dados?.historico || [];
   const historicoBase = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
   
@@ -72,7 +70,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     return horas > 0 ? `${horas}h ${min > 0 ? min + 'm' : ''}` : `${min}m`;
   };
 
-  // 🚀 SAAS: Agora puxa os dados extras blindados por empresa!
   const idSaaS = usuario?.empresa_id || 1;
 
   const carregarDadosExtras = async () => {
@@ -474,9 +471,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
               {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
-              {clientesAguardando.length === 0 ? (
-                <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
-              ) : (
                 clientesAguardando.map(({nomeCliente, itens}) => {
                   const horaChegada = new Date(itens[0].data_hora).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
                   
@@ -494,7 +488,7 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                           {itens.length} item(ns) • {formatarMoeda(valorTotal)} • Chegou {horaChegada}
                         </p>
                       </div>
-                    <div className="flex gap-1 shrink-0">
+                      <div className="flex gap-1 shrink-0">
                         <button onClick={() => cancelarAtendimentosFila(itens)} className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Desistiu">🗑️</button>
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
                         
@@ -586,7 +580,7 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                                        <button onClick={() => cancelarItemFila(item.id, item.servico)} className="text-red-400 hover:text-red-600 bg-white hover:bg-red-50 border border-transparent hover:border-red-100 p-1.5 rounded-md transition-all shadow-sm text-[10px] shrink-0" title="Desistir deste item">❌</button>
                                        {!estaRodando ? (
                                          item.profissional !== 'Caixa' && item.servico_tipo !== 'produto' && (
-                                           <button onClick={() => iniciarServico(item.id)} className="bg-blue-500 hover:bg-blue-600 text-white shadow-sm text-[11px] font-black px-3 py-1.5 rounded-lg transition-transform active:scale-95 flex items-center gap-1 whitespace-nowrap shrink-0">▶ Iniciar</button>
+                                            <button onClick={() => iniciarServico(item.id)} className="bg-blue-500 hover:bg-blue-600 text-white shadow-sm text-[11px] font-black px-3 py-1.5 rounded-lg transition-transform active:scale-95 flex items-center gap-1 whitespace-nowrap shrink-0">▶ Iniciar</button>
                                          )
                                        ) : (
                                          <span className={`text-[11px] font-black px-2 py-1 rounded-md flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0 ${atrasado ? 'bg-red-100 text-red-700 animate-pulse border border-red-200' : 'bg-green-100 text-green-700 border border-green-200'}`}>⏱ {decorridoMinutos}m / {item.duracao || 30}m</span>
@@ -784,7 +778,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
               );
             })}
 
-            {/* 🚀 O EXTRATO DE CONSUMOS INDIVIDUAL DE VOLTA AQUI */}
             {isProfissional && (
               <div className="mt-8 border-t border-gray-200 pt-6">
                 <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
@@ -914,7 +907,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
         />
       )}
 
-      {/* 🚀 SAAS: Aqui enviamos a variável 'usuario' para dentro das telinhas de Nova Despesa e Novo Vale */}
       {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={() => { carregarDadosExtras(); recarregarTudo(); }} usuario={usuario} />}
       {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} usuario={usuario} />}
 
