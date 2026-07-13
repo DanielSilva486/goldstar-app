@@ -29,7 +29,9 @@ const atualizarBanco = async () => {
     await pool.query("ALTER TABLE configuracoes_empresa ADD COLUMN IF NOT EXISTS hora_fecho VARCHAR(10)");
     await pool.query("ALTER TABLE configuracoes_empresa ADD COLUMN IF NOT EXISTS ip_autorizado VARCHAR(50)");
     await pool.query("ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS dia_folga VARCHAR(50) DEFAULT ''");
-    try { await pool.query("ALTER TABLE colaboradores ALTER COLUMN dia_folga TYPE VARCHAR(50) USING dia_folga::VARCHAR"); } catch(e){}
+   await pool.query("ALTER TABLE atendimentos ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50) DEFAULT 'Dinheiro'");
+
+try { await pool.query("ALTER TABLE colaboradores ALTER COLUMN dia_folga TYPE VARCHAR(50) USING dia_folga::VARCHAR"); } catch(e){}
     console.log("✅ Servidor SaaS a rodar com sucesso!");
   } catch (e) {}
 };
@@ -314,14 +316,19 @@ app.put('/api/comandas/:id/iniciar', async (req, res) => {
 // No seu server.js
 app.put('/api/comandas/pagar', async (req, res) => {
   try {
-    const { ids, statusNovo, formaPagamento } = req.body; // 👈 Recebemos a nova info aqui
+    const { ids, statusNovo, formaPagamento } = req.body;
     const st = statusNovo || 'pago';
     
-    // 🚀 SQL ATUALIZADO: Salva a forma de pagamento no banco
-    await pool.query('UPDATE atendimentos SET status = $1, forma_pagamento = $2 WHERE id = ANY($3)', [st, formaPagamento, ids]);
+    // Se a formaPagamento não vier, definimos como 'Dinheiro' automaticamente
+    const forma = formaPagamento || 'Dinheiro';
+    
+    await pool.query('UPDATE atendimentos SET status = $1, forma_pagamento = $2 WHERE id = ANY($3)', [st, forma, ids]);
     
     res.json({ sucesso: true });
-  } catch (erro) { res.status(500).json({ sucesso: false }); }
+  } catch (erro) {
+    console.error("Erro no servidor:", erro); // Isso vai lhe dizer exatamente o erro no Log do Render
+    res.status(500).json({ sucesso: false, erro: erro.message });
+  }
 });
 
 app.put('/api/comandas/:id/cancelar', async (req, res) => {
