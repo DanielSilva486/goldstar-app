@@ -252,6 +252,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   };
 
+
+
+// 🚀 COLE AQUI:
+  const tocarSomBaixa = () => {
+    const audio = new Audio('/confirmacao.mp3'); 
+    audio.play().catch(e => console.log("Erro ao tocar som: ", e));
+  };
+
   const imprimirComprovante = async (nomeCliente, itens) => {
     let nomeDaEmpresa = "SISTEMA DE GESTÃO";
     try {
@@ -715,13 +723,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                                  </select>
                                </div>
                              )}
+
                              <button onClick={() => {
-                               const selectElement = document.getElementById(`pagamento_card_${safeId}`);
-                               const f = selectElement ? selectElement.value : 'Dinheiro';
-                               atualizarStatusComanda(itens, 'pago', f);
-                             }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-1 rounded-xl shadow-md text-xs transition-colors truncate">
-                               {valorPendente === 0 ? "✅ Encerrar" : "💲 Dar Baixa"}
-                             </button>
+   const selectElement = document.getElementById(`pagamento_card_${safeId}`);
+   const f = selectElement ? selectElement.value : 'Dinheiro';
+   
+   // 1. Toca o som primeiro
+   tocarSomBaixa(); 
+   
+   // 2. Faz a baixa no sistema
+   atualizarStatusComanda(itens, 'pago', f);
+}} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-1 rounded-xl shadow-md text-xs transition-colors truncate">
+  {valorPendente === 0 ? "✅ Encerrar" : "💲 Dar Baixa"}
+</button>
                            </div>
 
                          </div>
