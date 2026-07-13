@@ -127,23 +127,30 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   useEffect(() => { carregarDadosExtras(); }, [mes, ano, isAdmin, idSaaS]);
 
+  // 🚀 LÓGICA DO GRÁFICO (Faturamento Dia a Dia - CORRIGIDO)
   const dadosGraficoBrutos = {};
+  
   historicoGeral.forEach(item => {
     if (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO')) return;
-    const data = item.data; 
-    if (!dadosGraficoBrutos[data]) {
-      dadosGraficoBrutos[data] = { nome: data, Serviços: 0, Produtos: 0 };
+    
+    // Pega a string "11/07 às 14:30" e extrai apenas "11/07" para agrupar corretamente
+    const dataApenasDia = item.data.split(' às ')[0]; 
+    
+    if (!dadosGraficoBrutos[dataApenasDia]) {
+      dadosGraficoBrutos[dataApenasDia] = { nome: dataApenasDia, Serviços: 0, Produtos: 0 };
     }
+    
     if (item.servico_tipo === 'produto') {
-      dadosGraficoBrutos[data].Produtos += Number(item.valor_total);
+      dadosGraficoBrutos[dataApenasDia].Produtos += Number(item.valor_total);
     } else {
-      dadosGraficoBrutos[data].Serviços += Number(item.valor_total);
+      dadosGraficoBrutos[dataApenasDia].Serviços += Number(item.valor_total);
     }
   });
 
   const dadosGrafico = Object.values(dadosGraficoBrutos).sort((a, b) => {
     const [diaA, mesA] = a.nome.split('/');
     const [diaB, mesB] = b.nome.split('/');
+    // Ordena do dia 1 ao dia 31 corretamente
     return new Date(ano, mesA - 1, diaA) - new Date(ano, mesB - 1, diaB);
   });
 
