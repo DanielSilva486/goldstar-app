@@ -526,19 +526,18 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                 ⏳ Aguardando ({clientesAguardando.length}):
               </span>
               
+              // ... (substitua apenas a parte do clientesAguardando.map no seu código atual)
+
               {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
                 clientesAguardando.map(({nomeCliente, itens}) => {
                   const horaChegada = new Date(itens[0].data_hora).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-                  
-                  // 🚀 CÁLCULO DE PENDÊNCIAS
                   const valorTotal = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
                   const valorJaPago = itens.reduce((soma, item) => item.status === 'pago_antecipado' ? soma + Number(item.valor_total) : soma, 0);
                   const valorPendente = valorTotal - valorJaPago;
                   
                   return (
-                    // Se estiver pago, o fundo fica levemente esverdeado
                     <div key={nomeCliente} className={`shrink-0 flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm min-w-[250px] transition-colors ${valorPendente === 0 ? 'bg-green-50/60 border-green-200' : 'bg-white border-orange-200'}`}>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-bold truncate ${valorPendente === 0 ? 'text-green-800' : 'text-orange-700'}`}>{nomeCliente}</p>
@@ -550,22 +549,11 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                         <button onClick={() => cancelarAtendimentosFila(itens)} className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Desistiu">🗑️</button>
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
                         
-                        {/* 🚀 LÓGICA INTELIGENTE DO BOTÃO ANTECIPAR / PAGO */}
                         {valorPendente > 0 ? (
                           <button onClick={() => atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado')} className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Pagar Antecipado">💲 Antecipar</button>
                         ) : (
                           <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm" title="Pagamento já efetuado">✅ Pago</span>
                         )}
-                        
-                        {(() => {
-                          const servicoParaIniciar = itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa');
-                          if (servicoParaIniciar) {
-                            return (
-                              <button onClick={() => iniciarServico(servicoParaIniciar.id)} className="bg-blue-500 text-white px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Iniciar">▶ Iniciar</button>
-                            );
-                          }
-                          return null;
-                        })()}
                       </div>
                     </div>
                   );
