@@ -5,7 +5,6 @@ import LinhaDoTempo from './LinhaDoTempo';
 import ModalNovoAtendimento from './ModalNovoAtendimento'; 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// 🚀 SAAS: COMPONENTE DE ETIQUETA PARA FORMA DE PAGAMENTO
 const BadgePagamento = ({ forma }) => {
   const formaLimpa = forma || 'Dinheiro';
   const cores = {
@@ -63,6 +62,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       historico = historico.filter(h => h.data && h.data.includes(dataFormatada));
     }
   }
+
+  // 🚀 LÓGICA DO MINI PAINEL DE CAIXA
+  const resumoTurno = { total: 0, pix: 0, cartao: 0, dinheiro: 0 };
+  historico.forEach(item => {
+    if (item.status !== 'cancelado' && !item.cliente_nome.includes('⚠️ ERRO')) {
+      const val = Number(item.valor_total);
+      resumoTurno.total += val;
+      if (item.forma_pagamento === 'Pix') resumoTurno.pix += val;
+      else if (item.forma_pagamento === 'Cartão') resumoTurno.cartao += val;
+      else resumoTurno.dinheiro += val; 
+    }
+  });
 
   const profissionaisUnicos = [...new Set(historicoBase.map(item => item.profissional).filter(Boolean))];
   const totalFaturadoAba1 = historico.reduce((acc, item) => acc + (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO') ? 0 : Number(item.valor_total)), 0);
@@ -135,7 +146,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     const [diaB, mesB] = b.nome.split('/');
     return new Date(ano, mesA - 1, diaA) - new Date(ano, mesB - 1, diaB);
   });
-
 
   const filtrarComissoesPeriodo = async () => {
     if (!dataInicio || !dataFim) return;
@@ -214,7 +224,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   });
 
-  // 🚀 LÓGICA DE PAGAMENTO ATUALIZADA
   const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
@@ -552,10 +561,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                   const valorTotal = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
                   const valorJaPago = itens.reduce((soma, item) => item.status === 'pago_antecipado' ? soma + Number(item.valor_total) : soma, 0);
                   const valorPendente = valorTotal - valorJaPago;
-                  
-                  // Gerar ID seguro para os inputs deste cliente
                   const safeId = nomeCliente.replace(/[^a-zA-Z0-9]/g, '');
-
+                  
                   return (
                     <div key={nomeCliente} className={`shrink-0 flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm min-w-[250px] transition-colors ${valorPendente === 0 ? 'bg-green-50/60 border-green-200' : 'bg-white border-orange-200'}`}>
                       <div className="flex-1 min-w-0">
@@ -586,7 +593,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                           <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm">✅ Pago</span>
                         )}
 
-                        {/* Botão Iniciar volta aqui */}
                         {itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa') && (
                           <button onClick={() => iniciarServico(itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa').id)} className="bg-blue-500 text-white px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Iniciar">▶ Iniciar</button>
                         )}
@@ -693,7 +699,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                            </div>
 
                            <div className="flex gap-2 w-full mt-1">
-                             {/* Novo Seletor Inteligente para Dar Baixa no Atendimento */}
                              {valorPendente > 0 && (
                                <div className="flex-1 flex gap-1 bg-green-50 p-1 rounded-xl border border-green-100 shadow-sm">
                                  <select id={`pagamento_card_${safeId}`} className="bg-transparent text-green-800 font-bold text-xs outline-none cursor-pointer w-full text-center">
@@ -743,6 +748,27 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             </div>
           </div>
 
+          {/* 🚀 NOVO MINI PAINEL DE CAIXA AQUI */}
+          {podeVerCaixa && (
+            <div className="bg-gray-800 p-3 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumo do Período Filtrado:</span>
+                <span className="bg-teal-500 text-white font-black px-3 py-1 rounded-lg text-sm shadow-sm">
+                  Total: {formatarMoeda(resumoTurno.total)}
+                </span>
+                <span className="bg-gray-700 text-green-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">
+                  💵 Dinheiro: {formatarMoeda(resumoTurno.dinheiro)}
+                </span>
+                <span className="bg-gray-700 text-purple-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">
+                  📱 Pix: {formatarMoeda(resumoTurno.pix)}
+                </span>
+                <span className="bg-gray-700 text-blue-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">
+                  💳 Cartão: {formatarMoeda(resumoTurno.cartao)}
+                </span>
+              </div>
+            </div>
+          )}
+
           {(!isProfissional && filtroProfAba1) && (
             <div className="bg-purple-50/50 p-3 border-b border-purple-100 flex flex-wrap justify-end gap-4 md:gap-8 text-xs">
               <span className="text-gray-600">Total Faturado ({filtroProfAba1}): <span className="font-black text-purple-700 text-sm ml-1">{formatarMoeda(totalFaturadoAba1)}</span></span>
@@ -780,12 +806,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                         {item.servico_tipo === 'produto' ? <span title="Produto Vendido">🛍️ {item.servico}</span> : <span title="Serviço Realizado">💆‍♀️ {item.servico}</span>}
                       </td>
                       {!isProfissional && <td className="p-3 text-gray-600 font-bold text-xs">{item.profissional}</td>}
-                      
-                      {/* 🚀 O NOVO BADGE NO HISTÓRICO ENTRA AQUI */}
                       <td className="p-3 text-center">
                         {!isCancelado && <BadgePagamento forma={item.forma_pagamento} />}
                       </td>
-
                       <td className="p-3 font-bold text-teal-600 text-right">
                         {temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}
                       </td>
@@ -794,6 +817,11 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       </td>
                       {(isAdmin || isCaixa) && (
                         <td className="p-3 text-center flex items-center justify-center gap-2">
+                          {/* 🚀 BOTÃO DE REIMPRIMIR RECIBO */}
+                          {!temErro && !isCancelado && (
+                            <button onClick={() => imprimirComprovante(item.cliente_nome, [item])} className="text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Reimprimir Recibo">🖨️</button>
+                          )}
+                          
                           {isCaixa && !temErro && !isCancelado && (
                             <button onClick={() => sinalizarErroAtendimento(item.id)} className="text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Sinalizar Erro">🚩</button>
                           )}

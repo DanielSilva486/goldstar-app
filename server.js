@@ -117,7 +117,7 @@ app.get('/api/resumo', async (req, res) => {
     
     // 🚀 CORREÇÃO AQUI: Adicionado a.forma_pagamento ao SELECT
     const historico = await pool.query(`
-      SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, 
+      SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM às HH24:MI') as data, a.cliente_nome, s.nome as servico, 
              s.tipo as servico_tipo, a.valor_total, c.nome as profissional, a.valor_comissao, 
              a.status, a.forma_pagamento 
       FROM atendimentos a 
