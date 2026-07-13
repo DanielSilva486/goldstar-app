@@ -521,13 +521,11 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
               )}
             </div>
 
-            <div className="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex gap-3 overflow-x-auto scrollbar-hide items-center shadow-sm">
+         <div className="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex gap-3 overflow-x-auto scrollbar-hide items-center shadow-sm">
               <span className="text-xs font-bold text-orange-800 uppercase tracking-wider shrink-0 mr-2 flex items-center gap-1">
                 ⏳ Aguardando ({clientesAguardando.length}):
               </span>
               
-              // ... (substitua apenas a parte do clientesAguardando.map no seu código atual)
-
               {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
