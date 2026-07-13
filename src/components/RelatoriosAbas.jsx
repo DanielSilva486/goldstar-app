@@ -826,7 +826,17 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                         <td className="p-3 text-center flex items-center justify-center gap-2">
                           {/* 🚀 BOTÃO DE REIMPRIMIR RECIBO */}
                           {!temErro && !isCancelado && (
-                            <button onClick={() => imprimirComprovante(item.cliente_nome, [item])} className="text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Reimprimir Recibo">🖨️</button>
+                            <button onClick={() => {
+                            // 🚀 INTELIGÊNCIA: Agrupa tudo o que o cliente fez no mesmo dia!
+                            const diaDoItem = item.data.split(' às ')[0];
+                            const itensDoClienteNoDia = historico.filter(h => 
+                              h.cliente_nome === item.cliente_nome && 
+                              h.data.split(' às ')[0] === diaDoItem &&
+                              h.status !== 'cancelado' &&
+                              !h.cliente_nome.includes('⚠️ ERRO')
+                            );
+                            imprimirComprovante(item.cliente_nome, itensDoClienteNoDia);
+                          }} className="text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Reimprimir Recibo Completo do Dia">🖨️</button>
                           )}
                           
                           {isCaixa && !temErro && !isCancelado && (
