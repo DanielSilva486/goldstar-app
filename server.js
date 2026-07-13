@@ -311,12 +311,15 @@ app.put('/api/comandas/:id/iniciar', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
+// No seu server.js
 app.put('/api/comandas/pagar', async (req, res) => {
   try {
-    const { ids, statusNovo } = req.body; 
-    if (!ids || ids.length === 0) return res.json({ sucesso: true });
+    const { ids, statusNovo, formaPagamento } = req.body; // 👈 Recebemos a nova info aqui
     const st = statusNovo || 'pago';
-    await pool.query('UPDATE atendimentos SET status = $1 WHERE id = ANY($2)', [st, ids]);
+    
+    // 🚀 SQL ATUALIZADO: Salva a forma de pagamento no banco
+    await pool.query('UPDATE atendimentos SET status = $1, forma_pagamento = $2 WHERE id = ANY($3)', [st, formaPagamento, ids]);
+    
     res.json({ sucesso: true });
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });

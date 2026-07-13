@@ -197,12 +197,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   });
 
-  const atualizarStatusComanda = async (itensDaComanda, statusNovo) => {
+  const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas/pagar', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, statusNovo }) });
+      await fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas/pagar', { 
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ ids, statusNovo, formaPagamento }) // 👈 Aqui está o segredo!
+      });
       recarregarTudo(); 
-    } catch (erro) {}
+    } catch (erro) {
+      console.error("Erro ao atualizar status:", erro);
+    }
   };
 
   const iniciarServico = async (id) => {
