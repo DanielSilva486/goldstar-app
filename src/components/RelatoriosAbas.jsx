@@ -489,7 +489,9 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                     <div className="flex gap-1 shrink-0">
                         <button onClick={() => cancelarAtendimentosFila(itens)} className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Desistiu">🗑️</button>
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
-                        <button onClick={() => atualizarStatusComanda(itens, 'pago')} className="bg-green-500 text-white px-2 py-1.5 rounded-lg hover:bg-green-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Dar Baixa Imediata">💲 Pagar</button>
+                        
+                        {/* 🚀 BOTÃO ANTECIPAR APLICADO AQUI */}
+                        <button onClick={() => atualizarStatusComanda(itens, 'pago_antecipado')} className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Pagar Antecipado">💲 Antecipar</button>
                         
                         {(() => {
                           const servicoParaIniciar = itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa');
