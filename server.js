@@ -29,14 +29,16 @@ const atualizarBanco = async () => {
     await pool.query("ALTER TABLE configuracoes_empresa ADD COLUMN IF NOT EXISTS hora_fecho VARCHAR(10)");
     await pool.query("ALTER TABLE configuracoes_empresa ADD COLUMN IF NOT EXISTS ip_autorizado VARCHAR(50)");
     await pool.query("ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS dia_folga VARCHAR(50) DEFAULT ''");
-   await pool.query("ALTER TABLE atendimentos ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50) DEFAULT 'Dinheiro'");
+    
+    // Linha crítica: garante a coluna
+    await pool.query("ALTER TABLE atendimentos ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50) DEFAULT 'Dinheiro'");
 
-try { await pool.query("ALTER TABLE colaboradores ALTER COLUMN dia_folga TYPE VARCHAR(50) USING dia_folga::VARCHAR"); } catch(e){}
-    console.log("✅ Servidor SaaS a rodar com sucesso!");
-  } catch (e) {}
+    try { await pool.query("ALTER TABLE colaboradores ALTER COLUMN dia_folga TYPE VARCHAR(50) USING dia_folga::VARCHAR"); } catch(e){}
+    console.log("✅ Banco verificado e atualizado!");
+  } catch (e) {
+    console.error("❌ ERRO AO ATUALIZAR BANCO:", e); // Agora se der erro, ele mostra no log do Render
+  }
 };
-atualizarBanco();
-
 
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
