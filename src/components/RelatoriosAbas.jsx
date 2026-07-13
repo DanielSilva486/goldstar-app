@@ -22,6 +22,23 @@ const BadgePagamento = ({ forma }) => {
   );
 };
 
+// 1. Adicione este componente logo após o BadgePagamento
+const IconeNotificacao = ({ despesas }) => {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const alertas = despesas.filter(d => !d.pago && new Date(d.data_vencimento) <= hoje);
+  
+  return (
+    <button className="relative p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors mx-2" title="Despesas Vencidas">
+      🔔
+      {alertas.length > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full animate-pulse">
+          {alertas.length}
+        </span>
+      )}
+    </button>
+  );
+};
+
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
   const isAdmin = usuario?.perfil === 'admin' || usuario?.perfil === 'dono';
   const isCaixa = usuario?.perfil === 'caixa' || usuario?.perfil === 'dono'; 

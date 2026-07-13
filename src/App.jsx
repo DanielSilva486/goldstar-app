@@ -157,7 +157,7 @@ export default function App() {
       )}
 
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col">
-        <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} dadosEmpresa={dadosEmpresa} />
+        <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} dadosEmpresa={dadosEmpresa} despesas={despesas}/>
         
         {!usuarioLogado ? (
           <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 text-center">
