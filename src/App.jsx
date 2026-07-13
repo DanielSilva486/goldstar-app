@@ -6,6 +6,7 @@ import ModalLogin from './components/ModalLogin';
 import RelatoriosAbas from './components/RelatoriosAbas';
 import ModalNovoAtendimento from './components/ModalNovoAtendimento';
 import ModalConfiguracoes from './components/ModalConfiguracoes';
+import GraficoFaturamento from './components/GraficoFaturamento';
 
 export default function App() {
   const [mostrarLogin, setMostrarLogin] = useState(false);

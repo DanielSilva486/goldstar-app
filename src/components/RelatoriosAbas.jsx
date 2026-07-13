@@ -3,6 +3,7 @@ import ModalNovaDespesa from './ModalNovaDespesa';
 import ModalNovoVale from './ModalNovoVale';
 import LinhaDoTempo from './LinhaDoTempo';
 import ModalNovoAtendimento from './ModalNovoAtendimento'; 
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'; // 🚀 SAAS: Ferramenta de gráficos adicionada!
 
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
   const isAdmin = usuario?.perfil === 'admin' || usuario?.perfil === 'dono';
@@ -96,6 +97,28 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   };
 
   useEffect(() => { carregarDadosExtras(); }, [mes, ano, isAdmin, idSaaS]);
+
+  // 🚀 LÓGICA DO GRÁFICO (Faturamento Dia a Dia)
+  const dadosGraficoBrutos = {};
+  historicoGeral.forEach(item => {
+    if (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO')) return;
+    const data = item.data; 
+    if (!dadosGraficoBrutos[data]) {
+      dadosGraficoBrutos[data] = { nome: data, Serviços: 0, Produtos: 0 };
+    }
+    if (item.servico_tipo === 'produto') {
+      dadosGraficoBrutos[data].Produtos += Number(item.valor_total);
+    } else {
+      dadosGraficoBrutos[data].Serviços += Number(item.valor_total);
+    }
+  });
+
+  const dadosGrafico = Object.values(dadosGraficoBrutos).sort((a, b) => {
+    const [diaA, mesA] = a.nome.split('/');
+    const [diaB, mesB] = b.nome.split('/');
+    return new Date(ano, mesA - 1, diaA) - new Date(ano, mesB - 1, diaB);
+  });
+
 
   const filtrarComissoesPeriodo = async () => {
     if (!dataInicio || !dataFim) return;
@@ -393,6 +416,35 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up pt-4">
+      
+      {/* 🚀 O GRÁFICO ENTRA AQUI! VISÍVEL APENAS PARA DONO/ADMIN */}
+      {isAdmin && (
+        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 h-[280px] w-full flex flex-col mb-4">
+          <h3 className="font-bold text-gray-700 mb-2 text-sm">Resumo Diário - {mes}/{ano}</h3>
+          
+          {dadosGrafico.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+              Sem dados registados neste mês.
+            </div>
+          ) : (
+            <div className="flex-1 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dadosGrafico} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis dataKey="nome" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={(v) => `R$${v}`} />
+                  <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontSize: '12px' }} formatter={(valor) => formatarMoeda(valor)} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                  {/* Cor padrão Teal para serviços e Cinza escuro para produtos */}
+                  <Bar dataKey="Serviços" stackId="a" fill="#14b8a6" radius={[0, 0, 4, 4]} />
+                  <Bar dataKey="Produtos" stackId="a" fill="#374151" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
         {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
         <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
