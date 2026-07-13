@@ -3,7 +3,25 @@ import ModalNovaDespesa from './ModalNovaDespesa';
 import ModalNovoVale from './ModalNovoVale';
 import LinhaDoTempo from './LinhaDoTempo';
 import ModalNovoAtendimento from './ModalNovoAtendimento'; 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'; // 🚀 SAAS: Ferramenta de gráficos adicionada!
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// 🚀 SAAS: COMPONENTE DE ETIQUETA PARA FORMA DE PAGAMENTO
+const BadgePagamento = ({ forma }) => {
+  const formaLimpa = forma || 'Dinheiro';
+  const cores = {
+    'Pix': 'bg-purple-100 text-purple-700 border-purple-200',
+    'Cartão': 'bg-blue-100 text-blue-700 border-blue-200',
+    'Dinheiro': 'bg-green-100 text-green-700 border-green-200'
+  };
+  
+  const icone = formaLimpa === 'Pix' ? '📱' : formaLimpa === 'Cartão' ? '💳' : '💲';
+  
+  return (
+    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border shadow-sm flex items-center justify-center gap-1 w-max mx-auto ${cores[formaLimpa] || cores['Dinheiro']}`}>
+      <span>{icone}</span> {formaLimpa}
+    </span>
+  );
+};
 
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
   const isAdmin = usuario?.perfil === 'admin' || usuario?.perfil === 'dono';
@@ -98,7 +116,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   useEffect(() => { carregarDadosExtras(); }, [mes, ano, isAdmin, idSaaS]);
 
-  // 🚀 LÓGICA DO GRÁFICO (Faturamento Dia a Dia)
   const dadosGraficoBrutos = {};
   historicoGeral.forEach(item => {
     if (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO')) return;
@@ -197,13 +214,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   });
 
+  // 🚀 LÓGICA DE PAGAMENTO ATUALIZADA
   const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
       await fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas/pagar', { 
         method: 'PUT', 
         headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ ids, statusNovo, formaPagamento }) // 👈 Aqui está o segredo!
+        body: JSON.stringify({ ids, statusNovo, formaPagamento })
       });
       recarregarTudo(); 
     } catch (erro) {
@@ -259,6 +277,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           <div class="divisor"></div>
           <div class="info"><span class="bold">Cliente:</span> ${nomeCliente}</div>
           <div class="info"><span class="bold">Atendente(s):</span> ${[...new Set(itens.map(i => i.profissional))].join(', ')}</div>
+          <div class="info"><span class="bold">Pagamento:</span> ${itens[0].forma_pagamento || 'Concluído'}</div>
           <div class="divisor"></div>
           
           <table>
@@ -326,7 +345,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     }
   });
 
-const filaPorProfissional = comandas.reduce((acc, item) => {
+  const filaPorProfissional = comandas.reduce((acc, item) => {
     const ehProduto = item.servico_tipo === 'produto' || item.duracao === 0 || item.duracao === null;
     if (ehProduto) return acc;
 
@@ -369,14 +388,15 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
 
   const exportarPlanilhaGeral = () => {
     if (historico.length === 0) return alert("Vazio.");
-    let conteudoCSV = "Data,Cliente,Status,Tipo,Serviço/Produto,Profissional,Valor Total (R$),Comissão (R$)\n";
+    let conteudoCSV = "Data,Cliente,Status,Pagamento,Tipo,Serviço/Produto,Profissional,Valor Total (R$),Comissão (R$)\n";
     historico.forEach(item => {
       const c = item.cliente_nome.replace(/,/g, ''); const s = item.servico.replace(/,/g, '');
       const t = item.servico_tipo === 'produto' ? 'Produto' : 'Serviço';
       const p = item.profissional ? item.profissional.replace(/,/g, '') : '';
       const v = Number(item.valor_total).toFixed(2).replace('.', ','); const com = Number(item.valor_comissao).toFixed(2).replace('.', ',');
       const statusTexto = item.status === 'cancelado' ? 'CANCELADO' : 'PAGO';
-      conteudoCSV += `${item.data},${c},${statusTexto},${t},${s},${p},"${v}","${com}"\n`;
+      const forma = item.forma_pagamento || 'Dinheiro';
+      conteudoCSV += `${item.data},${c},${statusTexto},${forma},${t},${s},${p},"${v}","${com}"\n`;
     });
     const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
@@ -423,7 +443,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up pt-4">
       
-      {/* 🚀 O GRÁFICO ENTRA AQUI! VISÍVEL APENAS PARA DONO/ADMIN */}
       {isAdmin && (
         <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 h-[280px] w-full flex flex-col mb-4">
           <h3 className="font-bold text-gray-700 mb-2 text-sm">Resumo Diário - {mes}/{ano}</h3>
@@ -441,7 +460,6 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={(v) => `R$${v}`} />
                   <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontSize: '12px' }} formatter={(valor) => formatarMoeda(valor)} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                  {/* Cor padrão Teal para serviços e Cinza escuro para produtos */}
                   <Bar dataKey="Serviços" stackId="a" fill="#14b8a6" radius={[0, 0, 4, 4]} />
                   <Bar dataKey="Produtos" stackId="a" fill="#374151" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -521,12 +539,12 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
               )}
             </div>
 
-         <div className="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex gap-3 overflow-x-auto scrollbar-hide items-center shadow-sm">
+            <div className="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex gap-3 overflow-x-auto scrollbar-hide items-center shadow-sm">
               <span className="text-xs font-bold text-orange-800 uppercase tracking-wider shrink-0 mr-2 flex items-center gap-1">
                 ⏳ Aguardando ({clientesAguardando.length}):
               </span>
               
-           {clientesAguardando.length === 0 ? (
+              {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
                 clientesAguardando.map(({nomeCliente, itens}) => {
@@ -535,6 +553,9 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                   const valorJaPago = itens.reduce((soma, item) => item.status === 'pago_antecipado' ? soma + Number(item.valor_total) : soma, 0);
                   const valorPendente = valorTotal - valorJaPago;
                   
+                  // Gerar ID seguro para os inputs deste cliente
+                  const safeId = nomeCliente.replace(/[^a-zA-Z0-9]/g, '');
+
                   return (
                     <div key={nomeCliente} className={`shrink-0 flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm min-w-[250px] transition-colors ${valorPendente === 0 ? 'bg-green-50/60 border-green-200' : 'bg-white border-orange-200'}`}>
                       <div className="flex-1 min-w-0">
@@ -548,21 +569,26 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
                         
                         {valorPendente > 0 ? (
-                          <>
-                            {/* Seletor de forma de pagamento */}
-                            <select onChange={(e) => atualizarStatusComanda(itens, 'pago_antecipado', e.target.value)} className="bg-blue-100 text-blue-700 font-bold px-2 py-1.5 rounded-lg text-[10px] cursor-pointer">
-                              <option value="Dinheiro">💲 Dinheiro</option>
-                              <option value="Pix">📱 Pix</option>
-                              <option value="Cartão">💳 Cartão</option>
+                          <div className="flex items-center gap-1 bg-blue-50 p-1 rounded-lg border border-blue-100 shadow-sm">
+                            <select id={`pagamento_aguard_${safeId}`} className="bg-transparent text-blue-700 font-bold text-[10px] outline-none cursor-pointer">
+                              <option value="Dinheiro">Dinheiro</option>
+                              <option value="Pix">Pix</option>
+                              <option value="Cartão">Cartão</option>
                             </select>
-                          </>
+                            <button onClick={() => {
+                               const f = document.getElementById(`pagamento_aguard_${safeId}`).value;
+                               atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado', f);
+                            }} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold transition-colors shadow-sm">
+                              💲 Antecipar
+                            </button>
+                          </div>
                         ) : (
                           <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm">✅ Pago</span>
                         )}
 
-                        {/* Botão Iniciar (agora de volta!) */}
+                        {/* Botão Iniciar volta aqui */}
                         {itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa') && (
-                          <button onClick={() => iniciarServico(itens.find(i => i.servico_tipo !== 'produto').id)} className="bg-blue-500 text-white px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Iniciar">▶ Iniciar</button>
+                          <button onClick={() => iniciarServico(itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa').id)} className="bg-blue-500 text-white px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Iniciar">▶ Iniciar</button>
                         )}
                       </div>
                     </div>
@@ -589,6 +615,7 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                    const valorPendente = valorTotal - valorJaPago;
                    const horaChegada = new Date(itens[0].data_hora); 
                    const horaChegadaFormatada = horaChegada.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                   const safeId = nomeCliente.replace(/[^a-zA-Z0-9]/g, '');
 
                    return (
                      <div key={nomeCliente} className="border border-teal-200 bg-white rounded-2xl shadow-md overflow-hidden flex flex-col justify-between transition-all duration-300">
@@ -666,9 +693,25 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                            </div>
 
                            <div className="flex gap-2 w-full mt-1">
-                             {valorPendente > 0 && <button onClick={() => atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado')} className="flex-1 bg-blue-100 text-blue-700 font-bold py-2 px-1 rounded-xl text-xs hover:bg-blue-200 transition-colors truncate">Antecipar</button>}
-                             <button onClick={() => atualizarStatusComanda(itens, 'pago')} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-1 rounded-xl shadow-md text-xs transition-colors truncate">{valorPendente === 0 ? "✅ Encerrar" : "💲 Dar Baixa"}</button>
+                             {/* Novo Seletor Inteligente para Dar Baixa no Atendimento */}
+                             {valorPendente > 0 && (
+                               <div className="flex-1 flex gap-1 bg-green-50 p-1 rounded-xl border border-green-100 shadow-sm">
+                                 <select id={`pagamento_card_${safeId}`} className="bg-transparent text-green-800 font-bold text-xs outline-none cursor-pointer w-full text-center">
+                                   <option value="Dinheiro">Dinheiro</option>
+                                   <option value="Pix">Pix</option>
+                                   <option value="Cartão">Cartão</option>
+                                 </select>
+                               </div>
+                             )}
+                             <button onClick={() => {
+                               const selectElement = document.getElementById(`pagamento_card_${safeId}`);
+                               const f = selectElement ? selectElement.value : 'Dinheiro';
+                               atualizarStatusComanda(itens, 'pago', f);
+                             }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-1 rounded-xl shadow-md text-xs transition-colors truncate">
+                               {valorPendente === 0 ? "✅ Encerrar" : "💲 Dar Baixa"}
+                             </button>
                            </div>
+
                          </div>
                        </div>
                      </div>
@@ -715,13 +758,14 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                   <th className="p-3">Cliente</th>
                   <th className="p-3">Serviço/Produto</th>
                   {!isProfissional && <th className="p-3">Profissional</th>}
+                  <th className="p-3 text-center">Pagamento</th>
                   <th className="p-3 text-right">Valor Final</th>
                   <th className="p-3 text-right text-green-600 font-bold">Comissão</th>
                   {(isAdmin || isCaixa) && <th className="p-3 text-center">Ações</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {historico.length === 0 ? <tr><td colSpan={(isAdmin || isCaixa) ? "7" : (isProfissional ? "5" : "6")} className="p-6 text-center text-gray-400">Nenhum registro encontrado.</td></tr> : historico.map(item => {
+                {historico.length === 0 ? <tr><td colSpan={(isAdmin || isCaixa) ? "8" : (isProfissional ? "6" : "7")} className="p-6 text-center text-gray-400">Nenhum registro encontrado.</td></tr> : historico.map(item => {
                   const temErro = item.cliente_nome.includes('⚠️ ERRO');
                   const isCancelado = item.status === 'cancelado';
 
@@ -736,6 +780,12 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                         {item.servico_tipo === 'produto' ? <span title="Produto Vendido">🛍️ {item.servico}</span> : <span title="Serviço Realizado">💆‍♀️ {item.servico}</span>}
                       </td>
                       {!isProfissional && <td className="p-3 text-gray-600 font-bold text-xs">{item.profissional}</td>}
+                      
+                      {/* 🚀 O NOVO BADGE NO HISTÓRICO ENTRA AQUI */}
+                      <td className="p-3 text-center">
+                        {!isCancelado && <BadgePagamento forma={item.forma_pagamento} />}
+                      </td>
+
                       <td className="p-3 font-bold text-teal-600 text-right">
                         {temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}
                       </td>

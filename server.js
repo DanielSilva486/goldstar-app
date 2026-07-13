@@ -115,14 +115,30 @@ app.get('/api/resumo', async (req, res) => {
     
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE pago = TRUE AND EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2 AND empresa_id = $3`, [mes, ano, empresa_id]);
     
-    const historico = await pool.query(`SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, s.tipo as servico_tipo, a.valor_total, c.nome as profissional, a.valor_comissao, a.status FROM atendimentos a JOIN servicos s ON a.servico_id = s.id JOIN colaboradores c ON a.colaborador_id = c.id WHERE a.status IN ('pago', 'pago_antecipado', 'cancelado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 ORDER BY a.data_hora DESC`, [mes, ano, empresa_id]);
+    // 🚀 CORREÇÃO AQUI: Adicionado a.forma_pagamento ao SELECT
+    const historico = await pool.query(`
+      SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM') as data, a.cliente_nome, s.nome as servico, 
+             s.tipo as servico_tipo, a.valor_total, c.nome as profissional, a.valor_comissao, 
+             a.status, a.forma_pagamento 
+      FROM atendimentos a 
+      JOIN servicos s ON a.servico_id = s.id 
+      JOIN colaboradores c ON a.colaborador_id = c.id 
+      WHERE a.status IN ('pago', 'pago_antecipado', 'cancelado') 
+      AND EXTRACT(MONTH FROM a.data_hora) = $1 
+      AND EXTRACT(YEAR FROM a.data_hora) = $2 
+      AND a.empresa_id = $3 
+      ORDER BY a.data_hora DESC
+    `, [mes, ano, empresa_id]);
     
     const comissoesQuery = await pool.query(`SELECT c.nome as profissional, c.perfil, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 GROUP BY c.nome, c.perfil ORDER BY total_comissao DESC`, [mes, ano, empresa_id]);
     const topServicosQuery = await pool.query(`SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado FROM atendimentos a JOIN servicos s ON a.servico_id = s.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 GROUP BY s.nome ORDER BY gerado DESC LIMIT 10`, [mes, ano, empresa_id]);
     const topClientesQuery = await pool.query(`SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 AND empresa_id = $3 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 10`, [mes, ano, empresa_id]);
     
     res.json({ sucesso: true, valores: { ...totais.rows[0], total_despesas: despesasTotais.rows[0].total_despesas }, historico: historico.rows, comissoes: comissoesQuery.rows, topServicos: topServicosQuery.rows, topClientes: topClientesQuery.rows });
-  } catch (erro) { res.status(500).json({ sucesso: false }); }
+  } catch (erro) { 
+    console.error("Erro no resumo:", erro); // Ajuda a identificar se o erro persistir
+    res.status(500).json({ sucesso: false, erro: erro.message }); 
+  }
 });
 
 app.get('/api/comissoes-periodo', async (req, res) => {
@@ -297,7 +313,7 @@ app.get('/api/comandas', async (req, res) => {
     const r = await pool.query(`
       SELECT a.id, a.cliente_nome, s.nome as servico, s.duracao, s.tipo as servico_tipo, c.nome as profissional, 
              a.valor_total, a.valor_comissao, a.data_hora, a.status,
-             a.hora_inicio, a.status_fila 
+             a.hora_inicio, a.status_fila, a.forma_pagamento 
       FROM atendimentos a 
       JOIN servicos s ON a.servico_id = s.id 
       JOIN colaboradores c ON a.colaborador_id = c.id 
