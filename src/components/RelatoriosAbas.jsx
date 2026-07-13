@@ -526,7 +526,7 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                 ⏳ Aguardando ({clientesAguardando.length}):
               </span>
               
-              {clientesAguardando.length === 0 ? (
+           {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
                 clientesAguardando.map(({nomeCliente, itens}) => {
@@ -548,9 +548,21 @@ const filaPorProfissional = comandas.reduce((acc, item) => {
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
                         
                         {valorPendente > 0 ? (
-                          <button onClick={() => atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado')} className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Pagar Antecipado">💲 Antecipar</button>
+                          <>
+                            {/* Seletor de forma de pagamento */}
+                            <select onChange={(e) => atualizarStatusComanda(itens, 'pago_antecipado', e.target.value)} className="bg-blue-100 text-blue-700 font-bold px-2 py-1.5 rounded-lg text-[10px] cursor-pointer">
+                              <option value="Dinheiro">💲 Dinheiro</option>
+                              <option value="Pix">📱 Pix</option>
+                              <option value="Cartão">💳 Cartão</option>
+                            </select>
+                          </>
                         ) : (
-                          <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm" title="Pagamento já efetuado">✅ Pago</span>
+                          <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm">✅ Pago</span>
+                        )}
+
+                        {/* Botão Iniciar (agora de volta!) */}
+                        {itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa') && (
+                          <button onClick={() => iniciarServico(itens.find(i => i.servico_tipo !== 'produto').id)} className="bg-blue-500 text-white px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Iniciar">▶ Iniciar</button>
                         )}
                       </div>
                     </div>
