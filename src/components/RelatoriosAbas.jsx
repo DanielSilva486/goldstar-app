@@ -826,17 +826,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                         <td className="p-3 text-center flex items-center justify-center gap-2">
                           {/* 🚀 BOTÃO DE REIMPRIMIR RECIBO */}
                           {!temErro && !isCancelado && (
-                            <button onClick={() => {
-                            // 🚀 INTELIGÊNCIA: Agrupa tudo o que o cliente fez no mesmo dia!
-                            const diaDoItem = item.data.split(' às ')[0];
-                            const itensDoClienteNoDia = historico.filter(h => 
-                              h.cliente_nome === item.cliente_nome && 
-                              h.data.split(' às ')[0] === diaDoItem &&
-                              h.status !== 'cancelado' &&
-                              !h.cliente_nome.includes('⚠️ ERRO')
-                            );
-                            imprimirComprovante(item.cliente_nome, itensDoClienteNoDia);
-                          }} className="text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Reimprimir Recibo Completo do Dia">🖨️</button>
+              <button onClick={() => {
+    // 🚀 LÓGICA DE AGRUPAMENTO BLINDADA
+    const nomeLimpo = item.cliente_nome.trim().toLowerCase();
+    const diaDoItem = item.data.split(' ')[0]; // Pega apenas o dia (ex: 27/06)
+    
+    const itensDoClienteNoDia = historico.filter(h => {
+        const nomeDaLista = h.cliente_nome.trim().toLowerCase();
+        const diaDaLista = h.data.split(' ')[0];
+        return nomeDaLista === nomeLimpo && diaDaLista === diaDoItem && h.status !== 'cancelado';
+    });
+    
+    imprimirComprovante(item.cliente_nome, itensDoClienteNoDia);
+}} className="..." title="Reimprimir Recibo Completo do Dia">🖨️</button>
                           )}
                           
                           {isCaixa && !temErro && !isCancelado && (
