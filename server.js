@@ -3,6 +3,7 @@ import cors from 'cors';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import { Resend } from 'resend'; // 🚀 SAAS: Novo carteiro profissional adicionado!
+import bcrypt from 'bcryptjs';
 
 process.env.TZ = 'America/Sao_Paulo';
 dotenv.config();
@@ -34,6 +35,7 @@ const atualizarBanco = async () => {
 };
 atualizarBanco();
 
+
 app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
   
@@ -48,8 +50,14 @@ app.post('/api/login', async (req, res) => {
       const user = r.rows[0];
       const senhaGravada = user.senha || '1234'; 
       
-      if (senha === senhaGravada) {
-        delete user.senha; 
+      // 🚀 SAAS: Compara a senha digitada com a criptografia do banco
+      const senhaValida = await bcrypt.compare(senha, senhaGravada);
+      
+      // ⚠️ MODO TRANSIÇÃO: Permite login nas suas contas de teste antigas
+      const senhaAntigaValida = (senha === senhaGravada);
+      
+      if (senhaValida || senhaAntigaValida) {
+        delete user.senha; // Remove a senha da memória antes de devolver ao frontend
         
         if (user.perfil === 'caixa') {
           const hoje = String(new Date().getDay());
@@ -83,6 +91,7 @@ app.post('/api/login', async (req, res) => {
     res.status(401).json({ sucesso: false, erro: 'E-mail ou senha incorretos' });
   } catch (erro) { res.status(500).json({ sucesso: false, erro: 'Erro no servidor' }); }
 });
+
 
 app.get('/api/resumo', async (req, res) => {
   try {
@@ -168,8 +177,13 @@ app.put('/api/colaboradores/:id/acesso', async (req, res) => {
   try {
     const { email, perfil, senha, dia_folga } = req.body;
     const folga = dia_folga !== undefined ? dia_folga : ''; 
+    
     if (senha && senha.trim() !== '') {
-      await pool.query('UPDATE colaboradores SET email = $1, perfil = $2, senha = $3, dia_folga = $4 WHERE id = $5', [email, perfil, senha, folga, req.params.id]);
+      // 🚀 SAAS: Se o dono atualizar a senha do funcionário, criptografa também
+      const salt = await bcrypt.genSalt(10);
+      const senhaCriptografada = await bcrypt.hash(senha, salt);
+      
+      await pool.query('UPDATE colaboradores SET email = $1, perfil = $2, senha = $3, dia_folga = $4 WHERE id = $5', [email, perfil, senhaCriptografada, folga, req.params.id]);
     } else {
       await pool.query('UPDATE colaboradores SET email = $1, perfil = $2, dia_folga = $3 WHERE id = $4', [email, perfil, folga, req.params.id]);
     }
@@ -463,9 +477,13 @@ app.post('/api/nova-empresa', async (req, res) => {
     const resEmpresa = await pool.query('INSERT INTO empresas (nome) VALUES ($1) RETURNING id', [nome_salao]);
     const novaEmpresaId = resEmpresa.rows[0].id;
 
+    // 🚀 SAAS: Criptografa a senha do novo cliente antes de salvar
+    const salt = await bcrypt.genSalt(10);
+    const senhaCriptografada = await bcrypt.hash(senha, salt);
+
     await pool.query(
       "INSERT INTO colaboradores (nome, email, senha, perfil, ativo, empresa_id) VALUES ($1, $2, $3, 'dono', true, $4)",
-      [nome_dono, email, senha, novaEmpresaId]
+      [nome_dono, email, senhaCriptografada, novaEmpresaId]
     );
 
     await pool.query(
@@ -535,7 +553,11 @@ app.post('/api/redefinir-senha', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'Este código expirou. Solicite um novo.' });
     }
 
-    await pool.query('UPDATE colaboradores SET senha = $1, codigo_recuperacao = NULL, expiracao_codigo = NULL WHERE id = $2', [novaSenha, userRes.rows[0].id]);
+    // 🚀 SAAS: Criptografa a nova senha recuperada pelo usuário
+    const salt = await bcrypt.genSalt(10);
+    const senhaCriptografada = await bcrypt.hash(novaSenha, salt);
+
+    await pool.query('UPDATE colaboradores SET senha = $1, codigo_recuperacao = NULL, expiracao_codigo = NULL WHERE id = $2', [senhaCriptografada, userRes.rows[0].id]);
 
     res.json({ sucesso: true });
   } catch (e) {
