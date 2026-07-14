@@ -22,6 +22,23 @@ const BadgePagamento = ({ forma }) => {
   );
 };
 
+// 🚀 SINO DE NOTIFICAÇÕES (Agora no lugar certo!)
+const IconeNotificacao = ({ despesas, aoClicar }) => {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const alertas = despesas.filter(d => !d.pago && new Date(d.data_vencimento) <= hoje);
+  
+  if (alertas.length === 0) return null;
+
+  return (
+    <button onClick={aoClicar} className="relative p-2 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-sm border border-gray-200 shrink-0" title="Despesas Vencidas">
+      🔔
+      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-pulse border border-white">
+        {alertas.length}
+      </span>
+    </button>
+  );
+};
+
 export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTudo, usuario }) {
   const isAdmin = usuario?.perfil === 'admin' || usuario?.perfil === 'dono';
   const isCaixa = usuario?.perfil === 'caixa' || usuario?.perfil === 'dono'; 
@@ -63,7 +80,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     }
   }
 
-  // 🚀 LÓGICA DO MINI PAINEL DE CAIXA
   const resumoTurno = { total: 0, pix: 0, cartao: 0, dinheiro: 0 };
   historico.forEach(item => {
     if (item.status !== 'cancelado' && !item.cliente_nome.includes('⚠️ ERRO')) {
@@ -127,31 +143,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   useEffect(() => { carregarDadosExtras(); }, [mes, ano, isAdmin, idSaaS]);
 
-  // 🚀 LÓGICA DO GRÁFICO (Faturamento Dia a Dia - CORRIGIDO)
   const dadosGraficoBrutos = {};
   
   historicoGeral.forEach(item => {
     if (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO')) return;
-    
-    // Pega a string "11/07 às 14:30" e extrai apenas "11/07" para agrupar corretamente
     const dataApenasDia = item.data.split(' às ')[0]; 
-    
     if (!dadosGraficoBrutos[dataApenasDia]) {
       dadosGraficoBrutos[dataApenasDia] = { nome: dataApenasDia, Serviços: 0, Produtos: 0 };
     }
-    
     if (item.servico_tipo === 'produto') {
       dadosGraficoBrutos[dataApenasDia].Produtos += Number(item.valor_total);
     } else {
       dadosGraficoBrutos[dataApenasDia].Serviços += Number(item.valor_total);
     }
-  });
-
-  const dadosGrafico = Object.values(dadosGraficoBrutos).sort((a, b) => {
-    const [diaA, mesA] = a.nome.split('/');
-    const [diaB, mesB] = b.nome.split('/');
-    // Ordena do dia 1 ao dia 31 corretamente
-    return new Date(ano, mesA - 1, diaA) - new Date(ano, mesB - 1, diaB);
   });
 
   const dadosGrafico = Object.values(dadosGraficoBrutos).sort((a, b) => {
@@ -258,7 +262,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   };
 
-const tocarSomBaixa = () => {
+  const tocarSomBaixa = () => {
     const audio = new Audio('/confirmacao.mp3'); 
     audio.play().catch(e => console.log("Erro ao tocar som: ", e));
   };
@@ -496,11 +500,14 @@ const tocarSomBaixa = () => {
         </div>
       )}
 
-      <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2">
+      {/* 🚀 O SINO FOI COLOCADO AQUI, JUNTO COM AS ABAS DE NAVEGAÇÃO! */}
+      <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2 items-center">
+        {isAdmin && <IconeNotificacao despesas={despesas} aoClicar={() => setAbaAtiva(6)} />}
+        
         {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
         <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
         
-          {usuario?.perfil !== 'caixa' && (
+        {usuario?.perfil !== 'caixa' && (
           <BotaoAba id={2} titulo={isProfissional ? "2. Minha Comissão" : "2. Comissões da Equipe"} />
         )}
 
@@ -726,13 +733,17 @@ const tocarSomBaixa = () => {
                                  </select>
                                </div>
                              )}
+
                              <button onClick={() => {
                                const selectElement = document.getElementById(`pagamento_card_${safeId}`);
                                const f = selectElement ? selectElement.value : 'Dinheiro';
+                               
+                               tocarSomBaixa(); 
+                               
                                atualizarStatusComanda(itens, 'pago', f);
-                             }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-1 rounded-xl shadow-md text-xs transition-colors truncate">
-                               {valorPendente === 0 ? "✅ Encerrar" : "💲 Dar Baixa"}
-                             </button>
+                            }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-1 rounded-xl shadow-md text-xs transition-colors truncate">
+                              {valorPendente === 0 ? "✅ Encerrar" : "💲 Dar Baixa"}
+                            </button>
                            </div>
 
                          </div>
@@ -766,7 +777,6 @@ const tocarSomBaixa = () => {
             </div>
           </div>
 
-          {/* 🚀 NOVO MINI PAINEL DE CAIXA AQUI */}
           {podeVerCaixa && (
             <div className="bg-gray-800 p-3 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200">
               <div className="flex items-center gap-3 flex-wrap">
@@ -835,22 +845,19 @@ const tocarSomBaixa = () => {
                       </td>
                       {(isAdmin || isCaixa) && (
                         <td className="p-3 text-center flex items-center justify-center gap-2">
-                          
-{/* 🚀 BOTÃO DE REIMPRIMIR RECIBO */}
                           {!temErro && !isCancelado && (
-                          <button onClick={() => {
-    // 🚀 LÓGICA DE AGRUPAMENTO BLINDADA
-    const nomeLimpo = item.cliente_nome.trim().toLowerCase();
-    const diaDoItem = item.data.split(' ')[0]; // Pega apenas o dia (ex: 27/06)
-    
-    const itensDoClienteNoDia = historico.filter(h => {
-        const nomeDaLista = h.cliente_nome.trim().toLowerCase();
-        const diaDaLista = h.data.split(' ')[0];
-        return nomeDaLista === nomeLimpo && diaDaLista === diaDoItem && h.status !== 'cancelado';
-    });
-    
-    imprimirComprovante(item.cliente_nome, itensDoClienteNoDia);
-}} className="..." title="Reimprimir Recibo Completo do Dia">🖨️</button>
+                            <button onClick={() => {
+                                const nomeLimpo = item.cliente_nome.trim().toLowerCase();
+                                const diaDoItem = item.data.split(' ')[0]; 
+                                
+                                const itensDoClienteNoDia = historico.filter(h => {
+                                    const nomeDaLista = h.cliente_nome.trim().toLowerCase();
+                                    const diaDaLista = h.data.split(' ')[0];
+                                    return nomeDaLista === nomeLimpo && diaDaLista === diaDoItem && h.status !== 'cancelado';
+                                });
+                                
+                                imprimirComprovante(item.cliente_nome, itensDoClienteNoDia);
+                            }} className="text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Reimprimir Recibo Completo do Dia">🖨️</button>
                           )}
                           
                           {isCaixa && !temErro && !isCancelado && (

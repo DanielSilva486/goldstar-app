@@ -44,7 +44,6 @@ export default function App() {
     }
   }, [usuarioLogado]);
 
- // 🚀 SAAS: A configuração (cores e logo) agora muda dependendo de qual salão faz login!
   useEffect(() => {
     const idDaEmpresa = usuarioLogado ? usuarioLogado.empresa_id : 1;
     
@@ -78,17 +77,13 @@ export default function App() {
   const podeOperarCaixa = isAdmin || usuarioLogado?.perfil === 'caixa';
 
   const dataAtual = new Date();
-  
-  // 🚀 LÓGICA DO MÊS ATUAL:
   const mesRealHoje = String(dataAtual.getMonth() + 1);
   const anoRealHoje = String(dataAtual.getFullYear());
   
   const [mesSelecionado, setMesSelecionado] = useState(mesRealHoje);
   const [anoSelecionado, setAnoSelecionado] = useState(anoRealHoje);
   
-  // Verifica se o que o usuário escolheu é o mesmo de hoje
   const ehMesAtual = String(mesSelecionado) === mesRealHoje && String(anoSelecionado) === anoRealHoje;
-  
   const [temaAtivo, setTemaAtivo] = useState(localStorage.getItem('temaGoldstar') || 'teal');
 
   useEffect(() => {
@@ -105,7 +100,6 @@ export default function App() {
   
   const cor = paleta[temaAtivo] || paleta.teal;
 
-  // 🚀 SAAS: Agora o sistema avisa ao servidor qual é a empresa exata que quer os dados!
   const carregarDados = () => {
     if (!usuarioLogado) return; 
     fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa_id=${usuarioLogado.empresa_id}`)
@@ -137,7 +131,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      
       <style>{`
         .bg-teal-500 { background-color: ${cor.main} !important; }
         .hover\\:bg-teal-600:hover { background-color: ${cor.hover} !important; }
@@ -157,6 +150,7 @@ export default function App() {
       )}
 
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col">
+        {/* 🚀 CABEÇALHO RESTAURADO SEM DEPENDÊNCIA DE DESPESAS */}
         <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} dadosEmpresa={dadosEmpresa} />
         
         {!usuarioLogado ? (
@@ -171,12 +165,8 @@ export default function App() {
                 Entrar no Sistema
               </button>
             </div>
-
-         
-
           </main>
-
- ) : (
+        ) : (
           <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4 md:px-8">
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
               <div className="flex items-center gap-3">
@@ -199,7 +189,7 @@ export default function App() {
                 )}
               </div>
 
-                <div className="flex gap-2">
+              <div className="flex gap-2">
                 <select 
                   value={mesSelecionado} 
                   onChange={(e) => setMesSelecionado(e.target.value)} 
@@ -224,31 +214,25 @@ export default function App() {
                   <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
                 </select>
               </div>
-          </div>
+            </div>
             
-            {/* 🚀 O NOVO LAYOUT DA TELA DO ADMIN FICA AQUI */}
             <div className="flex flex-col lg:flex-row gap-6 items-start">
               {isAdmin && (
-                // O painel fica com tamanho travado (ex: 280px) e gruda no topo (sticky)
                 <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 sticky top-4">
                   <PainelValores valores={dadosSalao?.valores} comissoes={dadosSalao?.comissoes} />
                 </div>
               )}
               
-              {/* A área principal ganha flex-1 para esticar e aproveitar todo o resto da tela! */}
               <div className="flex-1 w-full min-w-0">
                 <RelatoriosAbas dados={dadosSalao} mes={mesSelecionado} ano={anoSelecionado} comandas={comandas} recarregarTudo={recarregarTudo} usuario={usuarioLogado} />
               </div>
             </div>
-            
           </main>
         )}
 
-      <footer className="w-full text-center py-6 text-gray-400 text-[11px] font-medium border-t border-gray-100">
-        Powered by <span className="font-black text-teal-600">GestãoGold</span> | © 2026 — Gestão Inteligente para Salões
-      </footer>
-
-
+        <footer className="w-full text-center py-6 text-gray-400 text-[11px] font-medium border-t border-gray-100">
+          Powered by <span className="font-black text-teal-600">GestãoGold</span> | © 2026 — Gestão Inteligente para Salões
+        </footer>
       </div>
 
       {mostrarNovoAtendimento && usuarioLogado && <ModalNovoAtendimento fechar={() => setMostrarNovoAtendimento(false)} recarregarTudo={recarregarTudo} comandas={comandas} />}
@@ -270,7 +254,6 @@ export default function App() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
