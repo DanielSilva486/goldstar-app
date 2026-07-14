@@ -165,7 +165,12 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
               <div>
                 <div className="flex justify-between items-center mb-1 ml-1">
                   <label className="block text-sm font-bold text-gray-700">Senha</label>
-                  <button type="button" onClick={() => mudarTela('recuperacao')} className="text-[11px] text-teal-600 font-bold hover:underline">Esqueceu a senha?</button>
+                 <a 
+  href="mailto:suportegestaogold@gmail.com?subject=Ajuda com o GestãoGold" 
+  className="text-xs font-bold text-teal-600 hover:text-teal-800 transition-colors"
+>
+  Precisa de ajuda? Contato Suporte
+</a>
                 </div>
                 <input type="password" required value={senha} onChange={e => setSenha(e.target.value)} className="w-full border-2 border-gray-100 rounded-xl p-3 outline-none focus:border-teal-500 bg-gray-50 focus:bg-white transition-all" placeholder="••••••••" />
               </div>

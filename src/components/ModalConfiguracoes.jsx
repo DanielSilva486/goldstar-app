@@ -847,9 +847,17 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                     <a href="https://wa.me/5515999999999" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-xs md:text-sm shadow-sm transition-colors">
                       💬 Falar no WhatsApp
                     </a>
-                    <a href="https://instagram.com/gestaogold" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-orange-400 hover:from-pink-600 hover:to-orange-500 text-white font-bold py-3 rounded-xl text-xs md:text-sm shadow-sm transition-colors">
-                      📸 Acompanhar no Instagram
-                    </a>
+                    <div className="mt-6 border-t border-gray-100 pt-4">
+  <p className="text-xs text-gray-500 font-bold mb-2">Acompanhe as novidades:</p>
+  <a 
+    href="https://www.instagram.com/gestaogold_oficial" 
+    target="_blank" 
+    rel="noopener noreferrer" 
+    className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:opacity-90 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition-transform active:scale-95 text-sm"
+  >
+    📸 Siga o @gestaogold_oficial
+  </a>
+</div>
                   </div>
                 </div>
 
