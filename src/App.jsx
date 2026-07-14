@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Cabecalho from './components/Cabecalho';
 import PainelValores from './components/PainelValores';
-import MenuInferior from './components/MenuInferior';
 import ModalLogin from './components/ModalLogin';
 import RelatoriosAbas from './components/RelatoriosAbas';
 import ModalNovoAtendimento from './components/ModalNovoAtendimento';
 import ModalConfiguracoes from './components/ModalConfiguracoes';
-import GraficoFaturamento from './components/GraficoFaturamento';
 
 export default function App() {
   const [mostrarLogin, setMostrarLogin] = useState(false);
@@ -129,6 +127,29 @@ export default function App() {
     setMostrarConfirmacaoSair(false);
   };
 
+  // 🚀 LÓGICA DE VENCIMENTO DO PLANO SAAS
+  let diasRestantes = null;
+  let planoExpirado = false;
+
+  if (usuarioLogado && usuarioLogado.data_vencimento) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    // Converte a data do banco 'YYYY-MM-DD' para o formato do navegador
+    const partes = String(usuarioLogado.data_vencimento).split('-');
+    if(partes.length === 3) {
+        const dataVenc = new Date(partes[0], partes[1] - 1, partes[2]);
+        dataVenc.setHours(0, 0, 0, 0);
+
+        // Calcula a diferença em dias
+        const diffTempo = dataVenc.getTime() - hoje.getTime();
+        diasRestantes = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
+        
+        // Se o número de dias for menor que zero, o plano expirou
+        planoExpirado = diasRestantes < 0;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       <style>{`
@@ -143,14 +164,14 @@ export default function App() {
         .focus\\:ring-teal-500:focus { --tw-ring-color: ${cor.main} !important; }
       `}</style>
 
-      {podeOperarCaixa && usuarioLogado && (
+      {podeOperarCaixa && usuarioLogado && !planoExpirado && (
         <button onClick={() => setMostrarNovoAtendimento(true)} className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-teal-500 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-90">
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
         </button>
       )}
 
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-2xl flex flex-col">
-        {/* 🚀 CABEÇALHO RESTAURADO SEM DEPENDÊNCIA DE DESPESAS */}
+        
         <Cabecalho aoClicarPerfil={() => setMostrarLogin(true)} dadosEmpresa={dadosEmpresa} />
         
         {!usuarioLogado ? (
@@ -166,8 +187,56 @@ export default function App() {
               </button>
             </div>
           </main>
+        ) : planoExpirado ? (
+          
+          /* 🚀 TELA DE BLOQUEIO TOTAL (PLANO VENCIDO) */
+          <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 text-center animate-fade-in">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl border border-red-100 max-w-md w-full">
+              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100 animate-pulse">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              </div>
+              <h2 className="text-2xl font-black text-gray-800 mb-2">Plano Expirado</h2>
+              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                A licença do <span className="font-bold text-teal-600">{dadosEmpresa.nome_fantasia}</span> chegou ao fim. Para continuar a gerir o seu salão e ter acesso a todos os seus dados, por favor, renove a sua assinatura.
+              </p>
+              <a 
+                href="mailto:suportegestaogold@gmail.com?subject=Renovação de Plano - GestãoGold" 
+                className="flex items-center justify-center gap-2 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 px-4 rounded-xl transition-colors shadow-md mb-4"
+              >
+                ✉️ Falar com o Suporte
+              </a>
+              <button onClick={confirmarLogout} className="text-xs font-bold text-gray-400 hover:text-gray-700 underline transition-colors">
+                Sair do sistema
+              </button>
+            </div>
+          </main>
+
         ) : (
+          
+          /* 🚀 SISTEMA LIBERADO (RODANDO NORMALMENTE) */
           <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4 md:px-8">
+            
+            {/* ⚠️ AVISO DE 2 DIAS (Só aparece se faltar 0, 1 ou 2 dias) */}
+            {diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 2 && (
+              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-6 rounded-r-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-slide-up">
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl animate-bounce">⚠️</div>
+                  <div>
+                    <h3 className="text-orange-800 font-bold text-sm">Atenção: O seu plano expira em breve!</h3>
+                    <p className="text-orange-700 text-xs mt-0.5">
+                      Falta(m) apenas <span className="font-black text-orange-900">{diasRestantes} dia(s)</span> para o vencimento da sua licença.
+                    </p>
+                  </div>
+                </div>
+                <a 
+                  href="mailto:suportegestaogold@gmail.com?subject=Renovação de Plano - GestãoGold" 
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-transform active:scale-95 whitespace-nowrap"
+                >
+                  Renovar Antecipadamente
+                </a>
+              </div>
+            )}
+
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
               <div className="flex items-center gap-3">
                 {isAdmin && (
