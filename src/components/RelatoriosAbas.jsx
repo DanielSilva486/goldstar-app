@@ -845,15 +845,29 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       </td>
                       {(isAdmin || isCaixa) && (
                         <td className="p-3 text-center flex items-center justify-center gap-2">
+                        
+ {/* 🚀 BOTÃO DE REIMPRIMIR RECIBO */}
                           {!temErro && !isCancelado && (
                             <button onClick={() => {
-                                const nomeLimpo = item.cliente_nome.trim().toLowerCase();
-                                const diaDoItem = item.data.split(' ')[0]; 
+                                // 🚀 LÓGICA DE AGRUPAMENTO SUPER BLINDADA
+                                // Esta função remove acentos, espaços extras no meio e converte para minúsculas
+                                const normalizarNome = (nome) => {
+                                  return nome 
+                                    ? nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, ' ')
+                                    : "";
+                                };
+
+                                const nomeLimpo = normalizarNome(item.cliente_nome);
+                                const diaDoItem = item.data.split(' ')[0]; // Pega apenas o dia (ex: 27/06)
                                 
                                 const itensDoClienteNoDia = historico.filter(h => {
-                                    const nomeDaLista = h.cliente_nome.trim().toLowerCase();
+                                    const nomeDaLista = normalizarNome(h.cliente_nome);
                                     const diaDaLista = h.data.split(' ')[0];
-                                    return nomeDaLista === nomeLimpo && diaDaLista === diaDoItem && h.status !== 'cancelado';
+                                    
+                                    return nomeDaLista === nomeLimpo && 
+                                           diaDaLista === diaDoItem && 
+                                           h.status !== 'cancelado' && 
+                                           !h.cliente_nome.includes('⚠️ ERRO');
                                 });
                                 
                                 imprimirComprovante(item.cliente_nome, itensDoClienteNoDia);
