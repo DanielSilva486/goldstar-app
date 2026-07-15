@@ -32,7 +32,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   };
 
   const temas = [
-    { id: 'teal', nome: 'Verde (Padrão)' },
+    { id: 'teal', nome: 'Cor da Marca' },
     { id: 'pink', nome: 'Rosa' },
     { id: 'purple', nome: 'Roxo' },
     { id: 'gold', nome: 'Dourado' },
