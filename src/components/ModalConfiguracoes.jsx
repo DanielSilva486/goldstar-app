@@ -899,7 +899,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                     </div>
                   </div>
                 </div>
-              </div>
+           
             );
           })()}
         
