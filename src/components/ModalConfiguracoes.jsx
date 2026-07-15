@@ -381,14 +381,29 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
         <div className="p-6 overflow-y-auto bg-gray-50 flex-1 relative">
           
-          {aba === 'tema' && (
+        {aba === 'tema' && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {temas.map(t => (
-                <button key={t.id} onClick={() => setTemaAtivo(t.id)} className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${temaAtivo === t.id ? 'border-teal-500 bg-teal-50 scale-105 shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-                  <div className={`w-8 h-8 rounded-full ${t.id === 'teal' ? 'bg-teal-500' : t.id === 'pink' ? 'bg-pink-500' : t.id === 'purple' ? 'bg-purple-500' : t.id === 'gold' ? 'bg-yellow-500' : 'bg-gray-800'}`}></div>
-                  <span className={`text-sm font-bold ${temaAtivo === t.id ? 'text-teal-700' : 'text-gray-600'}`}>{t.nome}</span>
-                </button>
-              ))}
+              {temas.map(t => {
+                // Definimos as cores fixas de demonstração para não sofrerem interferência da cor da marca
+                const coresFixas = {
+                  'teal': '#14b8a6',   // Verde original
+                  'pink': '#ec4899',   // Rosa original
+                  'purple': '#a855f7', // Roxo original
+                  'gold': '#eab308',   // Dourado original
+                  'black': '#1f2937'   // Escuro original
+                };
+
+                return (
+                  <button key={t.id} onClick={() => setTemaAtivo(t.id)} className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${temaAtivo === t.id ? 'border-teal-500 bg-teal-50 scale-105 shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                    {/* AQUI ESTÁ A MÁGICA: Usamos style={{ backgroundColor }} em vez de classes do Tailwind */}
+                    <div 
+                      className="w-8 h-8 rounded-full shadow-sm" 
+                      style={{ backgroundColor: coresFixas[t.id] }}
+                    ></div>
+                    <span className={`text-sm font-bold ${temaAtivo === t.id ? 'text-teal-700' : 'text-gray-600'}`}>{t.nome}</span>
+                  </button>
+                )
+              })}
             </div>
           )}
 
