@@ -797,66 +797,114 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
             </div>
           )}
 
-          {aba === 'assinatura' && (
-            <div className="space-y-4">
-              
-              <div className="bg-gradient-to-r from-blue-900 to-indigo-800 p-6 rounded-2xl text-white shadow-sm border border-indigo-800 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="text-center md:text-left">
-                  <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-1">Licença GestãoGold</p>
-                  <h2 className="text-2xl font-black flex flex-col md:flex-row items-center gap-2">
-                    Plano Profissional <span className="bg-green-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase mt-1 md:mt-0">Ativo</span>
-                  </h2>
-                  <p className="text-xs text-indigo-200 mt-2 md:mt-1">Válida até 10/08/2026.</p>
-                </div>
-                <div className="bg-white/10 px-6 py-4 rounded-xl border border-white/10 text-center w-full md:w-auto min-w-[200px]">
-                   <p className="text-[10px] font-bold text-indigo-300 uppercase mb-1">Mensalidade</p>
-                   <p className="text-2xl font-black">R$ 47,00<span className="text-sm font-normal opacity-70">/mês</span></p>
-                </div>
-              </div>
+         {aba === 'assinatura' && (() => {
+            // Lógica Matemática da Data
+            let dataFormatada = "Vitalício";
+            let diasRestantes = 999;
+            let statusPlano = "ATIVO";
+            let corStatus = "bg-green-500";
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            // Usando o usuarioLocal que já existe no seu ficheiro!
+            if (usuarioLocal && usuarioLocal.data_vencimento) {
+              const partes = String(usuarioLocal.data_vencimento).split('-');
+              if (partes.length === 3) {
+                dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
                 
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 border-b border-gray-100 pb-2">
-                      <span className="text-lg">💸</span>
-                      <h4 className="font-bold text-gray-700 uppercase text-sm">Pagamento via PIX</h4>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-4">Realize o pagamento via PIX para a <strong>GestãoGold</strong>:</p>
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-center mb-4">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Chave PIX</p>
-                      <p className="text-sm md:text-base font-black text-gray-800 select-all" title="Copiar PIX">pagamentos@gestaogold.com.br</p>
-                    </div>
-                  </div>
-                  <button className="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-md">
-                    Copiar Chave PIX
-                  </button>
-                </div>
+                const dataVenc = new Date(partes[0], partes[1] - 1, partes[2]);
+                dataVenc.setHours(0, 0, 0, 0);
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                
+                diasRestantes = Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (diasRestantes < 0) {
+                  statusPlano = "EXPIRADO";
+                  corStatus = "bg-red-500";
+                } else if (diasRestantes <= 5) {
+                  statusPlano = "VENCE EM BREVE";
+                  corStatus = "bg-orange-500";
+                }
+              }
+            }
 
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 border-b border-gray-100 pb-2">
-                      <span className="text-lg">🤝</span>
-                      <h4 className="font-bold text-gray-700 uppercase text-sm">Suporte GestãoGold</h4>
+            return (
+              <div className="animate-fade-in space-y-6">
+                
+                {/* CARD PRINCIPAL DO PLANO */}
+                <div className="bg-[#3730a3] text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+                  <div className="z-10">
+                    <p className="text-[10px] font-bold tracking-widest text-indigo-200 uppercase mb-1">Licença GestãoGold</p>
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-2xl font-black">Plano Profissional</h3>
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-sm ${corStatus}`}>
+                        {statusPlano}
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-500 mb-4">
-                      O sistema GestãoGold foi criado para facilitar o seu dia a dia. Precisa de ajuda, quer treinar a sua equipa ou sugerir uma novidade?
+                    <p className="text-sm text-indigo-200 font-medium">
+                      Válida até {dataFormatada}. 
+                      {diasRestantes >= 0 && diasRestantes <= 5 && <span className="text-orange-300 font-bold ml-1">(Restam {diasRestantes} dias)</span>}
                     </p>
                   </div>
-                  <div className="flex flex-col gap-3 mt-auto">
-                    <a href="https://wa.me/5515999999999" target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-xs md:text-sm shadow-sm transition-colors">
-                      💬 Falar no WhatsApp
-                    </a>
-                    <div className="mt-6 border-t border-gray-100 pt-4">
-  <p className="text-xs text-gray-500 font-bold mb-2">Acompanhe as novidades:</p>
-  <a 
-    href="https://www.instagram.com/gestaogold_oficial" 
-    target="_blank" 
-    rel="noopener noreferrer" 
-    className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:opacity-90 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition-transform active:scale-95 text-sm"
-  >
-    📸 Siga o @gestaogold_oficial
-  </a>
+                  
+                  <div className="z-10 bg-white/10 border border-white/20 p-4 rounded-xl text-center min-w-[140px] backdrop-blur-sm">
+                    <p className="text-[10px] font-bold tracking-widest text-indigo-200 uppercase mb-1">Mensalidade</p>
+                    <p className="text-xl font-black">R$ 47,00<span className="text-sm font-medium text-indigo-200">/mês</span></p>
+                  </div>
+                  
+                  {/* Efeito visual de fundo */}
+                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl"></div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* CARD PIX */}
+                  <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
+                    <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                      <span>💸</span> Pagamento via PIX
+                    </h4>
+                    <p className="text-xs text-gray-500 mb-4">Realize o pagamento via PIX para a GestãoGold:</p>
+                    
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl text-center mb-4">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Chave PIX</p>
+                      <p className="font-black text-gray-800 select-all">pagamentos@gestaogold.com.br</p>
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText('pagamentos@gestaogold.com.br');
+                        alert('Chave PIX copiada!');
+                      }}
+                      className="w-full bg-[#1f2937] hover:bg-black text-white font-bold py-3 rounded-xl transition-colors shadow-sm text-sm"
+                    >
+                      Copiar Chave PIX
+                    </button>
+                  </div>
+
+                  {/* CARD SUPORTE */}
+                  <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                        <span>🤝</span> Suporte GestãoGold
+                      </h4>
+                      <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                        O sistema GestãoGold foi criado para facilitar o seu dia a dia. Precisa de ajuda, quer treinar a sua equipa ou sugerir uma novidade?
+                      </p>
+                      
+                      <a 
+                        href="https://wa.me/5515996015916" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full bg-[#10b981] hover:bg-[#059669] text-white font-bold py-3 rounded-xl transition-colors shadow-sm mb-6 text-sm"
+                      >
+                        💬 Falar no WhatsApp
+                      </a>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-4">
+                      <p className="text-xs text-gray-500 font-bold mb-3">Acompanhe as novidades:</p>
+                      <a 
+                        href="https://www.instagram.com/gestaogold_oficial" target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl shadow-sm transition-transform active:scale-95 text-sm"
+                      >
+                        📸 Siga o @gestaogold_oficial
+                      </a>
 </div>
                   </div>
                 </div>
