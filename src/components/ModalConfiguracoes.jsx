@@ -143,7 +143,8 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
       const d = await res.json();
       if(d.sucesso) {
         mostrarToast('Configurações salvas! A cor e logótipo serão aplicados ao atualizar a página.');
-      } else {
+    window.location.reload(); 
+ } else {
         mostrarToast('Erro ao salvar.', 'erro');
       }
     } catch (error) {
