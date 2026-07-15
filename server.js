@@ -30,6 +30,9 @@ const atualizarBanco = async () => {
     await pool.query("ALTER TABLE configuracoes_empresa ADD COLUMN IF NOT EXISTS ip_autorizado VARCHAR(50)");
     await pool.query("ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS dia_folga VARCHAR(50) DEFAULT ''");
     
+    // 🚀 SAAS: Garante que a coluna de vencimento exista (mesmo que você já tenha criado, isto previne erros no futuro)
+    await pool.query("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_vencimento DATE");
+    
     // Linha crítica: garante a coluna
     await pool.query("ALTER TABLE atendimentos ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50) DEFAULT 'Dinheiro'");
 
@@ -44,11 +47,17 @@ app.post('/api/login', async (req, res) => {
   const { email, senha } = req.body;
   
  if (email.toLowerCase() === 'admin@goldstar.com' && senha === process.env.ADMIN_PASS) {
-    return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin Mestre', perfil: 'admin', email: 'admin@goldstar.com', empresa_id: 1 } });
+    return res.json({ sucesso: true, usuario: { id: 0, nome: 'Admin Mestre', perfil: 'admin', email: 'admin@goldstar.com', empresa_id: 1, data_vencimento: '2099-12-31' } });
   }
   
   try {
-    const r = await pool.query('SELECT id, nome, perfil, email, senha, dia_folga, empresa_id FROM colaboradores WHERE LOWER(email) = LOWER($1) AND ativo = TRUE', [email]);
+    // 🚀 SAAS CORREÇÃO: Agora puxamos a data_vencimento da tabela empresas usando um JOIN
+    const r = await pool.query(`
+      SELECT c.id, c.nome, c.perfil, c.email, c.senha, c.dia_folga, c.empresa_id, e.data_vencimento 
+      FROM colaboradores c
+      LEFT JOIN empresas e ON c.empresa_id = e.id
+      WHERE LOWER(c.email) = LOWER($1) AND c.ativo = TRUE
+    `, [email]);
     
     if (r.rows.length > 0) {
       const user = r.rows[0];
@@ -115,7 +124,6 @@ app.get('/api/resumo', async (req, res) => {
     
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE pago = TRUE AND EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2 AND empresa_id = $3`, [mes, ano, empresa_id]);
     
-    // 🚀 CORREÇÃO AQUI: Adicionado a.forma_pagamento ao SELECT
     const historico = await pool.query(`
       SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM às HH24:MI') as data, a.cliente_nome, s.nome as servico, 
              s.tipo as servico_tipo, a.valor_total, c.nome as profissional, a.valor_comissao, 
@@ -136,7 +144,7 @@ app.get('/api/resumo', async (req, res) => {
     
     res.json({ sucesso: true, valores: { ...totais.rows[0], total_despesas: despesasTotais.rows[0].total_despesas }, historico: historico.rows, comissoes: comissoesQuery.rows, topServicos: topServicosQuery.rows, topClientes: topClientesQuery.rows });
   } catch (erro) { 
-    console.error("Erro no resumo:", erro); // Ajuda a identificar se o erro persistir
+    console.error("Erro no resumo:", erro); 
     res.status(500).json({ sucesso: false, erro: erro.message }); 
   }
 });
@@ -199,7 +207,6 @@ app.put('/api/colaboradores/:id/acesso', async (req, res) => {
     const folga = dia_folga !== undefined ? dia_folga : ''; 
     
     if (senha && senha.trim() !== '') {
-      // 🚀 SAAS: Se o dono atualizar a senha do funcionário, criptografa também
       const salt = await bcrypt.genSalt(10);
       const senhaCriptografada = await bcrypt.hash(senha, salt);
       
@@ -331,20 +338,18 @@ app.put('/api/comandas/:id/iniciar', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false }); }
 });
 
-// No seu server.js
 app.put('/api/comandas/pagar', async (req, res) => {
   try {
     const { ids, statusNovo, formaPagamento } = req.body;
     const st = statusNovo || 'pago';
     
-    // Se a formaPagamento não vier, definimos como 'Dinheiro' automaticamente
     const forma = formaPagamento || 'Dinheiro';
     
     await pool.query('UPDATE atendimentos SET status = $1, forma_pagamento = $2 WHERE id = ANY($3)', [st, forma, ids]);
     
     res.json({ sucesso: true });
   } catch (erro) {
-    console.error("Erro no servidor:", erro); // Isso vai lhe dizer exatamente o erro no Log do Render
+    console.error("Erro no servidor:", erro); 
     res.status(500).json({ sucesso: false, erro: erro.message });
   }
 });
@@ -502,7 +507,13 @@ app.post('/api/nova-empresa', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'Este e-mail já está cadastrado no sistema.' });
     }
 
-    const resEmpresa = await pool.query('INSERT INTO empresas (nome) VALUES ($1) RETURNING id', [nome_salao]);
+    // 🚀 SAAS: Define a data de hoje + 7 dias para o teste grátis
+    const dataTeste = new Date();
+    dataTeste.setDate(dataTeste.getDate() + 7);
+    const vencimentoTeste = dataTeste.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+    // 🚀 SAAS: Insere a empresa já com 7 dias de acesso liberado
+    const resEmpresa = await pool.query('INSERT INTO empresas (nome, data_vencimento) VALUES ($1, $2) RETURNING id', [nome_salao, vencimentoTeste]);
     const novaEmpresaId = resEmpresa.rows[0].id;
 
     // 🚀 SAAS: Criptografa a senha do novo cliente antes de salvar
@@ -525,7 +536,6 @@ app.post('/api/nova-empresa', async (req, res) => {
   }
 });
 
-// 🚀 ROTA SAAS: SOLICITAR RECUPERAÇÃO DE SENHA COM RESEND
 app.post('/api/esqueci-senha', async (req, res) => {
   const { email } = req.body;
   try {
@@ -540,10 +550,8 @@ app.post('/api/esqueci-senha', async (req, res) => {
 
     await pool.query('UPDATE colaboradores SET codigo_recuperacao = $1, expiracao_codigo = $2 WHERE email = $3', [codigo, expiracao, email]);
 
-    // 🚀 SAAS: Inicializa o Resend com a chave que você colocou no Render
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // 🚀 SAAS: Envia o e-mail via API
     await resend.emails.send({
       from: 'GestãoGold SaaS <onboarding@resend.dev>', 
       to: email,
@@ -581,7 +589,6 @@ app.post('/api/redefinir-senha', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'Este código expirou. Solicite um novo.' });
     }
 
-    // 🚀 SAAS: Criptografa a nova senha recuperada pelo usuário
     const salt = await bcrypt.genSalt(10);
     const senhaCriptografada = await bcrypt.hash(novaSenha, salt);
 
