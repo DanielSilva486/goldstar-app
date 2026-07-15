@@ -384,18 +384,18 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         {aba === 'tema' && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {temas.map(t => {
-                // Definimos as cores fixas de demonstração para não sofrerem interferência da cor da marca
+                
+                // MÁGICA AQUI: O 'teal' agora puxa a cor exata que o cliente escolheu nos Dados!
                 const coresFixas = {
-                  'teal': '#14b8a6',   // Verde original
-                  'pink': '#ec4899',   // Rosa original
-                  'purple': '#a855f7', // Roxo original
-                  'gold': '#eab308',   // Dourado original
-                  'black': '#1f2937'   // Escuro original
+                  'teal': dadosEmpresa.cor_primaria || '#14b8a6', 
+                  'pink': '#ec4899',   
+                  'purple': '#a855f7', 
+                  'gold': '#eab308',   
+                  'black': '#1f2937'   
                 };
 
                 return (
                   <button key={t.id} onClick={() => setTemaAtivo(t.id)} className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${temaAtivo === t.id ? 'border-teal-500 bg-teal-50 scale-105 shadow-md' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
-                    {/* AQUI ESTÁ A MÁGICA: Usamos style={{ backgroundColor }} em vez de classes do Tailwind */}
                     <div 
                       className="w-8 h-8 rounded-full shadow-sm" 
                       style={{ backgroundColor: coresFixas[t.id] }}
@@ -820,9 +820,11 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
             let statusPlano = "ATIVO";
             let corStatus = "bg-green-500";
 
-            // Usando o usuarioLocal que já existe no seu ficheiro!
             if (usuarioLocal && usuarioLocal.data_vencimento) {
-              const partes = String(usuarioLocal.data_vencimento).split('-');
+              // 🚀 A MÁGICA DA CORREÇÃO: Separamos pelo 'T' primeiro para remover as horas indesejadas
+              const dataLimpa = String(usuarioLocal.data_vencimento).split('T')[0];
+              const partes = dataLimpa.split('-');
+              
               if (partes.length === 3) {
                 dataFormatada = `${partes[2]}/${partes[1]}/${partes[0]}`;
                 
