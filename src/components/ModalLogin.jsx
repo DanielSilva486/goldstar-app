@@ -128,19 +128,23 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
         {/* CABEÇALHO ANIMADO */}
         <div className={`p-8 text-center relative overflow-hidden transition-all duration-500 ${telaAtiva === 'recuperacao' ? 'bg-indigo-600' : 'bg-teal-500'}`}>
           <div className={`absolute top-0 left-0 w-full h-full opacity-20 transform -skew-y-12 scale-150 origin-top-left ${telaAtiva === 'recuperacao' ? 'bg-indigo-700' : 'bg-teal-600'}`}></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg rotate-3 transition-transform">
-              <span className="text-3xl">
-                {telaAtiva === 'cadastro' ? '🚀' : telaAtiva === 'recuperacao' ? '🔐' : '🌟'}
-              </span>
+          
+          <div className="relative z-10 flex flex-col items-center">
+            {/* 🚀 LOGOMARCA NOVA APLICADA */}
+            <div className="w-24 h-24 mb-3 shadow-xl rounded-full overflow-hidden border-4 border-white/20 transition-transform hover:scale-105">
+              <img 
+                src="/logo-gold.png" 
+                alt="GestãoGold" 
+                className="w-full h-full object-cover"
+              />
             </div>
+            
             <h2 className="text-2xl font-black text-white tracking-tight">GestãoGold SaaS</h2>
             <p className="text-white/80 text-sm font-medium mt-1">
               {telaAtiva === 'cadastro' ? 'Crie a sua conta gratuita' : telaAtiva === 'recuperacao' ? 'Recuperação de Acesso' : 'O motor do seu salão de beleza'}
             </p>
           </div>
         </div>
-
         {/* ÁREA DO FORMULÁRIO */}
         <div className="p-8">
           {erro && (
