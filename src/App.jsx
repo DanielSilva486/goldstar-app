@@ -187,24 +187,44 @@ export default function App() {
               </button>
             </div>
           </main>
-        ) : planoExpirado ? (
+       ) : planoExpirado ? (
           
-          /* 🚀 TELA DE BLOQUEIO TOTAL (PLANO VENCIDO) */
-          <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8 text-center animate-fade-in">
-            <div className="bg-white p-8 rounded-3xl shadow-2xl border border-red-100 max-w-md w-full">
-              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100 animate-pulse">
-                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          /* 🚀 TELA DE BLOQUEIO TOTAL (PLANO VENCIDO) COM PIX E WHATSAPP */
+          <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-4 md:p-8 text-center animate-fade-in">
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl border border-red-100 max-w-md w-full">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100 animate-pulse">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
               </div>
               <h2 className="text-2xl font-black text-gray-800 mb-2">Plano Expirado</h2>
               <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                A licença do <span className="font-bold text-teal-600">{dadosEmpresa.nome_fantasia}</span> chegou ao fim. Para continuar a gerir o seu salão e ter acesso a todos os seus dados, por favor, renove a sua assinatura.
+                A licença do <span className="font-bold text-teal-600">{dadosEmpresa.nome_fantasia}</span> chegou ao fim. Realize o pagamento da sua mensalidade para reativar o acesso imediato.
               </p>
+
+              {/* CARD DO PIX DIRETO NA TELA DE BLOQUEIO */}
+              <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl mb-6 text-center">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Chave PIX (E-mail)</p>
+                <p className="font-black text-gray-800 select-all mb-3 text-sm md:text-base">daniel.das.itapeva@gmail.com</p>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText('daniel.das.itapeva@gmail.com');
+                    alert('Chave PIX copiada! Após pagar, envie o comprovante no WhatsApp.');
+                  }}
+                  className="w-full bg-[#1f2937] hover:bg-black text-white font-bold py-2.5 rounded-xl transition-colors shadow-sm text-xs"
+                >
+                  Copiar Chave PIX
+                </button>
+              </div>
+
+              {/* BOTÃO DO WHATSAPP COM MENSAGEM AUTOMÁTICA */}
               <a 
-                href="mailto:suportegestaogold@gmail.com?subject=Renovação de Plano - GestãoGold" 
-                className="flex items-center justify-center gap-2 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 px-4 rounded-xl transition-colors shadow-md mb-4"
+                href="https://wa.me/5515996015916?text=Olá!%20Acabei%20de%20fazer%20o%20PIX%20para%20renovar%20a%20minha%20assinatura%20do%20GestãoGold." 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-[#10b981] hover:bg-[#059669] text-white font-bold py-3.5 px-4 rounded-xl transition-colors shadow-md mb-6"
               >
-                ✉️ Falar com o Suporte
+                💬 Enviar Comprovante
               </a>
+
               <button onClick={confirmarLogout} className="text-xs font-bold text-gray-400 hover:text-gray-700 underline transition-colors">
                 Sair do sistema
               </button>
