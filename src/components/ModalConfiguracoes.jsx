@@ -813,7 +813,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
             </div>
           )}
 
-         {aba === 'assinatura' && (() => {
+        {aba === 'assinatura' && (() => {
             // Lógica Matemática da Data
             let dataFormatada = "Vitalício";
             let diasRestantes = 999;
@@ -821,7 +821,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
             let corStatus = "bg-green-500";
 
             if (usuarioLocal && usuarioLocal.data_vencimento) {
-              // 🚀 A MÁGICA DA CORREÇÃO: Separamos pelo 'T' primeiro para remover as horas indesejadas
+              // Limpa a data tirando as horas (o "T")
               const dataLimpa = String(usuarioLocal.data_vencimento).split('T')[0];
               const partes = dataLimpa.split('-');
               
@@ -846,7 +846,34 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
             }
 
             return (
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="animate-fade-in space-y-6">
+                
+                {/* CARD PRINCIPAL DO PLANO (O que tinha sumido!) */}
+                <div className="bg-[#3730a3] text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+                  <div className="z-10">
+                    <p className="text-[10px] font-bold tracking-widest text-indigo-200 uppercase mb-1">Licença GestãoGold</p>
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-2xl font-black">Plano Profissional</h3>
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-sm ${corStatus}`}>
+                        {statusPlano}
+                      </span>
+                    </div>
+                    <p className="text-sm text-indigo-200 font-medium">
+                      Válida até {dataFormatada}. 
+                      {diasRestantes >= 0 && diasRestantes <= 5 && <span className="text-orange-300 font-bold ml-1">(Restam {diasRestantes} dias)</span>}
+                    </p>
+                  </div>
+                  
+                  <div className="z-10 bg-white/10 border border-white/20 p-4 rounded-xl text-center min-w-[140px] backdrop-blur-sm">
+                    <p className="text-[10px] font-bold tracking-widest text-indigo-200 uppercase mb-1">Mensalidade</p>
+                    <p className="text-xl font-black">R$ 47,00<span className="text-sm font-medium text-indigo-200">/mês</span></p>
+                  </div>
+                  
+                  {/* Efeito visual de fundo */}
+                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl"></div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* CARD PIX */}
                   <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm">
                     <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
@@ -856,7 +883,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                     
                     <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl text-center mb-4">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Chave PIX (E-mail)</p>
-                      <p className="font-black text-gray-800 select-all text-sm">daniel.das.itapeva@gmail.com</p>
+                      <p className="font-black text-gray-800 select-all text-sm md:text-base">daniel.das.itapeva@gmail.com</p>
                     </div>
                     
                     <button 
@@ -899,7 +926,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                     </div>
                   </div>
                 </div>
-           
+              </div>
             );
           })()}
         
