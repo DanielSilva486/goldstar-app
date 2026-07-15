@@ -905,15 +905,12 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
                       >
                         📸 Siga o @gestaogold_oficial
                       </a>
-</div>
+                    </div>
                   </div>
                 </div>
-
               </div>
-            </div>
-          )}
-
-        </div>
+            );
+          })()}
         
         {confirmacao.aberto && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 rounded-3xl animate-fade-in">
