@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// 🚀 SAAS: A SUA URL SECRETA DO GOOGLE SHEETS
-const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwWfanYNIWjCZRjZsmUy0wQ3OasN8Cbv_1PN7RR-nHg6nDyWn9OxNdPyKDZfHWliqK8sQ/exec';
-
 export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas = [], clientePreDefinido }) {
-  // 🚀 SAAS: Identificando a empresa do usuário logado
   const usuarioLocal = JSON.parse(localStorage.getItem('usuarioGoldstar') || '{}');
   const idSaaS = usuarioLocal.empresa_id || 1;
 
@@ -18,7 +14,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
   const [servicoId, setServicoId] = useState('');
   const [valorCobrado, setValorCobrado] = useState('');
   
-  // Estados para controlar a Quantidade e o Preço Base do item
   const [quantidade, setQuantidade] = useState(1);
   const [precoBase, setPrecoBase] = useState(0);
   
@@ -34,7 +29,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
   useEffect(() => {
     setDataManual(formatarDataAtualParaInput());
     
-    // 🚀 SAAS: Buscando listas blindadas por empresa
     const carregarListas = async () => {
       try {
         const resC = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos?empresa_id=${idSaaS}`);
@@ -49,7 +43,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     carregarListas();
   }, [idSaaS]);
 
-  // Quando muda de aba (Serviço <-> Produto), limpa tudo e volta a quantidade para 1
   useEffect(() => {
     setServicoId('');
     setColaboradorId('');
@@ -58,7 +51,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     setPrecoBase(0);
   }, [tipoAdicao]);
 
-  // Guarda o preço base e já calcula a quantidade se for escolhida
   const aoMudarServico = (e) => {
     const id = e.target.value;
     setServicoId(id);
@@ -73,7 +65,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     }
   };
 
-  // Quando a rececionista muda o número (ex: de 1 para 2 tintas), atualiza o valor total
   const mudarQuantidade = (e) => {
     const novaQtd = Math.max(1, Number(e.target.value));
     setQuantidade(novaQtd);
@@ -82,7 +73,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     }
   };
 
-  // 🚀 NOVO MOTOR: Salva no Google Sheets e na Memória Local
+  // 🚀 MOTOR LOCAL: Apenas insere na Fila (A baixa vai para o Google depois)
   const adicionarNaComanda = async (e) => {
     e.preventDefault();
     if (!clienteNome || !colaboradorId || !servicoId) return;
@@ -90,10 +81,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     setCarregandoAdicao(true);
     try {
       const dataParaEnviar = dataManual ? new Date(dataManual) : new Date();
-      const dataFormatada = dataParaEnviar.toLocaleDateString('pt-BR');
-      const horaFormatada = dataParaEnviar.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-      // Precisamos pegar os nomes (não apenas os IDs) para a planilha ficar legível
       const servicoObj = listaServicos.find(s => s.id == servicoId);
       const colabObj = listaColaboradores.find(c => c.id == colaboradorId);
 
@@ -101,30 +89,10 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
       const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : 0;
 
       for (let i = 0; i < qtdLoop; i++) {
-        // 1. MONTAGEM DO PACOTE PARA O GOOGLE
-        const pacoteDeDados = {
-          data: dataFormatada,
-          hora: horaFormatada,
-          profissional: colabObj ? colabObj.nome : 'Desconhecido',
-          tipo: tipoAdicao === 'servico' ? 'Serviço' : 'Produto',
-          descricao: servicoObj ? servicoObj.nome : 'Sem Descrição',
-          valor: valorUnitario,
-          pagamento: 'Pendente (Fila)', 
-          comissao: 0 
-        };
-
-        // 2. DISPARO PARA O GOOGLE SHEETS (Desvio de Rota Silencioso)
-        await fetch(GOOGLE_SHEETS_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pacoteDeDados)
-        });
-
-        // 3. GRAVAÇÃO NA MEMÓRIA DO COMPUTADOR (LocalStorage)
+        // GRAVAÇÃO NA MEMÓRIA DO COMPUTADOR (LocalStorage)
         const filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
         const novoItemFila = {
-          id: 'local_' + Date.now() + i, // ID gerado na hora para controle local
+          id: 'local_' + Date.now() + i, 
           cliente_nome: clienteNome,
           profissional: colabObj ? colabObj.nome : '',
           servico: servicoObj ? servicoObj.nome : '',
@@ -139,9 +107,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
         localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
       }
       
-      // Feedback visual para a rececionista
-      alert('✅ Atendimento adicionado e backup salvo no Google!');
-      
       recarregarTudo(); 
       
       if (clientePreDefinido) {
@@ -152,16 +117,15 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
       }
       
     } catch (erro) { 
-      alert('Erro ao adicionar à comanda. Verifique a internet.'); 
+      alert('Erro ao adicionar à comanda.'); 
     }
     setCarregandoAdicao(false);
   };
 
  const filaPorProfissional = comandas.reduce((acc, item) => {
-    // FILTRO: Ignora produtos (onde tipo é 'produto' ou duração é 0/null)
     const ehProduto = item.servico_tipo === 'produto' || item.duracao === 0 || item.duracao === null;
     
-    if (ehProduto) return acc; // Pula este item na soma
+    if (ehProduto) return acc; 
 
     if (!acc[item.profissional]) acc[item.profissional] = 0;
     
@@ -188,13 +152,8 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
   );
 
   const colaboradoresFiltrados = listaColaboradores.filter(c => {
-    // Verifica se hoje é o dia de folga da pessoa (lê múltiplos dias, ex: "0,1")
     const deFolgaHoje = String(c.dia_folga || '').split(',').includes(String(new Date().getDay()));
-    
-    // Se estiver de folga, NÃO aparece na lista.
     if (deFolgaHoje) return false;
-
-    // Se não estiver de folga, aplica a regra do perfil:
     return tipoAdicao === 'servico' ? (c.perfil === 'profissional' || c.perfil === 'dono') : true;
   });
 
@@ -311,7 +270,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
 
             <div className="pt-4">
               <button type="submit" disabled={carregandoAdicao} className={`w-full text-white font-black py-4 rounded-xl transition-all shadow-md text-lg ${tipoAdicao === 'servico' ? 'bg-purple-500 hover:bg-purple-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
-                {carregandoAdicao ? 'Adicionando...' : '+ Confirmar'}
+                {carregandoAdicao ? 'Adicionando...' : '+ Confirmar na Fila'}
               </button>
             </div>
           </form>

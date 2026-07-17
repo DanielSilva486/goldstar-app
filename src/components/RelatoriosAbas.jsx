@@ -5,6 +5,9 @@ import LinhaDoTempo from './LinhaDoTempo';
 import ModalNovoAtendimento from './ModalNovoAtendimento'; 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+// 🚀 SAAS: URL DO COFRE NO GOOGLE SHEETS
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwWfanYNIWjCZRjZsmUy0wQ3OasN8Cbv_1PN7RR-nHg6nDyWn9OxNdPyKDZfHWliqK8sQ/exec';
+
 const BadgePagamento = ({ forma }) => {
   const formaLimpa = forma || 'Dinheiro';
   const cores = {
@@ -22,7 +25,6 @@ const BadgePagamento = ({ forma }) => {
   );
 };
 
-// 🚀 SINO DE NOTIFICAÇÕES (Agora no lugar certo!)
 const IconeNotificacao = ({ despesas, aoClicar }) => {
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const alertas = despesas.filter(d => !d.pago && new Date(d.data_vencimento) <= hoje);
@@ -210,27 +212,31 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   });
 
+  // 🚀 LÓGICA LOCAL DO CAIXA: Remove da fila sem tocar no banco Neon
   const cancelarItemFila = (id, nomeServico) => pedirConfirmacao(
     "Cancelar Item",
-    `Deseja cancelar o item "${nomeServico}"? O profissional ficará livre e o registro aparecerá como CANCELADO no Histórico.`,
+    `Deseja remover o item "${nomeServico}" da fila?`,
     async () => {
       try {
-        await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}/cancelar`, { method: 'PUT' });
-        recarregarTudo();
-      } catch(e) {}
+        let filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
+        filaLocal = filaLocal.filter(item => item.id !== id);
+        localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
+        recarregarTudo(true); 
+      } catch(e) { console.error(e); }
     }
   );
 
   const cancelarAtendimentosFila = (itens) => pedirConfirmacao(
     "Cancelar Ficha",
-    "A cliente desistiu e foi embora? Os itens sairão da fila, mas ficarão registados no Histórico Geral com uma tarja de CANCELADO para sua segurança.",
+    "A cliente desistiu e foi embora? Esta ficha será removida da fila.",
     async () => {
       try {
-        for (const item of itens) {
-           await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${item.id}/cancelar`, { method: 'PUT' });
-        }
-        recarregarTudo();
-      } catch(e) {}
+        const idsParaRemover = itens.map(i => i.id);
+        let filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
+        filaLocal = filaLocal.filter(item => !idsParaRemover.includes(item.id));
+        localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
+        recarregarTudo(true);
+      } catch(e) { console.error(e); }
     }
   );
 
@@ -241,15 +247,53 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   });
 
+  // 🚀 O DESVIO DE ROTA PRINCIPAL: Disparo para o Google ao Dar Baixa
   const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/comandas/pagar', { 
-        method: 'PUT', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ ids, statusNovo, formaPagamento })
-      });
-      recarregarTudo(); 
+      let filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
+
+      if (statusNovo === 'pago') {
+        const dataBaixa = new Date();
+        const dataFormatada = dataBaixa.toLocaleDateString('pt-BR');
+        const horaFormatada = dataBaixa.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        // Envia cada item pago para o Google Sheets silenciosamente
+        for (const item of itensDaComanda) {
+          const pacoteDeDados = {
+            data: dataFormatada,
+            hora: horaFormatada,
+            profissional: item.profissional || 'Desconhecido',
+            tipo: item.servico_tipo === 'produto' ? 'Produto' : 'Serviço',
+            descricao: item.servico || 'Sem Descrição',
+            valor: item.valor_total || 0,
+            pagamento: formaPagamento,
+            comissao: 0
+          };
+
+          fetch(GOOGLE_SHEETS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pacoteDeDados)
+          }).catch(e => console.error("Erro ao sincronizar com Planilha:", e));
+        }
+
+        // Remove da fila do caixa após o pagamento
+        filaLocal = filaLocal.filter(item => !ids.includes(item.id));
+      } else {
+        // Se for só antecipação de pagamento, marca na tela, mas continua na fila
+        filaLocal = filaLocal.map(item => {
+          if (ids.includes(item.id)) {
+             item.status = statusNovo;
+             item.forma_pagamento = formaPagamento;
+          }
+          return item;
+        });
+      }
+
+      localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
+      recarregarTudo(true); 
     } catch (erro) {
       console.error("Erro ao atualizar status:", erro);
     }
@@ -257,9 +301,15 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const iniciarServico = async (id) => {
     try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}/iniciar`, { method: 'PUT' });
-      recarregarTudo();
-    } catch(e) {}
+      const filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
+      const index = filaLocal.findIndex(item => item.id === id);
+      if (index !== -1) {
+        filaLocal[index].status_fila = 'em_atendimento';
+        filaLocal[index].hora_inicio = new Date().toISOString();
+        localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
+        recarregarTudo(true);
+      }
+    } catch(e) { console.error(e); }
   };
 
   const tocarSomBaixa = () => {
@@ -500,7 +550,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         </div>
       )}
 
-      {/* 🚀 O SINO FOI COLOCADO AQUI, JUNTO COM AS ABAS DE NAVEGAÇÃO! */}
       <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2 items-center">
         {isAdmin && <IconeNotificacao despesas={despesas} aoClicar={() => setAbaAtiva(6)} />}
         
@@ -845,12 +894,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       </td>
                       {(isAdmin || isCaixa) && (
                         <td className="p-3 text-center flex items-center justify-center gap-2">
-                        
- {/* 🚀 BOTÃO DE REIMPRIMIR RECIBO */}
                           {!temErro && !isCancelado && (
                             <button onClick={() => {
-                                // 🚀 LÓGICA DE AGRUPAMENTO SUPER BLINDADA
-                                // Esta função remove acentos, espaços extras no meio e converte para minúsculas
                                 const normalizarNome = (nome) => {
                                   return nome 
                                     ? nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, ' ')
@@ -858,7 +903,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                                 };
 
                                 const nomeLimpo = normalizarNome(item.cliente_nome);
-                                const diaDoItem = item.data.split(' ')[0]; // Pega apenas o dia (ex: 27/06)
+                                const diaDoItem = item.data.split(' ')[0]; 
                                 
                                 const itensDoClienteNoDia = historico.filter(h => {
                                     const nomeDaLista = normalizarNome(h.cliente_nome);
