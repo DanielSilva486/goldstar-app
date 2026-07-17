@@ -73,7 +73,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     }
   };
 
-  // 🚀 MOTOR LOCAL: Apenas insere na Fila (A baixa vai para o Google depois)
+  // 🚀 MOTOR LOCAL COM CÁLCULO DE COMISSÃO
   const adicionarNaComanda = async (e) => {
     e.preventDefault();
     if (!clienteNome || !colaboradorId || !servicoId) return;
@@ -88,6 +88,11 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
       const qtdLoop = tipoAdicao === 'produto' ? quantidade : 1;
       const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : 0;
 
+      // 💰 O CÉREBRO DA COMISSÃO (LOCAL)
+      let taxaComissao = (colabObj && colabObj.comissao !== undefined) ? Number(colabObj.comissao) : 50;
+      if (tipoAdicao === 'produto') taxaComissao = 0; 
+      const valorDaComissao = (valorUnitario * taxaComissao) / 100;
+
       for (let i = 0; i < qtdLoop; i++) {
         // GRAVAÇÃO NA MEMÓRIA DO COMPUTADOR (LocalStorage)
         const filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
@@ -98,6 +103,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
           servico: servicoObj ? servicoObj.nome : '',
           servico_tipo: tipoAdicao,
           valor_total: valorUnitario,
+          valor_comissao: valorDaComissao, // 🚀 SALVANDO A COMISSÃO CALCULADA AQUI
           status: 'pendente',
           status_fila: 'aguardando',
           data_hora: dataParaEnviar.toISOString(),

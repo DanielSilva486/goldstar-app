@@ -268,7 +268,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             descricao: item.servico || 'Sem Descrição',
             valor: item.valor_total || 0,
             pagamento: formaPagamento,
-            comissao: 0
+            comissao: item.valor_comissao || 0 // 🚀 PUXA O VALOR REAL DA COMISSÃO SALVA NA MEMÓRIA
           };
 
           fetch(GOOGLE_SHEETS_URL, {
