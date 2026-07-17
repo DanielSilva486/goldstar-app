@@ -98,74 +98,67 @@ export default function App() {
   
   const cor = paleta[temaAtivo] || paleta.teal;
 
-  // 🚀 NOVO MOTOR: Lê o Histórico Geral e os Gráficos direto da memória local (Custo Zero)
-  const carregarDados = () => {
-    if (!usuarioLogado) return; 
+  // 🚀 MOTOR HÍBRIDO: Puxa o passado do Neon e junta com o dia de hoje (Memória Local)
+  const carregarDados = async () => {
+    if (!usuarioLogado) return;
 
     try {
-      const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
+      // 1. Pede o histórico antigo ao Neon (Acorda rápido)
+      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa_id=${usuarioLogado.empresa_id}`);
+      const dadosNeon = await res.json();
 
-      // 1. Filtra os dados apenas para o mês e ano que você selecionou no topo da tela
-      const historicoFiltrado = historicoLocal.filter(item => {
-         if(!item.data) return false;
-         const partes = item.data.split(' às ')[0].split('/'); // Ex: ["16", "07", "2026"]
-         if(partes.length === 3) {
-            const mesItem = parseInt(partes[1], 10);
-            const anoItem = parseInt(partes[2], 10);
-            return mesItem === parseInt(mesSelecionado, 10) && anoItem === parseInt(anoSelecionado, 10);
-         }
-         return true;
-      });
+      if (dadosNeon.sucesso) {
+        // 2. Puxa os dados dos serviços de hoje (Gaveta Local)
+        const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
 
-      // 2. Calculadora Local: Faz toda a matemática que antes o Neon fazia
-      let faturamento_bruto = 0;
-      let total_comissoes = 0;
-      const comissoesMap = {};
-      const servicosMap = {};
-      const clientesMap = {};
+        // 3. Junta os dois (Passado + Presente) num arquivo só
+        const historicoCompleto = [...historicoLocal, ...(dadosNeon.historico || [])];
 
-      historicoFiltrado.forEach(item => {
-         if (item.status !== 'cancelado' && !item.cliente_nome.includes('⚠️ ERRO')) {
-            const vTotal = Number(item.valor_total) || 0;
-            const vCom = Number(item.valor_comissao) || 0;
-            faturamento_bruto += vTotal;
-            total_comissoes += vCom;
+        // 4. Refaz os cálculos financeiros somando os dois mundos
+        let faturamento_bruto = 0;
+        let total_comissoes = 0;
+        const comissoesMap = {};
+        const servicosMap = {};
+        const clientesMap = {};
 
-            // Soma Comissões por Profissional
-            const prof = item.profissional;
-            if(!comissoesMap[prof]) comissoesMap[prof] = { profissional: prof, total_comissao: 0, qtd_servicos: 0, perfil: 'profissional' };
-            comissoesMap[prof].total_comissao += vCom;
-            comissoesMap[prof].qtd_servicos += 1;
+        historicoCompleto.forEach(item => {
+           if (item.status !== 'cancelado' && !item.cliente_nome.includes('⚠️ ERRO')) {
+              const vTotal = Number(item.valor_total) || 0;
+              const vCom = Number(item.valor_comissao) || 0;
+              faturamento_bruto += vTotal;
+              total_comissoes += vCom;
 
-            // Ranking Top 10 Serviços
-            const serv = item.servico;
-            if(!servicosMap[serv]) servicosMap[serv] = { nome: serv, gerado: 0 };
-            servicosMap[serv].gerado += vTotal;
+              const prof = item.profissional;
+              if(!comissoesMap[prof]) comissoesMap[prof] = { profissional: prof, total_comissao: 0, qtd_servicos: 0, perfil: 'profissional' };
+              comissoesMap[prof].total_comissao += vCom;
+              comissoesMap[prof].qtd_servicos += 1;
 
-            // Ranking Top 10 Clientes
-            const cli = item.cliente_nome;
-            if(!clientesMap[cli]) clientesMap[cli] = { nome: cli, gasto: 0 };
-            clientesMap[cli].gasto += vTotal;
-         }
-      });
+              const serv = item.servico;
+              if(!servicosMap[serv]) servicosMap[serv] = { nome: serv, gerado: 0 };
+              servicosMap[serv].gerado += vTotal;
 
-      // 3. Monta o pacote de dados e entrega para o sistema exibir na tela
-      const dadosLocais = {
-         sucesso: true,
-         historico: historicoFiltrado.reverse(), // Mostra os serviços mais recentes no topo
-         valores: {
-            faturamento_bruto,
-            total_comissoes,
-            total_despesas: 0 
-         },
-         comissoes: Object.values(comissoesMap),
-         topServicos: Object.values(servicosMap).sort((a,b) => b.gerado - a.gerado).slice(0, 10),
-         topClientes: Object.values(clientesMap).sort((a,b) => b.gasto - a.gasto).slice(0, 10)
-      };
+              const cli = item.cliente_nome;
+              if(!clientesMap[cli]) clientesMap[cli] = { nome: cli, gasto: 0 };
+              clientesMap[cli].gasto += vTotal;
+           }
+        });
 
-      setDadosSalao(dadosLocais);
+        // 5. Devolve para o sistema exibir
+        setDadosSalao({
+           ...dadosNeon,
+           historico: historicoCompleto,
+           valores: {
+              ...dadosNeon.valores,
+              faturamento_bruto,
+              total_comissoes
+           },
+           comissoes: Object.values(comissoesMap),
+           topServicos: Object.values(servicosMap).sort((a,b) => b.gerado - a.gerado).slice(0, 10),
+           topClientes: Object.values(clientesMap).sort((a,b) => b.gasto - a.gasto).slice(0, 10)
+        });
+      }
     } catch (e) {
-      console.log("Erro ao processar histórico local", e);
+      console.log("Erro ao mesclar dados", e);
     }
   };
   

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
+// 🚀 SAAS: URL DO COFRE NO GOOGLE SHEETS
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwWfanYNIWjCZRjZsmUy0wQ3OasN8Cbv_1PN7RR-nHg6nDyWn9OxNdPyKDZfHWliqK8sQ/exec';
+
 export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas = [], clientePreDefinido }) {
   const usuarioLocal = JSON.parse(localStorage.getItem('usuarioGoldstar') || '{}');
   const idSaaS = usuarioLocal.empresa_id || 1;
 
   const [listaColaboradores, setListaColaboradores] = useState([]);
   const [listaServicos, setListaServicos] = useState([]);
+  // 🚀 NOVO: Estado para guardar as regras específicas de comissão
+  const [listaComissoesEsp, setListaComissoesEsp] = useState([]);
 
   const [tipoAdicao, setTipoAdicao] = useState('servico');
 
@@ -38,6 +43,12 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
         const resS = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos?empresa_id=${idSaaS}`);
         const dataS = await resS.json();
         if (dataS.sucesso) setListaServicos(dataS.dados);
+
+        // 🚀 NOVO: Baixa a tabela de exceções de comissão do Neon para a memória
+        const resCE = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas?empresa_id=${idSaaS}`);
+        const dataCE = await resCE.json();
+        if (dataCE.sucesso) setListaComissoesEsp(dataCE.dados);
+
       } catch (e) { console.error(e); }
     };
     carregarListas();
@@ -73,7 +84,6 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     }
   };
 
-  // 🚀 MOTOR LOCAL COM CÁLCULO DE COMISSÃO
   const adicionarNaComanda = async (e) => {
     e.preventDefault();
     if (!clienteNome || !colaboradorId || !servicoId) return;
@@ -88,13 +98,24 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
       const qtdLoop = tipoAdicao === 'produto' ? quantidade : 1;
       const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : 0;
 
-      // 💰 O CÉREBRO DA COMISSÃO (LOCAL)
-      let taxaComissao = (colabObj && colabObj.comissao !== undefined) ? Number(colabObj.comissao) : 50;
+      // 💰 O CÉREBRO DA COMISSÃO SUPER INTELIGENTE
+      // 1. Pega a comissão padrão da pessoa
+      let taxaComissao = (colabObj && colabObj.percentual_comissao !== undefined) ? Number(colabObj.percentual_comissao) : 50;
+      
+      // 2. Procura na tabela se existe uma regra específica para essa pessoa e esse serviço
+      const regraEspecifica = listaComissoesEsp.find(r => r.colaborador_id == colaboradorId && r.servico_id == servicoId);
+      
+      // 3. Se achou a regra da Elaine na Escova, sobrepõe a taxa padrão
+      if (regraEspecifica) {
+        taxaComissao = Number(regraEspecifica.percentual);
+      }
+
+      // 4. Se for produto, a comissão é sempre 0
       if (tipoAdicao === 'produto') taxaComissao = 0; 
+      
       const valorDaComissao = (valorUnitario * taxaComissao) / 100;
 
       for (let i = 0; i < qtdLoop; i++) {
-        // GRAVAÇÃO NA MEMÓRIA DO COMPUTADOR (LocalStorage)
         const filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
         const novoItemFila = {
           id: 'local_' + Date.now() + i, 
@@ -103,7 +124,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
           servico: servicoObj ? servicoObj.nome : '',
           servico_tipo: tipoAdicao,
           valor_total: valorUnitario,
-          valor_comissao: valorDaComissao, // 🚀 SALVANDO A COMISSÃO CALCULADA AQUI
+          valor_comissao: valorDaComissao, 
           status: 'pendente',
           status_fila: 'aguardando',
           data_hora: dataParaEnviar.toISOString(),
