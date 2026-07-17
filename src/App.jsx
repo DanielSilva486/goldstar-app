@@ -98,13 +98,77 @@ export default function App() {
   
   const cor = paleta[temaAtivo] || paleta.teal;
 
+  // 🚀 NOVO MOTOR: Lê o Histórico Geral e os Gráficos direto da memória local (Custo Zero)
   const carregarDados = () => {
     if (!usuarioLogado) return; 
-    fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa_id=${usuarioLogado.empresa_id}`)
-      .then(r => r.json()).then(d => { if(d.sucesso) setDadosSalao(d); });
+
+    try {
+      const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
+
+      // 1. Filtra os dados apenas para o mês e ano que você selecionou no topo da tela
+      const historicoFiltrado = historicoLocal.filter(item => {
+         if(!item.data) return false;
+         const partes = item.data.split(' às ')[0].split('/'); // Ex: ["16", "07", "2026"]
+         if(partes.length === 3) {
+            const mesItem = parseInt(partes[1], 10);
+            const anoItem = parseInt(partes[2], 10);
+            return mesItem === parseInt(mesSelecionado, 10) && anoItem === parseInt(anoSelecionado, 10);
+         }
+         return true;
+      });
+
+      // 2. Calculadora Local: Faz toda a matemática que antes o Neon fazia
+      let faturamento_bruto = 0;
+      let total_comissoes = 0;
+      const comissoesMap = {};
+      const servicosMap = {};
+      const clientesMap = {};
+
+      historicoFiltrado.forEach(item => {
+         if (item.status !== 'cancelado' && !item.cliente_nome.includes('⚠️ ERRO')) {
+            const vTotal = Number(item.valor_total) || 0;
+            const vCom = Number(item.valor_comissao) || 0;
+            faturamento_bruto += vTotal;
+            total_comissoes += vCom;
+
+            // Soma Comissões por Profissional
+            const prof = item.profissional;
+            if(!comissoesMap[prof]) comissoesMap[prof] = { profissional: prof, total_comissao: 0, qtd_servicos: 0, perfil: 'profissional' };
+            comissoesMap[prof].total_comissao += vCom;
+            comissoesMap[prof].qtd_servicos += 1;
+
+            // Ranking Top 10 Serviços
+            const serv = item.servico;
+            if(!servicosMap[serv]) servicosMap[serv] = { nome: serv, gerado: 0 };
+            servicosMap[serv].gerado += vTotal;
+
+            // Ranking Top 10 Clientes
+            const cli = item.cliente_nome;
+            if(!clientesMap[cli]) clientesMap[cli] = { nome: cli, gasto: 0 };
+            clientesMap[cli].gasto += vTotal;
+         }
+      });
+
+      // 3. Monta o pacote de dados e entrega para o sistema exibir na tela
+      const dadosLocais = {
+         sucesso: true,
+         historico: historicoFiltrado.reverse(), // Mostra os serviços mais recentes no topo
+         valores: {
+            faturamento_bruto,
+            total_comissoes,
+            total_despesas: 0 
+         },
+         comissoes: Object.values(comissoesMap),
+         topServicos: Object.values(servicosMap).sort((a,b) => b.gerado - a.gerado).slice(0, 10),
+         topClientes: Object.values(clientesMap).sort((a,b) => b.gasto - a.gasto).slice(0, 10)
+      };
+
+      setDadosSalao(dadosLocais);
+    } catch (e) {
+      console.log("Erro ao processar histórico local", e);
+    }
   };
   
-  // 🚀 NOVO MOTOR: Lê a Fila do Caixa direto da memória local (Custo Zero e Instantâneo)
   const buscarComandas = () => {
     if (!usuarioLogado) return; 
     
@@ -117,7 +181,6 @@ export default function App() {
     }
   };
 
-  // 🚀 ATUALIZADO: Só chama o banco Neon se for necessário (economizando horas)
   const recarregarTudo = (apenasFila = false) => { 
     if (!usuarioLogado) {
       setDadosSalao(null);
@@ -125,9 +188,8 @@ export default function App() {
       return;
     }
     
-    buscarComandas(); // Atualiza a fila instantaneamente (memória local)
+    buscarComandas(); 
     
-    // Só vai chamar o banco de dados Neon se NÃO for uma atualização rápida de Fila
     if (!apenasFila) {
       carregarDados(); 
     }
@@ -140,7 +202,6 @@ export default function App() {
     setMostrarConfirmacaoSair(false);
   };
 
-  // 🚀 LÓGICA DE VENCIMENTO DO PLANO SAAS
   let diasRestantes = null;
   let planoExpirado = false;
 
@@ -148,17 +209,14 @@ export default function App() {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
-    // Converte a data do banco 'YYYY-MM-DD' para o formato do navegador
     const partes = String(usuarioLogado.data_vencimento).split('-');
     if(partes.length === 3) {
         const dataVenc = new Date(partes[0], partes[1] - 1, partes[2]);
         dataVenc.setHours(0, 0, 0, 0);
 
-        // Calcula a diferença em dias
         const diffTempo = dataVenc.getTime() - hoje.getTime();
         diasRestantes = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
         
-        // Se o número de dias for menor que zero, o plano expirou
         planoExpirado = diasRestantes < 0;
     }
   }
@@ -202,7 +260,6 @@ export default function App() {
           </main>
        ) : planoExpirado ? (
           
-          /* 🚀 TELA DE BLOQUEIO TOTAL (PLANO VENCIDO) COM PIX E WHATSAPP */
           <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-4 md:p-8 text-center animate-fade-in">
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl border border-red-100 max-w-md w-full">
               <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100 animate-pulse">
@@ -213,7 +270,6 @@ export default function App() {
                 A licença do <span className="font-bold text-teal-600">{dadosEmpresa.nome_fantasia}</span> chegou ao fim. Realize o pagamento da sua mensalidade para reativar o acesso imediato.
               </p>
 
-              {/* CARD DO PIX DIRETO NA TELA DE BLOQUEIO */}
               <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl mb-6 text-center">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Chave PIX (E-mail)</p>
                 <p className="font-black text-gray-800 select-all mb-3 text-sm md:text-base">daniel.das.itapeva@gmail.com</p>
@@ -228,7 +284,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* BOTÃO DO WHATSAPP COM MENSAGEM AUTOMÁTICA */}
               <a 
                 href="https://wa.me/5515996015916?text=Olá!%20Acabei%20de%20fazer%20o%20PIX%20para%20renovar%20a%20minha%20assinatura%20do%20GestãoGold." 
                 target="_blank" 
@@ -246,10 +301,8 @@ export default function App() {
 
         ) : (
           
-          /* 🚀 SISTEMA LIBERADO (RODANDO NORMALMENTE) */
           <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4 md:px-8">
             
-            {/* ⚠️ AVISO DE 2 DIAS (Só aparece se faltar 0, 1 ou 2 dias) */}
             {diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 2 && (
               <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-6 rounded-r-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-slide-up">
                 <div className="flex items-center gap-3">

@@ -69,6 +69,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
   
+  // O "dados" agora é o nosso pacote gerado localmente pelo App.jsx
   const historicoGeral = dados?.historico || [];
   const historicoBase = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
   
@@ -205,14 +206,16 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     carregarDadosExtras();
   });
 
-  const apagarHistorico = (id) => pedirConfirmacao("Excluir Definitivamente", "ATENÇÃO: Deseja destruir este registro do banco de dados? O financeiro será recalculado e não há como recuperar.", async () => {
+  // 🚀 ATUALIZADO: Apaga do Histórico Local
+  const apagarHistorico = (id) => pedirConfirmacao("Excluir Definitivamente", "ATENÇÃO: Deseja destruir este registro da memória local? O financeiro será recalculado na hora.", async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
-      if (res.ok) recarregarTudo();
+      let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
+      historicoLocal = historicoLocal.filter(item => item.id !== id);
+      localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
+      recarregarTudo(); // Atualiza os gráficos
     } catch(e) {}
   });
 
-  // 🚀 LÓGICA LOCAL DO CAIXA: Remove da fila sem tocar no banco Neon
   const cancelarItemFila = (id, nomeServico) => pedirConfirmacao(
     "Cancelar Item",
     `Deseja remover o item "${nomeServico}" da fila?`,
@@ -240,26 +243,35 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     }
   );
 
-  const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador cancelar?", async () => {
+  // 🚀 ATUALIZADO: Coloca a tarja de ERRO no Histórico Local
+  const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador conferir?", async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/atendimentos/${id}/sinalizar-erro`, { method: 'PUT' });
-      if (res.ok) recarregarTudo();
+      let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
+      historicoLocal = historicoLocal.map(item => {
+         if(item.id === id) {
+            return { ...item, cliente_nome: `⚠️ ERRO: ${item.cliente_nome}` };
+         }
+         return item;
+      });
+      localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
+      recarregarTudo(); // Atualiza os gráficos subtraindo o valor do erro
     } catch(e) {}
   });
 
-  // 🚀 O DESVIO DE ROTA PRINCIPAL: Disparo para o Google ao Dar Baixa
+  // 🚀 O NOVO MOTOR PRINCIPAL: Dar Baixa e Preencher Gavetas
   const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
       let filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
+      let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
 
       if (statusNovo === 'pago') {
         const dataBaixa = new Date();
         const dataFormatada = dataBaixa.toLocaleDateString('pt-BR');
         const horaFormatada = dataBaixa.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-        // Envia cada item pago para o Google Sheets silenciosamente
         for (const item of itensDaComanda) {
+          // 1. O PACOTE PARA O GOOGLE SHEETS (Segurança)
           const pacoteDeDados = {
             data: dataFormatada,
             hora: horaFormatada,
@@ -268,7 +280,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             descricao: item.servico || 'Sem Descrição',
             valor: item.valor_total || 0,
             pagamento: formaPagamento,
-            comissao: item.valor_comissao || 0 // 🚀 PUXA O VALOR REAL DA COMISSÃO SALVA NA MEMÓRIA
+            comissao: item.valor_comissao || 0 
           };
 
           fetch(GOOGLE_SHEETS_URL, {
@@ -277,12 +289,29 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(pacoteDeDados)
           }).catch(e => console.error("Erro ao sincronizar com Planilha:", e));
+
+          // 2. A GAVETA LOCAL (Para exibir na tela Histórico e Gráficos instantaneamente)
+          historicoLocal.push({
+             id: 'hist_' + Date.now() + Math.floor(Math.random() * 1000),
+             data: `${dataFormatada} às ${horaFormatada}`,
+             cliente_nome: item.cliente_nome,
+             servico: item.servico,
+             servico_tipo: item.servico_tipo,
+             profissional: item.profissional || 'Caixa',
+             valor_total: item.valor_total || 0,
+             valor_comissao: item.valor_comissao || 0,
+             forma_pagamento: formaPagamento,
+             status: 'concluido'
+          });
         }
 
-        // Remove da fila do caixa após o pagamento
+        // Remove os itens da fila de espera
         filaLocal = filaLocal.filter(item => !ids.includes(item.id));
+        
+        // Tranca a gaveta do Histórico com os novos dados
+        localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
       } else {
-        // Se for só antecipação de pagamento, marca na tela, mas continua na fila
+        // Se a rececionista apenas clicar em "Antecipar" o pagamento, só marca de verde na fila.
         filaLocal = filaLocal.map(item => {
           if (ids.includes(item.id)) {
              item.status = statusNovo;
@@ -293,7 +322,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       }
 
       localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
-      recarregarTudo(true); 
+      
+      // 🚀 Atualiza TUDO na hora: A Fila, O Histórico e o Gráfico de Faturamento
+      recarregarTudo(); 
     } catch (erro) {
       console.error("Erro ao atualizar status:", erro);
     }
