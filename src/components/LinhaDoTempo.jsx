@@ -11,11 +11,11 @@ export default function LinhaDoTempo({ comandas }) {
 
   const horasGrade = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
-  // Defina aqui quem NÃO deve aparecer na linha do tempo (pelo nome exato)
-  const profissionaisBloqueados = ['Caixa', 'Admin', 'Raquel Patroa', 'Taticaixa']; 
+  // 🚀 CORREÇÃO: "Raquel Patroa" removida da lista de bloqueio para aparecer na agenda!
+  const profissionaisBloqueados = ['Caixa', 'Admin', 'Taticaixa']; 
 
   const agendaPorProfissional = comandas.reduce((acc, item) => {
-    // 🚀 O NOVO FILTRO INTELIGENTE: Verifica se é produto ou se tem duração 0
+    // Verifica se é produto ou se tem duração 0
     const ehProduto = item.servico_tipo === 'produto' || item.duracao === 0 || item.duracao === null;
     
     // Só entra na agenda se NÃO estiver bloqueado E NÃO for um produto
@@ -56,7 +56,7 @@ export default function LinhaDoTempo({ comandas }) {
       <h3 className="font-black text-gray-800 text-lg mb-6 tracking-tight">Visual da Agenda (Sincronizado)</h3>
       
       <div className="overflow-x-auto pb-4 scrollbar-hide">
-        {/* 🚀 O NOVO LAYOUT À PROVA DE FALHAS */}
+        {/* O NOVO LAYOUT À PROVA DE FALHAS */}
         <div className="min-w-[800px] flex relative pt-8">
           
           {/* 1. COLUNA ESQUERDA FIXA: Nomes das Profissionais */}
