@@ -9,7 +9,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
 
   const [listaColaboradores, setListaColaboradores] = useState([]);
   const [listaServicos, setListaServicos] = useState([]);
-  // 🚀 NOVO: Estado para guardar as regras específicas de comissão
+  // 🚀 NOVO: Gaveta para guardar as Regras Específicas da Elaine e companhia
   const [listaComissoesEsp, setListaComissoesEsp] = useState([]);
 
   const [tipoAdicao, setTipoAdicao] = useState('servico');
@@ -44,7 +44,7 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
         const dataS = await resS.json();
         if (dataS.sucesso) setListaServicos(dataS.dados);
 
-        // 🚀 NOVO: Baixa a tabela de exceções de comissão do Neon para a memória
+        // 🚀 NOVO: Puxa a tabela de regras específicas (Ex: Escova a 40%)
         const resCE = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas?empresa_id=${idSaaS}`);
         const dataCE = await resCE.json();
         if (dataCE.sucesso) setListaComissoesEsp(dataCE.dados);
@@ -98,19 +98,21 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
       const qtdLoop = tipoAdicao === 'produto' ? quantidade : 1;
       const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : 0;
 
-      // 💰 O CÉREBRO DA COMISSÃO SUPER INTELIGENTE
-      // 1. Pega a comissão padrão da pessoa
+      // 💰 A NOVA CALCULADORA BLINDADA
+      // 1. Pega a comissão padrão
       let taxaComissao = (colabObj && colabObj.percentual_comissao !== undefined) ? Number(colabObj.percentual_comissao) : 50;
       
-      // 2. Procura na tabela se existe uma regra específica para essa pessoa e esse serviço
-      const regraEspecifica = listaComissoesEsp.find(r => r.colaborador_id == colaboradorId && r.servico_id == servicoId);
+      // 2. Procura se existe exceção para esta dupla (Ex: Elaine + Escova)
+      const regraEspecifica = listaComissoesEsp.find(r => 
+        (r.prof === colabObj?.nome && r.serv === servicoObj?.nome) || 
+        (r.colaborador_id == colaboradorId && r.servico_id == servicoId)
+      );
       
-      // 3. Se achou a regra da Elaine na Escova, sobrepõe a taxa padrão
+      // 3. Se achou a regra, sobrepõe o valor padrão
       if (regraEspecifica) {
         taxaComissao = Number(regraEspecifica.percentual);
       }
 
-      // 4. Se for produto, a comissão é sempre 0
       if (tipoAdicao === 'produto') taxaComissao = 0; 
       
       const valorDaComissao = (valorUnitario * taxaComissao) / 100;

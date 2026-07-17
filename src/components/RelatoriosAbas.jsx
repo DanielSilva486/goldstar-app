@@ -5,7 +5,6 @@ import LinhaDoTempo from './LinhaDoTempo';
 import ModalNovoAtendimento from './ModalNovoAtendimento'; 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// 🚀 SAAS: URL DO COFRE NO GOOGLE SHEETS
 const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwWfanYNIWjCZRjZsmUy0wQ3OasN8Cbv_1PN7RR-nHg6nDyWn9OxNdPyKDZfHWliqK8sQ/exec';
 
 const BadgePagamento = ({ forma }) => {
@@ -28,15 +27,10 @@ const BadgePagamento = ({ forma }) => {
 const IconeNotificacao = ({ despesas, aoClicar }) => {
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const alertas = despesas.filter(d => !d.pago && new Date(d.data_vencimento) <= hoje);
-  
   if (alertas.length === 0) return null;
-
   return (
     <button onClick={aoClicar} className="relative p-2 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-sm border border-gray-200 shrink-0" title="Despesas Vencidas">
-      🔔
-      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-pulse border border-white">
-        {alertas.length}
-      </span>
+      🔔<span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full animate-pulse border border-white">{alertas.length}</span>
     </button>
   );
 };
@@ -58,7 +52,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   
   const [mostrarNovaDespesa, setMostrarNovaDespesa] = useState(false);
   const [mostrarNovoVale, setMostrarNovoVale] = useState(false);
-  
   const [clienteParaExtra, setClienteParaExtra] = useState(null); 
   const [confirmacao, setConfirmacao] = useState({ aberto: false, titulo: '', mensagem: '', onConfirm: null });
 
@@ -66,10 +59,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const [filtroDataAba1, setFiltroDataAba1] = useState('');
 
   const pedirConfirmacao = (titulo, mensagem, acao) => setConfirmacao({ aberto: true, titulo, mensagem, onConfirm: acao });
-
   const nomeLimpoUsuario = String(usuario?.nome || '').trim().toLowerCase();
   
-  // O "dados" agora é o nosso pacote gerado localmente pelo App.jsx
   const historicoGeral = dados?.historico || [];
   const historicoBase = isProfissional ? historicoGeral.filter(h => String(h.profissional).trim().toLowerCase() === nomeLimpoUsuario) : historicoGeral;
   
@@ -147,36 +138,52 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   useEffect(() => { carregarDadosExtras(); }, [mes, ano, isAdmin, idSaaS]);
 
   const dadosGraficoBrutos = {};
-  
   historicoGeral.forEach(item => {
     if (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO')) return;
     const dataApenasDia = item.data.split(' às ')[0]; 
-    if (!dadosGraficoBrutos[dataApenasDia]) {
-      dadosGraficoBrutos[dataApenasDia] = { nome: dataApenasDia, Serviços: 0, Produtos: 0 };
-    }
-    if (item.servico_tipo === 'produto') {
-      dadosGraficoBrutos[dataApenasDia].Produtos += Number(item.valor_total);
-    } else {
-      dadosGraficoBrutos[dataApenasDia].Serviços += Number(item.valor_total);
-    }
+    if (!dadosGraficoBrutos[dataApenasDia]) dadosGraficoBrutos[dataApenasDia] = { nome: dataApenasDia, Serviços: 0, Produtos: 0 };
+    if (item.servico_tipo === 'produto') dadosGraficoBrutos[dataApenasDia].Produtos += Number(item.valor_total);
+    else dadosGraficoBrutos[dataApenasDia].Serviços += Number(item.valor_total);
   });
-
   const dadosGrafico = Object.values(dadosGraficoBrutos).sort((a, b) => {
     const [diaA, mesA] = a.nome.split('/');
     const [diaB, mesB] = b.nome.split('/');
     return new Date(ano, mesA - 1, diaA) - new Date(ano, mesB - 1, diaB);
   });
 
-  const filtrarComissoesPeriodo = async () => {
+  // 🚀 NOVO FILTRO LOCAL DE COMISSÕES (Instantâneo e sem acionar o Neon)
+  const filtrarComissoesPeriodo = () => {
     if (!dataInicio || !dataFim) return;
-    try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-periodo?inicio=${dataInicio}&fim=${dataFim}&empresa_id=${idSaaS}`);
-      const json = await res.json();
-      if (json.sucesso) {
-         const filtrado = isProfissional ? json.dados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : json.dados;
-         setComissoesFiltradas(filtrado);
-      }
-    } catch (e) {}
+    
+    const partesInicio = dataInicio.split('-');
+    const dataIn = new Date(partesInicio[0], partesInicio[1]-1, partesInicio[2]);
+    dataIn.setHours(0,0,0,0);
+    
+    const partesFim = dataFim.split('-');
+    const dataFi = new Date(partesFim[0], partesFim[1]-1, partesFim[2]);
+    dataFi.setHours(23,59,59,999);
+
+    const comissoesMap = {};
+    
+    historicoGeral.forEach(item => {
+       if (item.status === 'cancelado' || item.cliente_nome.includes('⚠️ ERRO')) return;
+       
+       const partesDataStr = item.data.split(' às ')[0].split('/');
+       if(partesDataStr.length === 3) {
+           const dataItem = new Date(partesDataStr[2], partesDataStr[1]-1, partesDataStr[0]);
+           
+           if (dataItem >= dataIn && dataItem <= dataFi) {
+              const prof = item.profissional;
+              if(!comissoesMap[prof]) comissoesMap[prof] = { profissional: prof, total_comissao: 0, qtd_servicos: 0, perfil: 'profissional' };
+              comissoesMap[prof].total_comissao += (Number(item.valor_comissao) || 0);
+              comissoesMap[prof].qtd_servicos += 1;
+           }
+       }
+    });
+
+    const dadosFiltrados = Object.values(comissoesMap);
+    const filtrado = isProfissional ? dadosFiltrados.filter(c => String(c.profissional).trim().toLowerCase() === nomeLimpoUsuario) : dadosFiltrados;
+    setComissoesFiltradas(filtrado);
   };
   
   const limparFiltroPeriodo = () => { setDataInicio(''); setDataFim(''); setComissoesFiltradas(null); };
@@ -206,19 +213,17 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     carregarDadosExtras();
   });
 
-  // 🚀 ATUALIZADO: Apaga do Histórico Local
   const apagarHistorico = (id) => pedirConfirmacao("Excluir Definitivamente", "ATENÇÃO: Deseja destruir este registro da memória local? O financeiro será recalculado na hora.", async () => {
     try {
       let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
       historicoLocal = historicoLocal.filter(item => item.id !== id);
       localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
-      recarregarTudo(); // Atualiza os gráficos
+      recarregarTudo();
     } catch(e) {}
   });
 
   const cancelarItemFila = (id, nomeServico) => pedirConfirmacao(
-    "Cancelar Item",
-    `Deseja remover o item "${nomeServico}" da fila?`,
+    "Cancelar Item", `Deseja remover o item "${nomeServico}" da fila?`,
     async () => {
       try {
         let filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
@@ -230,8 +235,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   );
 
   const cancelarAtendimentosFila = (itens) => pedirConfirmacao(
-    "Cancelar Ficha",
-    "A cliente desistiu e foi embora? Esta ficha será removida da fila.",
+    "Cancelar Ficha", "A cliente desistiu e foi embora? Esta ficha será removida da fila.",
     async () => {
       try {
         const idsParaRemover = itens.map(i => i.id);
@@ -243,22 +247,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     }
   );
 
-  // 🚀 ATUALIZADO: Coloca a tarja de ERRO no Histórico Local
   const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador conferir?", async () => {
     try {
       let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
       historicoLocal = historicoLocal.map(item => {
-         if(item.id === id) {
-            return { ...item, cliente_nome: `⚠️ ERRO: ${item.cliente_nome}` };
-         }
+         if(item.id === id) return { ...item, cliente_nome: `⚠️ ERRO: ${item.cliente_nome}` };
          return item;
       });
       localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
-      recarregarTudo(); // Atualiza os gráficos subtraindo o valor do erro
+      recarregarTudo();
     } catch(e) {}
   });
 
-  // 🚀 O NOVO MOTOR PRINCIPAL: Dar Baixa e Preencher Gavetas
   const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
@@ -271,7 +271,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         const horaFormatada = dataBaixa.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
         for (const item of itensDaComanda) {
-          // 1. O PACOTE PARA O GOOGLE SHEETS (Segurança)
           const pacoteDeDados = {
             data: dataFormatada,
             hora: horaFormatada,
@@ -284,13 +283,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           };
 
           fetch(GOOGLE_SHEETS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(pacoteDeDados)
           }).catch(e => console.error("Erro ao sincronizar com Planilha:", e));
 
-          // 2. A GAVETA LOCAL (Para exibir na tela Histórico e Gráficos instantaneamente)
           historicoLocal.push({
              id: 'hist_' + Date.now() + Math.floor(Math.random() * 1000),
              data: `${dataFormatada} às ${horaFormatada}`,
@@ -305,29 +301,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           });
         }
 
-        // Remove os itens da fila de espera
         filaLocal = filaLocal.filter(item => !ids.includes(item.id));
-        
-        // Tranca a gaveta do Histórico com os novos dados
         localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
       } else {
-        // Se a rececionista apenas clicar em "Antecipar" o pagamento, só marca de verde na fila.
         filaLocal = filaLocal.map(item => {
-          if (ids.includes(item.id)) {
-             item.status = statusNovo;
-             item.forma_pagamento = formaPagamento;
-          }
+          if (ids.includes(item.id)) { item.status = statusNovo; item.forma_pagamento = formaPagamento; }
           return item;
         });
       }
 
       localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
-      
-      // 🚀 Atualiza TUDO na hora: A Fila, O Histórico e o Gráfico de Faturamento
       recarregarTudo(); 
-    } catch (erro) {
-      console.error("Erro ao atualizar status:", erro);
-    }
+    } catch (erro) { console.error("Erro ao atualizar status:", erro); }
   };
 
   const iniciarServico = async (id) => {
@@ -353,9 +338,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     try {
       const resConf = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/configuracoes?empresa_id=${idSaaS}`);
       const jsonConf = await resConf.json();
-      if (jsonConf.sucesso && jsonConf.dados?.nome_fantasia) {
-        nomeDaEmpresa = jsonConf.dados.nome_fantasia;
-      }
+      if (jsonConf.sucesso && jsonConf.dados?.nome_fantasia) nomeDaEmpresa = jsonConf.dados.nome_fantasia;
     } catch (e) {}
 
     const valorTotal = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
@@ -391,48 +374,24 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           <div class="info"><span class="bold">Atendente(s):</span> ${[...new Set(itens.map(i => i.profissional))].join(', ')}</div>
           <div class="info"><span class="bold">Pagamento:</span> ${itens[0].forma_pagamento || 'Concluído'}</div>
           <div class="divisor"></div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Qtd/Item</th>
-                <th class="right">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
+          <table><thead><tr><th>Qtd/Item</th><th class="right">Valor</th></tr></thead><tbody>
     `;
 
-    itens.forEach(item => {
-      html += `
-        <tr>
-          <td>1x ${item.servico} <br><small style="color: #666">(${item.servico_tipo === 'produto' ? 'Produto' : 'Serviço'})</small></td>
-          <td class="right">${formatarMoeda(item.valor_total)}</td>
-        </tr>
-      `;
-    });
+    itens.forEach(item => { html += `<tr><td>1x ${item.servico} <br><small style="color: #666">(${item.servico_tipo === 'produto' ? 'Produto' : 'Serviço'})</small></td><td class="right">${formatarMoeda(item.valor_total)}</td></tr>`; });
 
     html += `
-            </tbody>
-          </table>
-          
+            </tbody></table>
           <div class="total-box">
             <div>Subtotal: ${formatarMoeda(valorTotal)}</div>
             ${valorJaPago > 0 ? `<div>Pago Antecipado: -${formatarMoeda(valorJaPago)}</div>` : ''}
             <div class="total-final">TOTAL: ${formatarMoeda(valorTotal - valorJaPago)}</div>
           </div>
-          
           <div class="divisor"></div>
-          <div class="rodape">
-            Obrigado pela preferência!<br>
-            Volte sempre!
-          </div>
+          <div class="rodape">Obrigado pela preferência!<br>Volte sempre!</div>
         </body>
-        <script>
-          window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } };
-        </script>
+        <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } };</script>
       </html>
     `;
-
     const janela = window.open('', '_blank', 'width=400,height=600');
     janela.document.write(html);
     janela.document.close();
@@ -449,18 +408,12 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const clientesAguardando = [];
 
   Object.entries(comandasAgrupadas).forEach(([nomeCliente, itens]) => {
-    const temServicoRodando = itens.some(item => item.status_fila === 'em_atendimento');
-    if (temServicoRodando) {
-      clientesEmAtendimento.push({ nomeCliente, itens });
-    } else {
-      clientesAguardando.push({ nomeCliente, itens });
-    }
+    if (itens.some(item => item.status_fila === 'em_atendimento')) clientesEmAtendimento.push({ nomeCliente, itens });
+    else clientesAguardando.push({ nomeCliente, itens });
   });
 
   const filaPorProfissional = comandas.reduce((acc, item) => {
-    const ehProduto = item.servico_tipo === 'produto' || item.duracao === 0 || item.duracao === null;
-    if (ehProduto) return acc;
-
+    if (item.servico_tipo === 'produto' || item.duracao === 0 || item.duracao === null) return acc;
     if (!acc[item.profissional]) acc[item.profissional] = 0;
     
     let tempoRestante = item.duracao || 30;
@@ -519,8 +472,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     if (despesas.length === 0) return alert("Nenhuma despesa encontrada para exportar.");
     let conteudoCSV = "Vencimento,Valor (R$),Serviços/Produto,Fornecedor,Status,Data Pagamento\n";
     despesas.forEach(d => {
-      const partes = d.data_vencimento.split('-'); 
-      const venc = new Date(partes[0], partes[1] - 1, partes[2]);
+      const partes = d.data_vencimento.split('-'); const venc = new Date(partes[0], partes[1] - 1, partes[2]);
       const hoje = new Date(); hoje.setHours(0,0,0,0);
       const diferencaDias = Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
       
@@ -537,12 +489,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
       conteudoCSV += `"${dataVencFormatada}","${valorStr}","${descStr}","${fornStr}","${textoStatus}","${pagtoStr}"\n`;
     });
-
     const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); 
-    link.href = URL.createObjectURL(blob);
-    link.download = `despesas_goldstar_${mes}_${ano}.csv`; 
-    link.click();
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+    link.download = `despesas_goldstar_${mes}_${ano}.csv`; link.click();
   };
 
   const BotaoAba = ({ id, titulo, destaque }) => (
@@ -554,15 +503,11 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-24 animate-fade-in-up pt-4">
-      
       {isAdmin && (
         <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 h-[280px] w-full flex flex-col mb-4">
           <h3 className="font-bold text-gray-700 mb-2 text-sm">Resumo Diário - {mes}/{ano}</h3>
-          
           {dadosGrafico.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-              Sem dados registados neste mês.
-            </div>
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Sem dados registados neste mês.</div>
           ) : (
             <div className="flex-1 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -583,22 +528,11 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
       <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide pt-2 items-center">
         {isAdmin && <IconeNotificacao despesas={despesas} aoClicar={() => setAbaAtiva(6)} />}
-        
         {podeVerCaixa && <BotaoAba id={0} titulo="🛒 Fila / Caixa" destaque={totalClientesNaFila} />}
         <BotaoAba id={1} titulo={isProfissional ? "1. Meus Serviços" : "1. Histórico Geral"} />
-        
-        {usuario?.perfil !== 'caixa' && (
-          <BotaoAba id={2} titulo={isProfissional ? "2. Minha Comissão" : "2. Comissões da Equipe"} />
-        )}
-
+        {usuario?.perfil !== 'caixa' && <BotaoAba id={2} titulo={isProfissional ? "2. Minha Comissão" : "2. Comissões da Equipe"} />}
         {podeVerCaixa && <BotaoAba id={3} titulo="3. Visual da Agenda" />}
-        {isAdmin && (
-          <>
-            <BotaoAba id={4} titulo="4. Top 10" />
-            <BotaoAba id={5} titulo="5. DRE (Finanças)" />
-            <BotaoAba id={6} titulo="6. Despesas" />
-          </>
-        )}
+        {isAdmin && <><BotaoAba id={4} titulo="4. Top 10" /><BotaoAba id={5} titulo="5. DRE (Finanças)" /><BotaoAba id={6} titulo="6. Despesas" /></>}
       </div>
 
       {abaAtiva === 0 && podeVerCaixa && (
@@ -606,23 +540,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           <div className="flex flex-col md:flex-row justify-between items-center gap-3 pt-1">
              <div className="flex-1 flex flex-wrap gap-2 items-center">
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Folga hoje:</span>
-                {colaboradores
-                  .filter(c => String(c.dia_folga || '').split(',').includes(String(new Date().getDay())))
-                  .map(c => (
-                    <span key={c.id} className="bg-gray-200 text-gray-600 px-2 py-1 rounded-lg text-[10px] font-bold">
-                      {c.nome} 🏖️
-                    </span>
-                  ))
-                }
-                {colaboradores.filter(c => String(c.dia_folga || '').split(',').includes(String(new Date().getDay()))).length === 0 && (
-                  <span className="text-[10px] text-gray-300 italic">Ninguém de folga.</span>
-                )}
+                {colaboradores.filter(c => String(c.dia_folga || '').split(',').includes(String(new Date().getDay()))).map(c => <span key={c.id} className="bg-gray-200 text-gray-600 px-2 py-1 rounded-lg text-[10px] font-bold">{c.nome} 🏖️</span>)}
+                {colaboradores.filter(c => String(c.dia_folga || '').split(',').includes(String(new Date().getDay()))).length === 0 && <span className="text-[10px] text-gray-300 italic">Ninguém de folga.</span>}
              </div>
-
-             <button 
-               onClick={() => setMostrarNovoVale(true)} 
-               className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transition-transform active:scale-95"
-             >
+             <button onClick={() => setMostrarNovoVale(true)} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transition-transform active:scale-95">
                🥤 Lançar Consumo da Equipa
              </button>
           </div>
@@ -631,33 +552,21 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-3 overflow-x-auto scrollbar-hide items-center">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-2">Disponibilidade:</span>
               {colaboradores && colaboradores.length > 0 ? (
-                colaboradores
-                  .filter(c => (c.perfil === 'profissional' || c.perfil === 'dono') && !String(c.dia_folga || '').split(',').includes(String(new Date().getDay())))
-                  .map(c => {
+                colaboradores.filter(c => (c.perfil === 'profissional' || c.perfil === 'dono') && !String(c.dia_folga || '').split(',').includes(String(new Date().getDay()))).map(c => {
                     const tempo = filaPorProfissional[c.nome] || 0;
                     const livre = tempo === 0;
                     return (
                       <div key={c.id} className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border ${livre ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
                          <div className={`w-2 h-2 rounded-full ${livre ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></div>
-                         <div>
-                           <p className="text-xs font-bold text-gray-700">{c.nome}</p>
-                           <p className={`text-[10px] font-bold ${livre ? 'text-green-600' : 'text-orange-600'}`}>
-                             {livre ? 'Livre agora' : `Fila: ${formatarTempo(tempo)}`}
-                           </p>
-                         </div>
+                         <div><p className="text-xs font-bold text-gray-700">{c.nome}</p><p className={`text-[10px] font-bold ${livre ? 'text-green-600' : 'text-orange-600'}`}>{livre ? 'Livre agora' : `Fila: ${formatarTempo(tempo)}`}</p></div>
                       </div>
                     );
                   })
-              ) : (
-                <span className="text-xs text-gray-400 italic">Carregando equipe...</span>
-              )}
+              ) : <span className="text-xs text-gray-400 italic">Carregando equipe...</span>}
             </div>
 
             <div className="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex gap-3 overflow-x-auto scrollbar-hide items-center shadow-sm">
-              <span className="text-xs font-bold text-orange-800 uppercase tracking-wider shrink-0 mr-2 flex items-center gap-1">
-                ⏳ Aguardando ({clientesAguardando.length}):
-              </span>
-              
+              <span className="text-xs font-bold text-orange-800 uppercase tracking-wider shrink-0 mr-2 flex items-center gap-1">⏳ Aguardando ({clientesAguardando.length}):</span>
               {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
@@ -672,32 +581,22 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                     <div key={nomeCliente} className={`shrink-0 flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm min-w-[250px] transition-colors ${valorPendente === 0 ? 'bg-green-50/60 border-green-200' : 'bg-white border-orange-200'}`}>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-bold truncate ${valorPendente === 0 ? 'text-green-800' : 'text-orange-700'}`}>{nomeCliente}</p>
-                        <p className="text-[10px] text-gray-500 font-medium">
-                          {itens.length} item(ns) • {formatarMoeda(valorTotal)} • Chegou {horaChegada}
-                        </p>
+                        <p className="text-[10px] text-gray-500 font-medium">{itens.length} item(ns) • {formatarMoeda(valorTotal)} • Chegou {horaChegada}</p>
                       </div>
                       <div className="flex gap-1 shrink-0">
                         <button onClick={() => cancelarAtendimentosFila(itens)} className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Desistiu">🗑️</button>
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
-                        
                         {valorPendente > 0 ? (
                           <div className="flex items-center gap-1 bg-blue-50 p-1 rounded-lg border border-blue-100 shadow-sm">
                             <select id={`pagamento_aguard_${safeId}`} className="bg-transparent text-blue-700 font-bold text-[10px] outline-none cursor-pointer">
-                              <option value="Dinheiro">Dinheiro</option>
-                              <option value="Pix">Pix</option>
-                              <option value="Cartão">Cartão</option>
+                              <option value="Dinheiro">Dinheiro</option><option value="Pix">Pix</option><option value="Cartão">Cartão</option>
                             </select>
                             <button onClick={() => {
                                const f = document.getElementById(`pagamento_aguard_${safeId}`).value;
                                atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado', f);
-                            }} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold transition-colors shadow-sm">
-                              💲 Antecipar
-                            </button>
+                            }} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold transition-colors shadow-sm">💲 Antecipar</button>
                           </div>
-                        ) : (
-                          <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm">✅ Pago</span>
-                        )}
-
+                        ) : <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm">✅ Pago</span>}
                         {itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa') && (
                           <button onClick={() => iniciarServico(itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa').id)} className="bg-blue-500 text-white px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Iniciar">▶ Iniciar</button>
                         )}
@@ -711,11 +610,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
           <div className="bg-white rounded-2xl border border-teal-200 overflow-hidden shadow-sm flex flex-col mt-4">
             <div className="p-4 bg-teal-50 border-b border-teal-100 flex justify-between items-center z-10 shadow-sm shrink-0">
-              <h3 className="font-bold text-teal-800 flex items-center gap-2">
-                <span className="animate-pulse">🟢</span> Em Atendimento ({clientesEmAtendimento.length})
-              </h3>
+              <h3 className="font-bold text-teal-800 flex items-center gap-2"><span className="animate-pulse">🟢</span> Em Atendimento ({clientesEmAtendimento.length})</h3>
             </div>
-            
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 bg-teal-50/20 overflow-y-auto max-h-[65vh]">
                {clientesEmAtendimento.length === 0 ? (
                  <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400"><p className="text-sm font-medium">Ninguém na cadeira agora.</p></div>
@@ -724,26 +620,17 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                    const valorTotal = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
                    const valorJaPago = itens.reduce((soma, item) => item.status === 'pago_antecipado' ? soma + Number(item.valor_total) : soma, 0);
                    const valorPendente = valorTotal - valorJaPago;
-                   const horaChegada = new Date(itens[0].data_hora); 
-                   const horaChegadaFormatada = horaChegada.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                   const horaChegada = new Date(itens[0].data_hora).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
                    const safeId = nomeCliente.replace(/[^a-zA-Z0-9]/g, '');
 
                    return (
                      <div key={nomeCliente} className="border border-teal-200 bg-white rounded-2xl shadow-md overflow-hidden flex flex-col justify-between transition-all duration-300">
                        <div>
                          <div className="px-3 py-2 border-b bg-teal-100/40 flex justify-between items-center gap-2">
-                           <div className="flex-1 min-w-0">
-                             <h4 className="font-bold text-teal-800 text-[13px] truncate" title={nomeCliente}>
-                               Cliente: <span className="font-black">{nomeCliente}</span>
-                             </h4>
-                           </div>
+                           <div className="flex-1 min-w-0"><h4 className="font-bold text-teal-800 text-[13px] truncate" title={nomeCliente}>Cliente: <span className="font-black">{nomeCliente}</span></h4></div>
                            <div className="flex items-center gap-1.5 shrink-0">
-                             <span className="text-[9px] font-bold text-gray-500 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
-                               Chegou {horaChegadaFormatada}
-                             </span>
-                             <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-500 hover:bg-teal-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm transition-transform active:scale-95 whitespace-nowrap shrink-0">
-                               ➕ Extra
-                             </button>
+                             <span className="text-[9px] font-bold text-gray-500 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">Chegou {horaChegada}</span>
+                             <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-500 hover:bg-teal-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm transition-transform active:scale-95 whitespace-nowrap shrink-0">➕ Extra</button>
                            </div>
                          </div>
                          <div className="p-4">
@@ -751,10 +638,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                              {itens.map(item => {
                                const estaRodando = item.status_fila === 'em_atendimento';
                                let decorridoMinutos = 0;
-                               if (estaRodando && item.hora_inicio) {
-                                 const inicio = new Date(item.hora_inicio);
-                                 decorridoMinutos = Math.max(0, Math.floor((new Date() - inicio) / 60000));
-                               }
+                               if (estaRodando && item.hora_inicio) decorridoMinutos = Math.max(0, Math.floor((new Date() - new Date(item.hora_inicio)) / 60000));
                                const atrasado = decorridoMinutos > (item.duracao || 30);
                                const corServico = estaRodando ? "bg-white border-teal-400 shadow-sm" : "bg-gray-50/80 border-gray-100";
 
@@ -790,15 +674,13 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                        
                        <div className="p-4 pt-0">
                          <div className="border-t border-dashed border-gray-300 pt-3 flex flex-col gap-3">
-                           
                            <div className="flex justify-between items-end gap-2">
                              <div className="flex-1 min-w-0">
                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider truncate">Total a Cobrar</p>
                                <p className="text-xl font-black text-gray-800 leading-none mt-1 truncate">{formatarMoeda(valorPendente)}</p>
                              </div>
-                             
                              <div className="flex gap-1.5 shrink-0">
-                               <button onClick={() => imprimirComprovante(nomeCliente, itens)} className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 border border-transparent hover:border-gray-200 px-2 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0" title="Imprimir Recibo">🖨️ Recibo</button>
+                               <button onClick={() => imprimirComprovante(nomeCliente, itens)} className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 border border-transparent hover:border-gray-200 px-2 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0">🖨️ Recibo</button>
                                <button onClick={() => cancelarAtendimentosFila(itens)} className="text-red-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 px-2 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0">🗑️ Desistiu</button>
                              </div>
                            </div>
@@ -807,25 +689,19 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                              {valorPendente > 0 && (
                                <div className="flex-1 flex gap-1 bg-green-50 p-1 rounded-xl border border-green-100 shadow-sm">
                                  <select id={`pagamento_card_${safeId}`} className="bg-transparent text-green-800 font-bold text-xs outline-none cursor-pointer w-full text-center">
-                                   <option value="Dinheiro">Dinheiro</option>
-                                   <option value="Pix">Pix</option>
-                                   <option value="Cartão">Cartão</option>
+                                   <option value="Dinheiro">Dinheiro</option><option value="Pix">Pix</option><option value="Cartão">Cartão</option>
                                  </select>
                                </div>
                              )}
-
                              <button onClick={() => {
                                const selectElement = document.getElementById(`pagamento_card_${safeId}`);
                                const f = selectElement ? selectElement.value : 'Dinheiro';
-                               
                                tocarSomBaixa(); 
-                               
                                atualizarStatusComanda(itens, 'pago', f);
                             }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-1 rounded-xl shadow-md text-xs transition-colors truncate">
                               {valorPendente === 0 ? "✅ Encerrar" : "💲 Dar Baixa"}
                             </button>
                            </div>
-
                          </div>
                        </div>
                      </div>
@@ -841,7 +717,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-col md:flex-row justify-between md:items-center gap-3">
             <h3 className="font-bold text-gray-800">{isProfissional ? 'Meus Serviços Realizados' : 'Histórico Geral e Auditoria'}</h3>
-            
             <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
               <input type="date" value={filtroDataAba1} onChange={e => setFiltroDataAba1(e.target.value)} className="border border-gray-200 rounded-lg p-2 text-xs bg-white text-gray-700 font-bold outline-none shadow-sm flex-1 md:w-36 cursor-pointer" title="Escolha um dia"/>
               {!isProfissional && (
@@ -861,18 +736,10 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <div className="bg-gray-800 p-3 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200">
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumo do Período Filtrado:</span>
-                <span className="bg-teal-500 text-white font-black px-3 py-1 rounded-lg text-sm shadow-sm">
-                  Total: {formatarMoeda(resumoTurno.total)}
-                </span>
-                <span className="bg-gray-700 text-green-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">
-                  💵 Dinheiro: {formatarMoeda(resumoTurno.dinheiro)}
-                </span>
-                <span className="bg-gray-700 text-purple-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">
-                  📱 Pix: {formatarMoeda(resumoTurno.pix)}
-                </span>
-                <span className="bg-gray-700 text-blue-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">
-                  💳 Cartão: {formatarMoeda(resumoTurno.cartao)}
-                </span>
+                <span className="bg-teal-500 text-white font-black px-3 py-1 rounded-lg text-sm shadow-sm">Total: {formatarMoeda(resumoTurno.total)}</span>
+                <span className="bg-gray-700 text-green-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">💵 Dinheiro: {formatarMoeda(resumoTurno.dinheiro)}</span>
+                <span className="bg-gray-700 text-purple-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">📱 Pix: {formatarMoeda(resumoTurno.pix)}</span>
+                <span className="bg-gray-700 text-blue-400 font-bold px-2 py-1 rounded-md text-xs border border-gray-600">💳 Cartão: {formatarMoeda(resumoTurno.cartao)}</span>
               </div>
             </div>
           )}
@@ -888,74 +755,35 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-gray-500">
                 <tr>
-                  <th className="p-3">Data</th>
-                  <th className="p-3">Cliente</th>
-                  <th className="p-3">Serviço/Produto</th>
-                  {!isProfissional && <th className="p-3">Profissional</th>}
-                  <th className="p-3 text-center">Pagamento</th>
-                  <th className="p-3 text-right">Valor Final</th>
-                  <th className="p-3 text-right text-green-600 font-bold">Comissão</th>
-                  {(isAdmin || isCaixa) && <th className="p-3 text-center">Ações</th>}
+                  <th className="p-3">Data</th><th className="p-3">Cliente</th><th className="p-3">Serviço/Produto</th>{!isProfissional && <th className="p-3">Profissional</th>}<th className="p-3 text-center">Pagamento</th><th className="p-3 text-right">Valor Final</th><th className="p-3 text-right text-green-600 font-bold">Comissão</th>{(isAdmin || isCaixa) && <th className="p-3 text-center">Ações</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {historico.length === 0 ? <tr><td colSpan={(isAdmin || isCaixa) ? "8" : (isProfissional ? "6" : "7")} className="p-6 text-center text-gray-400">Nenhum registro encontrado.</td></tr> : historico.map(item => {
                   const temErro = item.cliente_nome.includes('⚠️ ERRO');
                   const isCancelado = item.status === 'cancelado';
-
                   return (
                     <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${temErro || isCancelado ? 'bg-red-50/40' : ''}`}>
                       <td className="p-3 text-gray-500 text-xs">{item.data}</td>
-                      <td className={`p-3 font-medium ${temErro || isCancelado ? 'text-red-600' : 'text-gray-800'}`}>
-                        {item.cliente_nome}
-                        {isCancelado && <span className="ml-2 text-[9px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider border border-red-200">Cancelado</span>}
-                      </td>
-                      <td className="p-3 text-gray-600 font-medium text-xs">
-                        {item.servico_tipo === 'produto' ? <span title="Produto Vendido">🛍️ {item.servico}</span> : <span title="Serviço Realizado">💆‍♀️ {item.servico}</span>}
-                      </td>
+                      <td className={`p-3 font-medium ${temErro || isCancelado ? 'text-red-600' : 'text-gray-800'}`}>{item.cliente_nome}{isCancelado && <span className="ml-2 text-[9px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider border border-red-200">Cancelado</span>}</td>
+                      <td className="p-3 text-gray-600 font-medium text-xs">{item.servico_tipo === 'produto' ? <span title="Produto Vendido">🛍️ {item.servico}</span> : <span title="Serviço Realizado">💆‍♀️ {item.servico}</span>}</td>
                       {!isProfissional && <td className="p-3 text-gray-600 font-bold text-xs">{item.profissional}</td>}
-                      <td className="p-3 text-center">
-                        {!isCancelado && <BadgePagamento forma={item.forma_pagamento} />}
-                      </td>
-                      <td className="p-3 font-bold text-teal-600 text-right">
-                        {temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}
-                      </td>
-                      <td className="p-3 font-black text-green-600 text-right bg-green-50/30">
-                        {temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_comissao)}</s> : formatarMoeda(item.valor_comissao)}
-                      </td>
+                      <td className="p-3 text-center">{!isCancelado && <BadgePagamento forma={item.forma_pagamento} />}</td>
+                      <td className="p-3 font-bold text-teal-600 text-right">{temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_total)}</s> : formatarMoeda(item.valor_total)}</td>
+                      <td className="p-3 font-black text-green-600 text-right bg-green-50/30">{temErro || isCancelado ? <s className="text-gray-400">{formatarMoeda(item.valor_comissao)}</s> : formatarMoeda(item.valor_comissao)}</td>
                       {(isAdmin || isCaixa) && (
                         <td className="p-3 text-center flex items-center justify-center gap-2">
                           {!temErro && !isCancelado && (
                             <button onClick={() => {
-                                const normalizarNome = (nome) => {
-                                  return nome 
-                                    ? nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, ' ')
-                                    : "";
-                                };
-
+                                const normalizarNome = (nome) => nome ? nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, ' ') : "";
                                 const nomeLimpo = normalizarNome(item.cliente_nome);
                                 const diaDoItem = item.data.split(' ')[0]; 
-                                
-                                const itensDoClienteNoDia = historico.filter(h => {
-                                    const nomeDaLista = normalizarNome(h.cliente_nome);
-                                    const diaDaLista = h.data.split(' ')[0];
-                                    
-                                    return nomeDaLista === nomeLimpo && 
-                                           diaDaLista === diaDoItem && 
-                                           h.status !== 'cancelado' && 
-                                           !h.cliente_nome.includes('⚠️ ERRO');
-                                });
-                                
+                                const itensDoClienteNoDia = historico.filter(h => normalizarNome(h.cliente_nome) === nomeLimpo && h.data.split(' ')[0] === diaDoItem && h.status !== 'cancelado' && !h.cliente_nome.includes('⚠️ ERRO'));
                                 imprimirComprovante(item.cliente_nome, itensDoClienteNoDia);
                             }} className="text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Reimprimir Recibo Completo do Dia">🖨️</button>
                           )}
-                          
-                          {isCaixa && !temErro && !isCancelado && (
-                            <button onClick={() => sinalizarErroAtendimento(item.id)} className="text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Sinalizar Erro">🚩</button>
-                          )}
-                          {isAdmin && (
-                            <button onClick={() => apagarHistorico(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Excluir Definitivamente do Sistema">🗑️</button>
-                          )}
+                          {isCaixa && !temErro && !isCancelado && <button onClick={() => sinalizarErroAtendimento(item.id)} className="text-orange-500 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Sinalizar Erro">🚩</button>}
+                          {isAdmin && <button onClick={() => apagarHistorico(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg font-bold transition-colors shadow-sm" title="Excluir Definitivamente do Sistema">🗑️</button>}
                         </td>
                       )}
                     </tr>
@@ -980,7 +808,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                 {comissoesFiltradas !== null && <button onClick={limparFiltroPeriodo} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-2 rounded-lg transition-colors">Limpar</button>}
               </div>
             </div>
-            
             {podeVerCaixa && (
               <div className="flex gap-2 w-full md:w-auto">
                 <button onClick={() => setMostrarNovoVale(true)} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-sm whitespace-nowrap">+ Vale / Desconto</button>
@@ -993,10 +820,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
               const chaveUnica = comissoesFiltradas ? `P_${prof.profissional}_${dataInicio}_${dataFim}` : `M_${prof.profissional}_${mes}_${ano}`;
               const pagamentoInfo = pagamentosDb.find(p => p.chave_periodo === chaveUnica);
               const estaPago = !!pagamentoInfo;
-
-              const valesDoProfissional = vales.filter(v => v.profissional === prof.profissional);
-              const valesAtivos = estaPago ? valesDoProfissional.filter(v => v.chave_periodo === chaveUnica) : valesDoProfissional.filter(v => !v.pago);
-              
+              const valesProf = vales.filter(v => v.profissional === prof.profissional);
+              const valesAtivos = estaPago ? valesProf.filter(v => v.chave_periodo === chaveUnica) : valesProf.filter(v => !v.pago);
               const totalVales = valesAtivos.reduce((a, v) => a + Number(v.valor), 0);
               const liquidoAPagar = Number(prof.total_comissao) - totalVales;
 
@@ -1005,7 +830,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                   <div className="w-1/2">
                     <p className="font-bold text-gray-800 text-base">{prof.profissional}</p>
                     <p className="text-xs text-gray-500 mb-2">{prof.qtd_servicos} serviço(s) feitos</p>
-                    
                     {valesAtivos.length > 0 && (
                       <div className="mt-2 bg-red-50/50 p-2 rounded-lg border border-red-100">
                         <p className="text-[10px] font-bold text-red-800 uppercase tracking-wide border-b border-red-200/50 mb-1.5 pb-1">Descontos a aplicar:</p>
@@ -1028,60 +852,21 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       <p className="font-black text-teal-600 text-xl">{formatarMoeda(liquidoAPagar)}</p>
                     </div>
                     <div className="flex items-center gap-2 mt-2">
-                      {estaPago ? (
-                        <span className="text-[11px] font-bold text-[#2d6a4f] bg-[#d8f3dc] px-2 py-1.5 rounded-lg border border-[#b7e4c7]">Pago: {pagamentoInfo.data_pagto}</span>
-                      ) : (
-                        <span className="text-[11px] font-bold text-[#e07a5f] bg-red-50 px-2 py-1.5 rounded-lg border border-red-100">A Receber</span>
-                      )}
+                      {estaPago ? <span className="text-[11px] font-bold text-[#2d6a4f] bg-[#d8f3dc] px-2 py-1.5 rounded-lg border border-[#b7e4c7]">Pago: {pagamentoInfo.data_pagto}</span> : <span className="text-[11px] font-bold text-[#e07a5f] bg-red-50 px-2 py-1.5 rounded-lg border border-red-100">A Receber</span>}
                       {isAdmin && <input type="checkbox" checked={estaPago} onChange={() => alternarStatusPagamento(prof.profissional, chaveUnica)} className="w-6 h-6 cursor-pointer accent-teal-600 shadow-sm"/>}
                     </div>
                   </div>
                 </div>
               );
             })}
-
-            {isProfissional && (
-              <div className="mt-8 border-t border-gray-200 pt-6">
-                <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                  <span>🛒</span> Meu Histórico de Consumos e Descontos
-                </h4>
-                
-                {vales.filter(v => String(v.profissional).trim().toLowerCase() === nomeLimpoUsuario).length === 0 ? (
-                  <p className="text-xs text-gray-400 italic bg-gray-50 p-4 rounded-xl text-center border border-gray-100">Nenhum consumo registado no seu nome.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {vales.filter(v => String(v.profissional).trim().toLowerCase() === nomeLimpoUsuario).map(v => (
-                      <div key={v.id} className="bg-white border border-gray-200 p-3 rounded-xl flex justify-between items-center shadow-sm">
-                        <div>
-                          <p className="text-xs font-bold text-gray-800">{v.descricao}</p>
-                          <p className="text-[10px] text-gray-500 font-medium">Lançado em: {v.data_formatada}</p>
-                        </div>
-                        <div className="text-right flex flex-col items-end gap-1">
-                          <span className="text-sm font-black text-red-500">- {formatarMoeda(v.valor)}</span>
-                          {v.pago ? (
-                            <span className="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Descontado</span>
-                          ) : (
-                            <span className="text-[9px] bg-orange-100 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Pendente (Próx. Pgto)</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
 
       {isAdmin && abaAtiva === 4 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"><h3 className="font-bold text-purple-800 mb-3 border-b pb-2">Top 10 Serviços/Produtos</h3>
-            <ul className="text-sm space-y-3">{topServicos.map((s, i) => <li key={i} className="flex justify-between"><span className="text-gray-600"><span className="font-bold mr-2">{i+1}º</span>{s.nome}</span><span className="font-bold">{formatarMoeda(s.gerado)}</span></li>)}</ul>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"><h3 className="font-bold text-blue-800 mb-3 border-b pb-2">Top 10 Clientes</h3>
-            <ul className="text-sm space-y-3">{topClientes.map((c, i) => <li key={i} className="flex justify-between"><span className="text-gray-600"><span className="font-bold mr-2">{i+1}º</span>{c.nome}</span><span className="font-bold">{formatarMoeda(c.gasto)}</span></li>)}</ul>
-          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"><h3 className="font-bold text-purple-800 mb-3 border-b pb-2">Top 10 Serviços/Produtos</h3><ul className="text-sm space-y-3">{topServicos.map((s, i) => <li key={i} className="flex justify-between"><span className="text-gray-600"><span className="font-bold mr-2">{i+1}º</span>{s.nome}</span><span className="font-bold">{formatarMoeda(s.gerado)}</span></li>)}</ul></div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm"><h3 className="font-bold text-blue-800 mb-3 border-b pb-2">Top 10 Clientes</h3><ul className="text-sm space-y-3">{topClientes.map((c, i) => <li key={i} className="flex justify-between"><span className="text-gray-600"><span className="font-bold mr-2">{i+1}º</span>{c.nome}</span><span className="font-bold">{formatarMoeda(c.gasto)}</span></li>)}</ul></div>
         </div>
       )}
 
@@ -1105,25 +890,14 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <div className="flex items-center gap-3">
               <h3 className="font-bold text-white pr-2">Despesas</h3>
               <button onClick={() => setMostrarNovaDespesa(true)} className="bg-teal-500 hover:bg-teal-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors">+ Lançar Despesa</button>
-              <button onClick={exportarPlanilhaDespesas} className="bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors flex items-center gap-1">
-                📥 Baixar
-              </button>
+              <button onClick={exportarPlanilhaDespesas} className="bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-colors flex items-center gap-1">📥 Baixar</button>
             </div>
             <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">Total: {formatarMoeda(despesasFixas)}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
               <thead className="bg-teal-500 text-white">
-                <tr>
-                  <th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th>
-                  <th className="p-3 font-bold border-r border-teal-600/30">Valor</th>
-                  <th className="p-3 font-bold border-r border-teal-600/30">Serviços/Produto</th>
-                  <th className="p-3 font-bold border-r border-teal-600/30">Fornecedor</th>
-                  <th className="p-3 font-bold border-r border-teal-600/30">Status</th>
-                  <th className="p-3 font-bold border-r border-teal-600/30">Data Pagamento</th>
-                  <th className="p-3 font-bold text-center">Pago</th>
-                  <th className="p-3 font-bold text-center">Ações</th>
-                </tr>
+                <tr><th className="p-3 font-bold border-r border-teal-600/30">Vencimento</th><th className="p-3 font-bold border-r border-teal-600/30">Valor</th><th className="p-3 font-bold border-r border-teal-600/30">Serviços/Produto</th><th className="p-3 font-bold border-r border-teal-600/30">Fornecedor</th><th className="p-3 font-bold border-r border-teal-600/30">Status</th><th className="p-3 font-bold border-r border-teal-600/30">Data Pagamento</th><th className="p-3 font-bold text-center">Pago</th><th className="p-3 font-bold text-center">Ações</th></tr>
               </thead>
               <tbody className="divide-y divide-gray-200 border-b border-gray-200">
                 {despesas.length === 0 ? <tr><td colSpan="8" className="p-6 text-center text-gray-400">Nenhuma despesa para este mês.</td></tr> : despesas.map(d => {
@@ -1137,18 +911,9 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                     const dataVencFormatada = `${partes[2]}/${partes[1]}/${partes[0].substring(2)}`;
                     return (
                       <tr key={d.id} className={`${classeLinha} ${classeTexto} transition-colors border-b border-gray-200`}>
-                        <td className="p-3 font-bold border-r border-gray-200/50">{dataVencFormatada}</td>
-                        <td className="p-3 font-bold border-r border-gray-200/50">{formatarMoeda(d.valor)}</td>
-                        <td className="p-3 border-r border-gray-200/50 truncate max-w-[200px]">{d.descricao}</td>
-                        <td className="p-3 border-r border-gray-200/50 truncate max-w-[150px]">{d.fornecedor || '-'}</td>
-                        <td className={`p-3 border-r border-gray-200/50 ${classeStatus}`}>{textoStatus}</td>
-                        <td className="p-3 border-r border-gray-200/50 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td>
-                        <td className="p-3 text-center flex items-center justify-center">
-                          <input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-teal-600" />
-                        </td>
-                        <td className="p-3 text-center">
-                          <button onClick={() => apagarDespesa(d.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors shadow-sm" title="Apagar Despesa">🗑️</button>
-                        </td>
+                        <td className="p-3 font-bold border-r border-gray-200/50">{dataVencFormatada}</td><td className="p-3 font-bold border-r border-gray-200/50">{formatarMoeda(d.valor)}</td><td className="p-3 border-r border-gray-200/50 truncate max-w-[200px]">{d.descricao}</td><td className="p-3 border-r border-gray-200/50 truncate max-w-[150px]">{d.fornecedor || '-'}</td><td className={`p-3 border-r border-gray-200/50 ${classeStatus}`}>{textoStatus}</td><td className="p-3 border-r border-gray-200/50 font-bold text-center">{d.pago ? d.data_pagamento : '-'}</td>
+                        <td className="p-3 text-center flex items-center justify-center"><input type="checkbox" checked={d.pago} onChange={() => marcarDespesaPaga(d.id, d.pago)} className="w-5 h-5 cursor-pointer accent-teal-600" /></td>
+                        <td className="p-3 text-center"><button onClick={() => apagarDespesa(d.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors shadow-sm" title="Apagar Despesa">🗑️</button></td>
                       </tr>
                     );
                 })}
@@ -1159,16 +924,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       )}
 
       {abaAtiva === 3 && podeVerCaixa && <LinhaDoTempo comandas={comandas} />}
-
-      {clienteParaExtra && (
-        <ModalNovoAtendimento 
-          fechar={() => setClienteParaExtra(null)} 
-          recarregarTudo={recarregarTudo} 
-          comandas={comandas} 
-          clientePreDefinido={clienteParaExtra} 
-        />
-      )}
-
+      {clienteParaExtra && <ModalNovoAtendimento fechar={() => setClienteParaExtra(null)} recarregarTudo={recarregarTudo} comandas={comandas} clientePreDefinido={clienteParaExtra} />}
       {mostrarNovaDespesa && <ModalNovaDespesa fechar={() => setMostrarNovaDespesa(false)} atualizarDados={() => { carregarDadosExtras(); recarregarTudo(); }} usuario={usuario} />}
       {mostrarNovoVale && <ModalNovoVale fechar={() => setMostrarNovoVale(false)} atualizarDados={recarregarTudo} usuario={usuario} />}
 
@@ -1180,9 +936,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 text-red-500 text-3xl shadow-lg relative z-10">⚠️</div>
               <h3 className="text-xl font-black text-white relative z-10">{confirmacao.titulo}</h3>
             </div>
-            <div className="p-6 text-center text-gray-600 font-medium text-sm">
-              <p>{confirmacao.mensagem}</p>
-            </div>
+            <div className="p-6 text-center text-gray-600 font-medium text-sm"><p>{confirmacao.mensagem}</p></div>
             <div className="p-5 bg-gray-50 flex gap-3 border-t border-gray-100">
               <button onClick={() => setConfirmacao({ ...confirmacao, aberto: false })} className="flex-1 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors">Cancelar</button>
               <button onClick={() => { confirmacao.onConfirm(); setConfirmacao({ ...confirmacao, aberto: false }); }} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-colors">Confirmar</button>
@@ -1190,7 +944,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
           </div>
         </div>
       )}
-
     </div>
   );
 }

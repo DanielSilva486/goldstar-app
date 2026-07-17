@@ -98,23 +98,17 @@ export default function App() {
   
   const cor = paleta[temaAtivo] || paleta.teal;
 
-  // 🚀 MOTOR HÍBRIDO: Puxa o passado do Neon e junta com o dia de hoje (Memória Local)
   const carregarDados = async () => {
     if (!usuarioLogado) return;
 
     try {
-      // 1. Pede o histórico antigo ao Neon (Acorda rápido)
       const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa_id=${usuarioLogado.empresa_id}`);
       const dadosNeon = await res.json();
 
       if (dadosNeon.sucesso) {
-        // 2. Puxa os dados dos serviços de hoje (Gaveta Local)
         const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
-
-        // 3. Junta os dois (Passado + Presente) num arquivo só
         const historicoCompleto = [...historicoLocal, ...(dadosNeon.historico || [])];
 
-        // 4. Refaz os cálculos financeiros somando os dois mundos
         let faturamento_bruto = 0;
         let total_comissoes = 0;
         const comissoesMap = {};
@@ -143,7 +137,6 @@ export default function App() {
            }
         });
 
-        // 5. Devolve para o sistema exibir
         setDadosSalao({
            ...dadosNeon,
            historico: historicoCompleto,
@@ -157,21 +150,15 @@ export default function App() {
            topClientes: Object.values(clientesMap).sort((a,b) => b.gasto - a.gasto).slice(0, 10)
         });
       }
-    } catch (e) {
-      console.log("Erro ao mesclar dados", e);
-    }
+    } catch (e) { console.log("Erro ao mesclar dados", e); }
   };
   
   const buscarComandas = () => {
     if (!usuarioLogado) return; 
-    
     try {
       const filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
       setComandas(filaLocal);
-    } catch (erro) {
-      console.log('Erro ao ler a memória local', erro);
-      setComandas([]);
-    }
+    } catch (erro) { setComandas([]); }
   };
 
   const recarregarTudo = (apenasFila = false) => { 
@@ -180,12 +167,8 @@ export default function App() {
       setComandas([]);
       return;
     }
-    
     buscarComandas(); 
-    
-    if (!apenasFila) {
-      carregarDados(); 
-    }
+    if (!apenasFila) carregarDados(); 
   };
 
   useEffect(() => { recarregarTudo(); }, [mesSelecionado, anoSelecionado, usuarioLogado]); 
@@ -193,6 +176,35 @@ export default function App() {
   const confirmarLogout = () => {
     setUsuarioLogado(null);
     setMostrarConfirmacaoSair(false);
+  };
+
+  // 🚀 O NOVO BOTÃO DE ENCERRAR O DIA
+  const encerrarExpediente = () => {
+    if(!window.confirm("Deseja encerrar o expediente? O sistema fará o download do fechamento de hoje e limpará a Fila de Caixa.")) return;
+    
+    // Gera a Planilha Backup do Dia
+    const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
+    const hojeData = new Date().toLocaleDateString('pt-BR');
+    
+    // Filtra apenas o que aconteceu HOJE para o relatório de fim de dia
+    const dadosHoje = historicoLocal.filter(h => h.data && h.data.startsWith(hojeData));
+    
+    let csv = "Data,Hora,Cliente,Profissional,Servico,Valor Total,Comissao,Pagamento\n";
+    dadosHoje.forEach(d => {
+       const hora = d.data.split(' às ')[1] || '-';
+       csv += `${hojeData},${hora},${d.cliente_nome},${d.profissional},${d.servico},${d.valor_total},${d.valor_comissao},${d.forma_pagamento}\n`;
+    });
+    
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `fechamento_diario_${hojeData.replace(/\//g, '-')}.csv`;
+    link.click();
+    
+    // Limpa apenas a fila, mantendo o histórico de gráficos ativo!
+    localStorage.setItem('gestaoGold_filaLocal', '[]');
+    recarregarTudo(true);
+    alert("Expediente encerrado! O fechamento foi guardado na sua pasta de Downloads.");
   };
 
   let diasRestantes = null;
@@ -327,10 +339,17 @@ export default function App() {
                 
                 {usuarioLogado && (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100">
+                    {/* 🚀 AQUI FICA O BOTÃO DE ENCERRAR O DIA */}
+                    {podeOperarCaixa && (
+                       <button onClick={encerrarExpediente} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 rounded-lg text-xs md:text-sm flex items-center gap-1 transition-colors shadow-sm">
+                         🌙 Encerrar Dia
+                       </button>
+                    )}
+                    
+                    <span className="hidden md:inline-block text-sm font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100 ml-2">
                       👤 {usuarioLogado.nome}
                     </span>
-                    <button onClick={() => setMostrarConfirmacaoSair(true)} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors border border-red-100 shadow-sm">
+                    <button onClick={() => setMostrarConfirmacaoSair(true)} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 px-3 py-1.5 rounded-lg transition-colors border border-red-100 shadow-sm ml-1">
                       Sair
                     </button>
                   </div>
