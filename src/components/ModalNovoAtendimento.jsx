@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
+// 🚀 SAAS: A SUA URL SECRETA DO GOOGLE SHEETS
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwWfanYNIWjCZRjZsmUy0wQ3OasN8Cbv_1PN7RR-nHg6nDyWn9OxNdPyKDZfHWliqK8sQ/exec';
+
 export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas = [], clientePreDefinido }) {
   // 🚀 SAAS: Identificando a empresa do usuário logado
   const usuarioLocal = JSON.parse(localStorage.getItem('usuarioGoldstar') || '{}');
@@ -79,33 +82,65 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     }
   };
 
+  // 🚀 NOVO MOTOR: Salva no Google Sheets e na Memória Local
   const adicionarNaComanda = async (e) => {
     e.preventDefault();
     if (!clienteNome || !colaboradorId || !servicoId) return;
 
     setCarregandoAdicao(true);
     try {
-      const dataParaEnviar = dataManual ? new Date(dataManual).toISOString() : new Date().toISOString();
-      
-      // Se ela selecionou 2 produtos, o sistema divide o valor e envia 2 vezes para o banco!
+      const dataParaEnviar = dataManual ? new Date(dataManual) : new Date();
+      const dataFormatada = dataParaEnviar.toLocaleDateString('pt-BR');
+      const horaFormatada = dataParaEnviar.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      // Precisamos pegar os nomes (não apenas os IDs) para a planilha ficar legível
+      const servicoObj = listaServicos.find(s => s.id == servicoId);
+      const colabObj = listaColaboradores.find(c => c.id == colaboradorId);
+
       const qtdLoop = tipoAdicao === 'produto' ? quantidade : 1;
-      const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : null;
+      const valorUnitario = valorCobrado ? (Number(valorCobrado) / qtdLoop) : 0;
 
       for (let i = 0; i < qtdLoop; i++) {
-        await fetch('https://goldstar-backend-9m2p.onrender.com/api/atendimentos', {
+        // 1. MONTAGEM DO PACOTE PARA O GOOGLE
+        const pacoteDeDados = {
+          data: dataFormatada,
+          hora: horaFormatada,
+          profissional: colabObj ? colabObj.nome : 'Desconhecido',
+          tipo: tipoAdicao === 'servico' ? 'Serviço' : 'Produto',
+          descricao: servicoObj ? servicoObj.nome : 'Sem Descrição',
+          valor: valorUnitario,
+          pagamento: 'Pendente (Fila)', 
+          comissao: 0 
+        };
+
+        // 2. DISPARO PARA O GOOGLE SHEETS (Desvio de Rota Silencioso)
+        await fetch(GOOGLE_SHEETS_URL, {
           method: 'POST',
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            colaborador_id: colaboradorId, 
-            servico_id: servicoId, 
-            cliente_nome: clienteNome, 
-            valor_cobrado: valorUnitario, 
-            status: 'pendente',
-            data_manual: dataParaEnviar,
-            empresa_id: idSaaS // 🚀 SAAS: Enviando o atendimento para a empresa correta
-          })
+          body: JSON.stringify(pacoteDeDados)
         });
+
+        // 3. GRAVAÇÃO NA MEMÓRIA DO COMPUTADOR (LocalStorage)
+        const filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
+        const novoItemFila = {
+          id: 'local_' + Date.now() + i, // ID gerado na hora para controle local
+          cliente_nome: clienteNome,
+          profissional: colabObj ? colabObj.nome : '',
+          servico: servicoObj ? servicoObj.nome : '',
+          servico_tipo: tipoAdicao,
+          valor_total: valorUnitario,
+          status: 'pendente',
+          status_fila: 'aguardando',
+          data_hora: dataParaEnviar.toISOString(),
+          duracao: servicoObj ? servicoObj.duracao : 30
+        };
+        filaLocal.push(novoItemFila);
+        localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
       }
+      
+      // Feedback visual para a rececionista
+      alert('✅ Atendimento adicionado e backup salvo no Google!');
       
       recarregarTudo(); 
       
@@ -116,7 +151,9 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
         setDataManual(formatarDataAtualParaInput());
       }
       
-    } catch (erro) { alert('Erro ao adicionar à comanda.'); }
+    } catch (erro) { 
+      alert('Erro ao adicionar à comanda. Verifique a internet.'); 
+    }
     setCarregandoAdicao(false);
   };
 

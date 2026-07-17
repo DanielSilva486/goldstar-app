@@ -104,20 +104,33 @@ export default function App() {
       .then(r => r.json()).then(d => { if(d.sucesso) setDadosSalao(d); });
   };
   
+  // 🚀 NOVO MOTOR: Lê a Fila do Caixa direto da memória local (Custo Zero e Instantâneo)
   const buscarComandas = () => {
     if (!usuarioLogado) return; 
-    fetch(`https://goldstar-backend-9m2p.onrender.com/api/comandas?empresa_id=${usuarioLogado.empresa_id}`)
-      .then(r => r.json()).then(d => { if (d.sucesso) setComandas(d.dados); });
+    
+    try {
+      const filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
+      setComandas(filaLocal);
+    } catch (erro) {
+      console.log('Erro ao ler a memória local', erro);
+      setComandas([]);
+    }
   };
 
-  const recarregarTudo = () => { 
+  // 🚀 ATUALIZADO: Só chama o banco Neon se for necessário (economizando horas)
+  const recarregarTudo = (apenasFila = false) => { 
     if (!usuarioLogado) {
       setDadosSalao(null);
       setComandas([]);
       return;
     }
-    carregarDados(); 
-    buscarComandas(); 
+    
+    buscarComandas(); // Atualiza a fila instantaneamente (memória local)
+    
+    // Só vai chamar o banco de dados Neon se NÃO for uma atualização rápida de Fila
+    if (!apenasFila) {
+      carregarDados(); 
+    }
   };
 
   useEffect(() => { recarregarTudo(); }, [mesSelecionado, anoSelecionado, usuarioLogado]); 
