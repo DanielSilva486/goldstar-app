@@ -28,7 +28,7 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
     setErro(''); setMensagemSucesso(''); setCarregando(true);
 
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/login', {
+      const res = await fetch('https://gestaogold.onrender.com/api/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha })
       });
@@ -70,7 +70,7 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
     }
 
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/nova-empresa', {
+      const res = await fetch('https://gestaogold.onrender.com/api/nova-empresa', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome_salao: nomeSalao, nome_dono: nomeDono, email: emailCadastro.toLowerCase(), senha: senhaCadastro })
       });
@@ -94,7 +94,7 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
     
     setErro(''); setMensagemSucesso(''); setCarregando(true);
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/esqueci-senha', {
+      const res = await fetch('https://gestaogold.onrender.com/api/esqueci-senha', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
@@ -115,7 +115,7 @@ export default function ModalLogin({ aoFechar, setUsuarioLogado }) {
     setErro(''); setCarregando(true);
 
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/redefinir-senha', {
+      const res = await fetch('https://gestaogold.onrender.com/api/redefinir-senha', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, codigo: codigoRecuperacao, novaSenha })
       });

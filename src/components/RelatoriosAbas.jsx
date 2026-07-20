@@ -114,21 +114,21 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
 
   const carregarDadosExtras = async () => {
     try {
-      const resPagamentos = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes?empresa_id=${idSaaS}`);
+      const resPagamentos = await fetch(`https://gestaogold.onrender.com/api/pagamentos-comissoes?empresa_id=${idSaaS}`);
       const jsonPagamentos = await resPagamentos.json();
       if(jsonPagamentos.sucesso) setPagamentosDb(jsonPagamentos.dados);
       
-      const resVales = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales?empresa_id=${idSaaS}`);
+      const resVales = await fetch(`https://gestaogold.onrender.com/api/vales?empresa_id=${idSaaS}`);
       const jsonVales = await resVales.json();
       if(jsonVales.sucesso) setVales(jsonVales.dados);
       
       if (isAdmin) {
-        const resDespesas = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas?mes=${mes}&ano=${ano}&empresa_id=${idSaaS}`);
+        const resDespesas = await fetch(`https://gestaogold.onrender.com/api/despesas?mes=${mes}&ano=${ano}&empresa_id=${idSaaS}`);
         const jsonDespesas = await resDespesas.json();
         if(jsonDespesas.sucesso) setDespesas(jsonDespesas.dados);
       }
       if (podeVerCaixa) {
-        const resColab = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores?empresa_id=${idSaaS}`);
+        const resColab = await fetch(`https://gestaogold.onrender.com/api/colaboradores?empresa_id=${idSaaS}`);
         const jsonColab = await resColab.json();
         if(jsonColab.sucesso) setColaboradores(jsonColab.dados);
       }
@@ -191,25 +191,25 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const alternarStatusPagamento = async (profissional, chaveUnica) => {
     if (!isAdmin) return;
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica, empresa_id: idSaaS }) });
+      await fetch('https://gestaogold.onrender.com/api/pagamentos-comissoes/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profissional, chave_periodo: chaveUnica, empresa_id: idSaaS }) });
       carregarDadosExtras(); 
     } catch (e) {}
   };
 
   const marcarDespesaPaga = async (id, statusAtual) => {
     try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}/pagar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pago: !statusAtual }) });
+      await fetch(`https://gestaogold.onrender.com/api/despesas/${id}/pagar`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pago: !statusAtual }) });
       carregarDadosExtras(); recarregarTudo(); 
     } catch (e) {}
   };
 
   const apagarDespesa = (id) => pedirConfirmacao("Apagar Despesa", "Tem a certeza que deseja apagar esta despesa? O valor será recalculado imediatamente.", async () => {
-    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
+    await fetch(`https://gestaogold.onrender.com/api/despesas/${id}`, { method: 'DELETE' });
     carregarDadosExtras(); recarregarTudo();
   });
 
   const apagarVale = (id) => pedirConfirmacao("Remover Desconto", "Deseja realmente apagar este vale/desconto da comissão?", async () => {
-    await fetch(`https://goldstar-backend-9m2p.onrender.com/api/vales/${id}`, { method: 'DELETE' });
+    await fetch(`https://gestaogold.onrender.com/api/vales/${id}`, { method: 'DELETE' });
     carregarDadosExtras();
   });
 
@@ -336,7 +336,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
   const imprimirComprovante = async (nomeCliente, itens) => {
     let nomeDaEmpresa = "SISTEMA DE GESTÃO";
     try {
-      const resConf = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/configuracoes?empresa_id=${idSaaS}`);
+      const resConf = await fetch(`https://gestaogold.onrender.com/api/configuracoes?empresa_id=${idSaaS}`);
       const jsonConf = await resConf.json();
       if (jsonConf.sucesso && jsonConf.dados?.nome_fantasia) nomeDaEmpresa = jsonConf.dados.nome_fantasia;
     } catch (e) {}

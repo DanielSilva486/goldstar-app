@@ -12,7 +12,7 @@ export default function ModalNovoVale({ fechar, atualizarDados, usuario }) {
 
   useEffect(() => {
     // 🚀 SAAS: Busca apenas a equipa do salão atual
-    fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores?empresa_id=${idSaaS}`)
+    fetch(`https://gestaogold.onrender.com/api/colaboradores?empresa_id=${idSaaS}`)
       .then(r => r.json())
       .then(d => { if(d.sucesso) setEquipe(d.dados); });
   }, [idSaaS]);
@@ -23,7 +23,7 @@ export default function ModalNovoVale({ fechar, atualizarDados, usuario }) {
     
     setSalvando(true);
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/vales', {
+      await fetch('https://gestaogold.onrender.com/api/vales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
