@@ -42,7 +42,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   // 🚀 SAAS: Buscas blindadas por empresa
   const carregarServicos = async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos?empresa_id=${idSaaS}`);
+      const res = await fetch(`https://gestaogold.onrender.com/api/servicos?empresa_id=${idSaaS}`);
       const d = await res.json();
       if (d.sucesso) setServicos(d.dados);
     } catch(e) {}
@@ -50,7 +50,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const carregarComissoesEsp = async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas?empresa_id=${idSaaS}`);
+      const res = await fetch(`https://gestaogold.onrender.com/api/comissoes-especificas?empresa_id=${idSaaS}`);
       const d = await res.json();
       if (d.sucesso) setComissoesEsp(d.dados);
     } catch(e) {}
@@ -58,7 +58,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const carregarEquipe = async () => {
     try {
-      const r = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos?empresa_id=${idSaaS}`);
+      const r = await fetch(`https://gestaogold.onrender.com/api/colaboradores/todos?empresa_id=${idSaaS}`);
       const d = await r.json();
       if (d.sucesso) setEquipe(d.dados);
     } catch(e) {}
@@ -66,7 +66,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const carregarEmpresa = async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/configuracoes?empresa_id=${idSaaS}`);
+      const res = await fetch(`https://gestaogold.onrender.com/api/configuracoes?empresa_id=${idSaaS}`);
       const d = await res.json();
       if (d.sucesso && d.dados) setDadosEmpresa({
         nome_fantasia: d.dados.nome_fantasia || '',
@@ -135,7 +135,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     e.preventDefault();
     setSalvando('empresa');
     try {
-      const res = await fetch('https://goldstar-backend-9m2p.onrender.com/api/configuracoes', {
+      const res = await fetch('https://gestaogold.onrender.com/api/configuracoes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...dadosEmpresa, empresa_id: idSaaS })
@@ -157,7 +157,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     e.preventDefault();
     setSalvando('novo_profissional');
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/colaboradores', {
+      await fetch('https://gestaogold.onrender.com/api/colaboradores', {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,7 +177,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
 
   const exportarPlanilhaEquipe = async () => {
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/exportar-equipe?empresa_id=${idSaaS}`);
+      const res = await fetch(`https://gestaogold.onrender.com/api/exportar-equipe?empresa_id=${idSaaS}`);
       const json = await res.json();
       if (!json.sucesso) return alert("Erro ao buscar dados.");
       
@@ -197,7 +197,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   const salvarAcesso = async (colab) => {
     setSalvando(colab.id);
     try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}/acesso`, {
+      await fetch(`https://gestaogold.onrender.com/api/colaboradores/${colab.id}/acesso`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
        body: JSON.stringify({ email: colab.email, perfil: colab.perfil, senha: colab.novaSenha, dia_folga: colab.dia_folga })
@@ -211,7 +211,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
   const salvarComissaoPadrao = async (colab) => {
     setSalvando(colab.id);
     try {
-      await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}/comissao`, {
+      await fetch(`https://gestaogold.onrender.com/api/colaboradores/${colab.id}/comissao`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ percentual_comissao: colab.percentual_comissao })
@@ -230,7 +230,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
         setSalvando(colab.id);
         try {
           const novoStatus = !colab.ativo;
-          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}/status`, {
+          await fetch(`https://gestaogold.onrender.com/api/colaboradores/${colab.id}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ativo: novoStatus })
@@ -250,7 +250,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
       async () => {
         setSalvando(colab.id);
         try {
-          const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/${colab.id}`, { method: 'DELETE' });
+          const res = await fetch(`https://gestaogold.onrender.com/api/colaboradores/${colab.id}`, { method: 'DELETE' });
           const json = await res.json();
           if (json.sucesso) {
             mostrarToast(`${colab.nome} apagada(o) do sistema!`);
@@ -269,13 +269,13 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     setSalvando('novo_servico');
     try {
       if (novoServico.id) {
-        await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos/${novoServico.id}`, {
+        await fetch(`https://gestaogold.onrender.com/api/servicos/${novoServico.id}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nome: novoServico.nome, preco: novoServico.preco, duracao: abaProduto === 'produto' ? 0 : novoServico.duracao })
         });
         mostrarToast(`${abaProduto === 'produto' ? 'Produto' : 'Serviço'} atualizado com sucesso!`);
       } else {
-        await fetch('https://goldstar-backend-9m2p.onrender.com/api/servicos', {
+        await fetch('https://gestaogold.onrender.com/api/servicos', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...novoServico, tipo: abaProduto, duracao: abaProduto === 'produto' ? 0 : novoServico.duracao, empresa_id: idSaaS })
         });
@@ -301,7 +301,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
       "Deseja arquivar este item? Ele sairá do Caixa, mas os relatórios antigos continuarão intactos.",
       async () => {
         try {
-          const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos/${id}`, { method: 'DELETE' });
+          const res = await fetch(`https://gestaogold.onrender.com/api/servicos/${id}`, { method: 'DELETE' });
           const d = await res.json();
           if(d.sucesso) {
              carregarServicos(); 
@@ -320,7 +320,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
     
     setSalvando('regra_' + colab_id);
     try {
-      await fetch('https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas', {
+      await fetch('https://gestaogold.onrender.com/api/comissoes-especificas', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ colaborador_id: colab_id, servico_id: regra.servico_id, percentual: regra.percentual, empresa_id: idSaaS })
       });
@@ -337,7 +337,7 @@ export default function ModalConfiguracoes({ fechar, temaAtivo, setTemaAtivo }) 
       "Deseja remover esta regra? O profissional voltará a receber a comissão padrão neste serviço.",
       async () => {
         try {
-          await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas/${id}`, { method: 'DELETE' });
+          await fetch(`https://gestaogold.onrender.com/api/comissoes-especificas/${id}`, { method: 'DELETE' });
           carregarComissoesEsp(); 
           mostrarToast('Regra removida com sucesso!');
         } catch (e) { mostrarToast('Erro ao remover regra.', 'erro'); }

@@ -36,16 +36,16 @@ export default function ModalNovoAtendimento({ fechar, recarregarTudo, comandas 
     
     const carregarListas = async () => {
       try {
-        const resC = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/colaboradores/todos?empresa_id=${idSaaS}`);
+        const resC = await fetch(`https://gestaogold.onrender.com/api/colaboradores/todos?empresa_id=${idSaaS}`);
         const dataC = await resC.json();
         if (dataC.sucesso) setListaColaboradores(dataC.dados.filter(c => c.ativo !== false));
 
-        const resS = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/servicos?empresa_id=${idSaaS}`);
+        const resS = await fetch(`https://gestaogold.onrender.com/api/servicos?empresa_id=${idSaaS}`);
         const dataS = await resS.json();
         if (dataS.sucesso) setListaServicos(dataS.dados);
 
         // 🚀 NOVO: Puxa a tabela de regras específicas (Ex: Escova a 40%)
-        const resCE = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/comissoes-especificas?empresa_id=${idSaaS}`);
+        const resCE = await fetch(`https://gestaogold.onrender.com/api/comissoes-especificas?empresa_id=${idSaaS}`);
         const dataCE = await resCE.json();
         if (dataCE.sucesso) setListaComissoesEsp(dataCE.dados);
 

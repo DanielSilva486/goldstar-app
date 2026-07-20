@@ -45,7 +45,7 @@ export default function App() {
   useEffect(() => {
     const idDaEmpresa = usuarioLogado ? usuarioLogado.empresa_id : 1;
     
-    fetch(`https://goldstar-backend-9m2p.onrender.com/api/configuracoes?empresa_id=${idDaEmpresa}`)
+    fetch(`https://gestaogold.onrender.com/api/configuracoes?empresa_id=${idDaEmpresa}`)
       .then(res => res.json())
       .then(d => {
         if (d.sucesso && d.dados) {
@@ -102,7 +102,7 @@ export default function App() {
     if (!usuarioLogado) return;
 
     try {
-      const res = await fetch(`https://goldstar-backend-9m2p.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa_id=${usuarioLogado.empresa_id}`);
+      const res = await fetch(`https://gestaogold.onrender.com/api/resumo?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa_id=${usuarioLogado.empresa_id}`);
       const dadosNeon = await res.json();
 
       if (dadosNeon.sucesso) {
