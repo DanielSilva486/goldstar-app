@@ -137,6 +137,7 @@ export default function App() {
            }
         });
 
+        // 🔥 O '.slice(0, 10)' FOI REMOVIDO DAQUI 👇 🔥
         setDadosSalao({
            ...dadosNeon,
            historico: historicoCompleto,
@@ -146,8 +147,8 @@ export default function App() {
               total_comissoes
            },
            comissoes: Object.values(comissoesMap),
-           topServicos: Object.values(servicosMap).sort((a,b) => b.gerado - a.gerado).slice(0, 10),
-           topClientes: Object.values(clientesMap).sort((a,b) => b.gasto - a.gasto).slice(0, 10)
+           topServicos: Object.values(servicosMap).sort((a,b) => b.gerado - a.gerado),
+           topClientes: Object.values(clientesMap).sort((a,b) => b.gasto - a.gasto)
         });
       }
     } catch (e) { console.log("Erro ao mesclar dados", e); }
@@ -178,15 +179,12 @@ export default function App() {
     setMostrarConfirmacaoSair(false);
   };
 
-  // 🚀 O NOVO BOTÃO DE ENCERRAR O DIA
   const encerrarExpediente = () => {
     if(!window.confirm("Deseja encerrar o expediente? O sistema fará o download do fechamento de hoje e limpará a Fila de Caixa.")) return;
     
-    // Gera a Planilha Backup do Dia
     const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
     const hojeData = new Date().toLocaleDateString('pt-BR');
     
-    // Filtra apenas o que aconteceu HOJE para o relatório de fim de dia
     const dadosHoje = historicoLocal.filter(h => h.data && h.data.startsWith(hojeData));
     
     let csv = "Data,Hora,Cliente,Profissional,Servico,Valor Total,Comissao,Pagamento\n";
@@ -201,7 +199,6 @@ export default function App() {
     link.download = `fechamento_diario_${hojeData.replace(/\//g, '-')}.csv`;
     link.click();
     
-    // Limpa apenas a fila, mantendo o histórico de gráficos ativo!
     localStorage.setItem('gestaoGold_filaLocal', '[]');
     recarregarTudo(true);
     alert("Expediente encerrado! O fechamento foi guardado na sua pasta de Downloads.");
@@ -339,7 +336,6 @@ export default function App() {
                 
                 {usuarioLogado && (
                   <div className="flex items-center gap-2">
-                    {/* 🚀 AQUI FICA O BOTÃO DE ENCERRAR O DIA */}
                     {podeOperarCaixa && (
                        <button onClick={encerrarExpediente} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 rounded-lg text-xs md:text-sm flex items-center gap-1 transition-colors shadow-sm">
                          🌙 Encerrar Dia

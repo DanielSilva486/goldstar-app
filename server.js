@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import dotenv from 'dotenv';
-import { Resend } from 'resend'; // 🚀 SAAS: Novo carteiro profissional adicionado!
+import { Resend } from 'resend'; 
 import bcrypt from 'bcryptjs';
 
 process.env.TZ = 'America/Sao_Paulo';
@@ -30,16 +30,14 @@ const atualizarBanco = async () => {
     await pool.query("ALTER TABLE configuracoes_empresa ADD COLUMN IF NOT EXISTS ip_autorizado VARCHAR(50)");
     await pool.query("ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS dia_folga VARCHAR(50) DEFAULT ''");
     
-    // 🚀 SAAS: Garante que a coluna de vencimento exista (mesmo que você já tenha criado, isto previne erros no futuro)
     await pool.query("ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_vencimento DATE");
     
-    // Linha crítica: garante a coluna
     await pool.query("ALTER TABLE atendimentos ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50) DEFAULT 'Dinheiro'");
 
     try { await pool.query("ALTER TABLE colaboradores ALTER COLUMN dia_folga TYPE VARCHAR(50) USING dia_folga::VARCHAR"); } catch(e){}
     console.log("✅ Banco verificado e atualizado!");
   } catch (e) {
-    console.error("❌ ERRO AO ATUALIZAR BANCO:", e); // Agora se der erro, ele mostra no log do Render
+    console.error("❌ ERRO AO ATUALIZAR BANCO:", e); 
   }
 };
 
@@ -51,7 +49,6 @@ app.post('/api/login', async (req, res) => {
   }
   
   try {
-    // 🚀 SAAS CORREÇÃO: Agora puxamos a data_vencimento da tabela empresas usando um JOIN
     const r = await pool.query(`
       SELECT c.id, c.nome, c.perfil, c.email, c.senha, c.dia_folga, c.empresa_id, e.data_vencimento 
       FROM colaboradores c
@@ -63,14 +60,11 @@ app.post('/api/login', async (req, res) => {
       const user = r.rows[0];
       const senhaGravada = user.senha || '1234'; 
       
-      // 🚀 SAAS: Compara a senha digitada com a criptografia do banco
       const senhaValida = await bcrypt.compare(senha, senhaGravada);
-      
-      // ⚠️ MODO TRANSIÇÃO: Permite login nas suas contas de teste antigas
       const senhaAntigaValida = (senha === senhaGravada);
       
       if (senhaValida || senhaAntigaValida) {
-        delete user.senha; // Remove a senha da memória antes de devolver ao frontend
+        delete user.senha; 
         
         if (user.perfil === 'caixa') {
           const hoje = String(new Date().getDay());
@@ -105,7 +99,6 @@ app.post('/api/login', async (req, res) => {
   } catch (erro) { res.status(500).json({ sucesso: false, erro: 'Erro no servidor' }); }
 });
 
-
 app.get('/api/resumo', async (req, res) => {
   try {
     const { mes, ano } = req.query;
@@ -139,8 +132,10 @@ app.get('/api/resumo', async (req, res) => {
     `, [mes, ano, empresa_id]);
     
     const comissoesQuery = await pool.query(`SELECT c.nome as profissional, c.perfil, COUNT(a.id) as qtd_servicos, COALESCE(SUM(a.valor_comissao), 0) as total_comissao FROM colaboradores c JOIN atendimentos a ON c.id = a.colaborador_id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 GROUP BY c.nome, c.perfil ORDER BY total_comissao DESC`, [mes, ano, empresa_id]);
-    const topServicosQuery = await pool.query(`SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado FROM atendimentos a JOIN servicos s ON a.servico_id = s.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 GROUP BY s.nome ORDER BY gerado DESC LIMIT 10`, [mes, ano, empresa_id]);
-    const topClientesQuery = await pool.query(`SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 AND empresa_id = $3 GROUP BY cliente_nome ORDER BY gasto DESC LIMIT 10`, [mes, ano, empresa_id]);
+    
+    // 🔥 LIMIT 10 REMOVIDO NAS DUAS QUERIES ABAIXO 🔥
+    const topServicosQuery = await pool.query(`SELECT s.nome, COUNT(a.id) as qtd, COALESCE(SUM(a.valor_total), 0) as gerado FROM atendimentos a JOIN servicos s ON a.servico_id = s.id WHERE a.status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM a.data_hora) = $1 AND EXTRACT(YEAR FROM a.data_hora) = $2 AND a.empresa_id = $3 GROUP BY s.nome ORDER BY gerado DESC`, [mes, ano, empresa_id]);
+    const topClientesQuery = await pool.query(`SELECT cliente_nome as nome, COALESCE(SUM(valor_total), 0) as gasto FROM atendimentos WHERE status IN ('pago', 'pago_antecipado') AND EXTRACT(MONTH FROM data_hora) = $1 AND EXTRACT(YEAR FROM data_hora) = $2 AND empresa_id = $3 GROUP BY cliente_nome ORDER BY gasto DESC`, [mes, ano, empresa_id]);
     
     res.json({ sucesso: true, valores: { ...totais.rows[0], total_despesas: despesasTotais.rows[0].total_despesas }, historico: historico.rows, comissoes: comissoesQuery.rows, topServicos: topServicosQuery.rows, topClientes: topClientesQuery.rows });
   } catch (erro) { 
@@ -507,16 +502,13 @@ app.post('/api/nova-empresa', async (req, res) => {
       return res.status(400).json({ sucesso: false, erro: 'Este e-mail já está cadastrado no sistema.' });
     }
 
-    // 🚀 SAAS: Define a data de hoje + 7 dias para o teste grátis
     const dataTeste = new Date();
     dataTeste.setDate(dataTeste.getDate() + 7);
-    const vencimentoTeste = dataTeste.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    const vencimentoTeste = dataTeste.toISOString().split('T')[0];
 
-    // 🚀 SAAS: Insere a empresa já com 7 dias de acesso liberado
     const resEmpresa = await pool.query('INSERT INTO empresas (nome, data_vencimento) VALUES ($1, $2) RETURNING id', [nome_salao, vencimentoTeste]);
     const novaEmpresaId = resEmpresa.rows[0].id;
 
-    // 🚀 SAAS: Criptografa a senha do novo cliente antes de salvar
     const salt = await bcrypt.genSalt(10);
     const senhaCriptografada = await bcrypt.hash(senha, salt);
 
