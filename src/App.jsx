@@ -106,8 +106,23 @@ export default function App() {
       const dadosNeon = await res.json();
 
       if (dadosNeon.sucesso) {
-        const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
-        const historicoCompleto = [...historicoLocal, ...(dadosNeon.historico || [])];
+       const historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
+        let historicoCompleto = [...historicoLocal, ...(dadosNeon.historico || [])];
+
+        // 🔥 NOVA ORDENAÇÃO: Do mais recente para o mais antigo 🔥
+        historicoCompleto.sort((a, b) => {
+           const converterData = (dataStr) => {
+              if (!dataStr) return 0;
+              const [data, hora] = dataStr.split(' às ');
+              const partes = data.split('/');
+              const dia = partes[0];
+              const mes = partes[1];
+              const ano = partes[2] || new Date().getFullYear();
+              const [hr, min] = (hora || '00:00').split(':');
+              return new Date(ano, mes - 1, dia, hr, min).getTime();
+           };
+           return converterData(b.data) - converterData(a.data);
+        });
 
         let faturamento_bruto = 0;
         let total_comissoes = 0;

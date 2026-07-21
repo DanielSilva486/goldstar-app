@@ -118,7 +118,7 @@ app.get('/api/resumo', async (req, res) => {
     const despesasTotais = await pool.query(`SELECT COALESCE(SUM(valor), 0) as total_despesas FROM despesas WHERE pago = TRUE AND EXTRACT(MONTH FROM data_vencimento) = $1 AND EXTRACT(YEAR FROM data_vencimento) = $2 AND empresa_id = $3`, [mes, ano, empresa_id]);
     
     const historico = await pool.query(`
-      SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM às HH24:MI') as data, a.cliente_nome, s.nome as servico, 
+      SELECT a.id, TO_CHAR(a.data_hora, 'DD/MM/YYYY às HH24:MI') as data, a.cliente_nome, s.nome as servico,
              s.tipo as servico_tipo, a.valor_total, c.nome as profissional, a.valor_comissao, 
              a.status, a.forma_pagamento 
       FROM atendimentos a 
