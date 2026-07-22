@@ -281,7 +281,8 @@ app.post('/api/comissoes-especificas', async (req, res) => {
 
 app.post('/api/atendimentos', async (req, res) => {
   try {
-    const { colaborador_id, servico_id, cliente_nome, valor_cobrado, status, data_manual } = req.body;
+    // 🚀 Atualizado: Agora recebe a forma_pagamento do frontend
+    const { colaborador_id, servico_id, cliente_nome, valor_cobrado, status, data_manual, forma_pagamento } = req.body;
     const empresa_id = req.body.empresa_id || 1;
     
     const s = await pool.query('SELECT id, preco FROM servicos WHERE id::text = $1::text OR nome = $1::text LIMIT 1', [servico_id]);
@@ -302,9 +303,11 @@ app.post('/api/atendimentos', async (req, res) => {
     
     const comissao = (valor * percentual) / 100;
     const statusFinal = status || 'pendente'; 
+    const pagamentoFinal = forma_pagamento || 'Dinheiro'; // 🚀 Define a forma de pagamento final
     const dataFinal = data_manual ? new Date(data_manual) : new Date();
     
-    await pool.query('INSERT INTO atendimentos (colaborador_id, servico_id, cliente_nome, valor_total, valor_comissao, status, data_hora, empresa_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [colaborador_id, servico_real_id, cliente_nome, valor, comissao, statusFinal, dataFinal, empresa_id]);
+    // 🚀 Atualizado: O INSERT agora grava a forma_pagamento no Neon!
+    await pool.query('INSERT INTO atendimentos (colaborador_id, servico_id, cliente_nome, valor_total, valor_comissao, status, forma_pagamento, data_hora, empresa_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', [colaborador_id, servico_real_id, cliente_nome, valor, comissao, statusFinal, pagamentoFinal, dataFinal, empresa_id]);
     res.json({ sucesso: true });
   } catch (err) { res.status(500).json({sucesso: false}); }
 });

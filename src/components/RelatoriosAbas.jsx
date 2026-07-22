@@ -259,51 +259,37 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     } catch(e) {}
   });
 
-  const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
+ const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
       let filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
-      let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
 
       if (statusNovo === 'pago') {
-        const dataBaixa = new Date();
-        const dataFormatada = dataBaixa.toLocaleDateString('pt-BR');
-        const horaFormatada = dataBaixa.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
         for (const item of itensDaComanda) {
-          const pacoteDeDados = {
-            data: dataFormatada,
-            hora: horaFormatada,
-            profissional: item.profissional || 'Desconhecido',
-            tipo: item.servico_tipo === 'produto' ? 'Produto' : 'Serviço',
-            descricao: item.servico || 'Sem Descrição',
-            valor: item.valor_total || 0,
-            pagamento: formaPagamento,
-            comissao: item.valor_comissao || 0 
-          };
-
-          fetch(GOOGLE_SHEETS_URL, {
-            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(pacoteDeDados)
-          }).catch(e => console.error("Erro ao sincronizar com Planilha:", e));
-
-          historicoLocal.push({
-             id: 'hist_' + Date.now() + Math.floor(Math.random() * 1000),
-             data: `${dataFormatada} às ${horaFormatada}`,
-             cliente_nome: item.cliente_nome,
-             servico: item.servico,
-             servico_tipo: item.servico_tipo,
-             profissional: item.profissional || 'Caixa',
-             valor_total: item.valor_total || 0,
-             valor_comissao: item.valor_comissao || 0,
-             forma_pagamento: formaPagamento,
-             status: 'concluido'
+          // Encontra o ID correto do profissional que está na fila
+          const colabEncontrado = colaboradores.find(c => c.nome === item.profissional);
+          
+          // 🚀 SAAS: Envia o atendimento finalizado DIRETO para o Render/Neon!
+          await fetch('https://gestaogold.onrender.com/api/atendimentos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empresa_id: idSaaS,
+              colaborador_id: colabEncontrado ? colabEncontrado.id : 2, // ID de segurança
+              servico_id: item.servico, // O backend acha o ID pelo nome automaticamente
+              cliente_nome: item.cliente_nome,
+              valor_cobrado: item.valor_total,
+              status: 'pago',
+              forma_pagamento: formaPagamento,
+              data_manual: new Date().toISOString()
+            })
           });
         }
-
+        
+        // Remove os itens finalizados da fila visual do Caixa
         filaLocal = filaLocal.filter(item => !ids.includes(item.id));
-        localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
       } else {
+        // Se for só pagamento antecipado, mantém na fila
         filaLocal = filaLocal.map(item => {
           if (ids.includes(item.id)) { item.status = statusNovo; item.forma_pagamento = formaPagamento; }
           return item;
@@ -311,8 +297,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       }
 
       localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
-      recarregarTudo(); 
-    } catch (erro) { console.error("Erro ao atualizar status:", erro); }
+      recarregarTudo(); // Puxa os dados atualizados do banco de dados na mesma hora!
+    } catch (erro) { console.error("Erro ao dar baixa:", erro); }
   };
 
   const iniciarServico = async (id) => {
