@@ -151,7 +151,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     return new Date(ano, mesA - 1, diaA) - new Date(ano, mesB - 1, diaB);
   });
 
-  // 🚀 NOVO FILTRO LOCAL DE COMISSÕES (Instantâneo e sem acionar o Neon)
   const filtrarComissoesPeriodo = () => {
     if (!dataInicio || !dataFim) return;
     
@@ -213,13 +212,16 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     carregarDadosExtras();
   });
 
-  const apagarHistorico = (id) => pedirConfirmacao("Excluir Definitivamente", "ATENÇÃO: Deseja destruir este registro da memória local? O financeiro será recalculado na hora.", async () => {
+  // 🚀 CORREÇÃO AQUI: Agora a Lixeira apaga de verdade no Banco de Dados SaaS!
+  const apagarHistorico = (id) => pedirConfirmacao("Excluir Definitivamente", "ATENÇÃO: Deseja destruir este registro do banco de dados? O financeiro será recalculado na hora.", async () => {
     try {
-      let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
-      historicoLocal = historicoLocal.filter(item => item.id !== id);
-      localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
-      recarregarTudo();
-    } catch(e) {}
+      const resposta = await fetch(`https://gestaogold.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
+      if (resposta.ok) {
+        recarregarTudo();
+      } else {
+        alert("Erro ao excluir do servidor.");
+      }
+    } catch(e) { console.error("Erro de conexão", e); }
   });
 
   const cancelarItemFila = (id, nomeServico) => pedirConfirmacao(
@@ -247,36 +249,33 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     }
   );
 
+  // 🚀 CORREÇÃO AQUI: Agora a Bandeira de Erro atualiza de verdade no Banco de Dados SaaS!
   const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador conferir?", async () => {
     try {
-      let historicoLocal = JSON.parse(localStorage.getItem('gestaoGold_historicoLocal') || '[]');
-      historicoLocal = historicoLocal.map(item => {
-         if(item.id === id) return { ...item, cliente_nome: `⚠️ ERRO: ${item.cliente_nome}` };
-         return item;
-      });
-      localStorage.setItem('gestaoGold_historicoLocal', JSON.stringify(historicoLocal));
-      recarregarTudo();
-    } catch(e) {}
+      const resposta = await fetch(`https://gestaogold.onrender.com/api/atendimentos/${id}/sinalizar-erro`, { method: 'PUT' });
+      if (resposta.ok) {
+        recarregarTudo();
+      } else {
+        alert("Erro ao sinalizar no servidor.");
+      }
+    } catch(e) { console.error("Erro de conexão", e); }
   });
 
- const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
+  const atualizarStatusComanda = async (itensDaComanda, statusNovo, formaPagamento = 'Dinheiro') => {
     const ids = itensDaComanda.map(item => item.id);
     try {
       let filaLocal = JSON.parse(localStorage.getItem('gestaoGold_filaLocal') || '[]');
 
       if (statusNovo === 'pago') {
         for (const item of itensDaComanda) {
-          // Encontra o ID correto do profissional que está na fila
           const colabEncontrado = colaboradores.find(c => c.nome === item.profissional);
-          
-          // 🚀 SAAS: Envia o atendimento finalizado DIRETO para o Render/Neon!
           await fetch('https://gestaogold.onrender.com/api/atendimentos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               empresa_id: idSaaS,
-              colaborador_id: colabEncontrado ? colabEncontrado.id : 2, // ID de segurança
-              servico_id: item.servico, // O backend acha o ID pelo nome automaticamente
+              colaborador_id: colabEncontrado ? colabEncontrado.id : 2, 
+              servico_id: item.servico, 
               cliente_nome: item.cliente_nome,
               valor_cobrado: item.valor_total,
               status: 'pago',
@@ -285,11 +284,8 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             })
           });
         }
-        
-        // Remove os itens finalizados da fila visual do Caixa
         filaLocal = filaLocal.filter(item => !ids.includes(item.id));
       } else {
-        // Se for só pagamento antecipado, mantém na fila
         filaLocal = filaLocal.map(item => {
           if (ids.includes(item.id)) { item.status = statusNovo; item.forma_pagamento = formaPagamento; }
           return item;
@@ -297,7 +293,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
       }
 
       localStorage.setItem('gestaoGold_filaLocal', JSON.stringify(filaLocal));
-      recarregarTudo(); // Puxa os dados atualizados do banco de dados na mesma hora!
+      recarregarTudo(); 
     } catch (erro) { console.error("Erro ao dar baixa:", erro); }
   };
 
