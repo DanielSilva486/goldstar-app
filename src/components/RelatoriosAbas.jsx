@@ -212,7 +212,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     carregarDadosExtras();
   });
 
-  // 🚀 CORREÇÃO AQUI: Agora a Lixeira apaga de verdade no Banco de Dados SaaS!
+  // 🚀 Lixeira apaga no Banco de Dados SaaS
   const apagarHistorico = (id) => pedirConfirmacao("Excluir Definitivamente", "ATENÇÃO: Deseja destruir este registro do banco de dados? O financeiro será recalculado na hora.", async () => {
     try {
       const resposta = await fetch(`https://gestaogold.onrender.com/api/comandas/${id}`, { method: 'DELETE' });
@@ -249,7 +249,7 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
     }
   );
 
-  // 🚀 CORREÇÃO AQUI: Agora a Bandeira de Erro atualiza de verdade no Banco de Dados SaaS!
+  // 🚀 Bandeira de Erro atualiza no Banco de Dados SaaS
   const sinalizarErroAtendimento = (id) => pedirConfirmacao("Sinalizar Erro", "Deseja marcar este atendimento como 'ERRO' para o Administrador conferir?", async () => {
     try {
       const resposta = await fetch(`https://gestaogold.onrender.com/api/atendimentos/${id}/sinalizar-erro`, { method: 'PUT' });
@@ -550,9 +550,6 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
             <div className="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex gap-3 overflow-x-auto scrollbar-hide items-center shadow-sm">
               <span className="text-xs font-bold text-orange-800 uppercase tracking-wider shrink-0 mr-2 flex items-center gap-1">⏳ Aguardando ({clientesAguardando.length}):</span>
               {clientesAguardando.length === 0 ? (
-                <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
-              ) : (
-                {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
                 clientesAguardando.map(({nomeCliente, itens}) => {
