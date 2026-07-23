@@ -552,12 +552,18 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
               {clientesAguardando.length === 0 ? (
                 <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
               ) : (
+                {clientesAguardando.length === 0 ? (
+                <span className="text-xs text-orange-600 italic">Fila vazia. 🎉</span>
+              ) : (
                 clientesAguardando.map(({nomeCliente, itens}) => {
                   const horaChegada = new Date(itens[0].data_hora).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
                   const valorTotal = itens.reduce((soma, item) => soma + Number(item.valor_total), 0);
                   const valorJaPago = itens.reduce((soma, item) => item.status === 'pago_antecipado' ? soma + Number(item.valor_total) : soma, 0);
                   const valorPendente = valorTotal - valorJaPago;
                   const safeId = nomeCliente.replace(/[^a-zA-Z0-9]/g, '');
+                  
+                  // 🔥 NOVA LÓGICA: Verifica se a ficha SÓ tem produtos
+                  const soTemProdutos = itens.every(i => i.servico_tipo === 'produto');
                   
                   return (
                     <div key={nomeCliente} className={`shrink-0 flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm min-w-[250px] transition-colors ${valorPendente === 0 ? 'bg-green-50/60 border-green-200' : 'bg-white border-orange-200'}`}>
@@ -568,17 +574,32 @@ export default function RelatoriosAbas({ dados, mes, ano, comandas, recarregarTu
                       <div className="flex gap-1 shrink-0">
                         <button onClick={() => cancelarAtendimentosFila(itens)} className="bg-red-50 text-red-500 p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Desistiu">🗑️</button>
                         <button onClick={() => setClienteParaExtra(nomeCliente)} className="bg-teal-50 text-teal-600 p-1.5 rounded-lg hover:bg-teal-100 transition-colors" title="Adicionar">➕</button>
+                        
                         {valorPendente > 0 ? (
-                          <div className="flex items-center gap-1 bg-blue-50 p-1 rounded-lg border border-blue-100 shadow-sm">
-                            <select id={`pagamento_aguard_${safeId}`} className="bg-transparent text-blue-700 font-bold text-[10px] outline-none cursor-pointer">
+                          <div className={`flex items-center gap-1 p-1 rounded-lg border shadow-sm ${soTemProdutos ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100'}`}>
+                            <select id={`pagamento_aguard_${safeId}`} className={`bg-transparent font-bold text-[10px] outline-none cursor-pointer ${soTemProdutos ? 'text-green-700' : 'text-blue-700'}`}>
                               <option value="Dinheiro">Dinheiro</option><option value="Pix">Pix</option><option value="Cartão">Cartão</option>
                             </select>
                             <button onClick={() => {
                                const f = document.getElementById(`pagamento_aguard_${safeId}`).value;
-                               atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado', f);
-                            }} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold transition-colors shadow-sm">💲 Antecipar</button>
+                               if (soTemProdutos) {
+                                   tocarSomBaixa();
+                                   atualizarStatusComanda(itens, 'pago', f);
+                               } else {
+                                   atualizarStatusComanda(itens.filter(i => i.status === 'pendente'), 'pago_antecipado', f);
+                               }
+                            }} className={`${soTemProdutos ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'} text-white px-2 py-1 rounded text-[10px] font-bold transition-colors shadow-sm`}>
+                               {soTemProdutos ? "💲 Dar Baixa" : "💲 Antecipar"}
+                            </button>
                           </div>
-                        ) : <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm">✅ Pago</span>}
+                        ) : (
+                           soTemProdutos ? (
+                             <button onClick={() => { tocarSomBaixa(); atualizarStatusComanda(itens, 'pago', itens[0].forma_pagamento || 'Dinheiro'); }} className="bg-green-500 hover:bg-green-600 text-white px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm transition-colors cursor-pointer">✅ Encerrar</button>
+                           ) : (
+                             <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-1.5 rounded-lg font-bold text-[10px] flex items-center shadow-sm">✅ Pago</span>
+                           )
+                        )}
+
                         {itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa') && (
                           <button onClick={() => iniciarServico(itens.find(i => i.servico_tipo !== 'produto' && i.profissional !== 'Caixa').id)} className="bg-blue-500 text-white px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold text-[10px] flex items-center transition-colors shadow-sm" title="Iniciar">▶ Iniciar</button>
                         )}
